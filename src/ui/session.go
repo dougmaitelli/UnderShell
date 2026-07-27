@@ -3,16 +3,13 @@ package ui
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
-	"sort"
 	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/colorprofile"
 	"github.com/charmbracelet/ssh"
 
@@ -28,13 +25,22 @@ type Identity struct {
 }
 
 type Runner struct {
-	characters repository.CharacterRepository
-	world      *world.Manager
-	log        *slog.Logger
+	characters  repository.CharacterRepository
+	inventories repository.InventoryRepository
+	world       *world.Manager
+	log         *slog.Logger
 }
 
-func New(characters repository.CharacterRepository, worldManager *world.Manager, log *slog.Logger) *Runner {
-	return &Runner{characters: characters, world: worldManager, log: log}
+func New(
+	characters repository.CharacterRepository,
+	inventories repository.InventoryRepository,
+	worldManager *world.Manager,
+	log *slog.Logger,
+) *Runner {
+	return &Runner{
+		characters: characters, inventories: inventories,
+		world: worldManager, log: log,
+	}
 }
 
 func (r *Runner) Run(session ssh.Session, identity Identity) {
@@ -50,8 +56,17 @@ func (r *Runner) Run(session ssh.Session, identity Identity) {
 		_, _ = io.WriteString(session, "The game could not load your character. Please try again.\n")
 		return
 	}
+	var inventory *domain.Inventory
+	if char != nil {
+		inventory, err = r.inventories.FindOrCreate(session.Context(), char.ID)
+		if err != nil {
+			r.log.Error("load inventory", "character_id", char.ID, "error", err)
+			_, _ = io.WriteString(session, "The game could not load your inventory. Please try again.\n")
+			return
+		}
+	}
 
-	model := newGameModel(r.characters, r.world, r.log, identity, char)
+	model := newGameModel(r.characters, r.inventories, r.world, r.log, identity, char, inventory)
 	program := tea.NewProgram(
 		model,
 		tea.WithContext(session.Context()),
@@ -91,16 +106,18 @@ const (
 )
 
 type gameModel struct {
-	characters repository.CharacterRepository
-	world      *world.Manager
-	log        *slog.Logger
-	identity   Identity
+	characters  repository.CharacterRepository
+	inventories repository.InventoryRepository
+	world       *world.Manager
+	log         *slog.Logger
+	identity    Identity
 
 	phase     phase
 	input     textinput.Model
 	message   string
 	creating  bool
 	character *domain.Character
+	inventory *domain.Inventory
 
 	worldSession world.Session
 	joined       bool
@@ -112,10 +129,13 @@ type gameModel struct {
 	heldDirections   map[string]bool
 	movementLoop     bool
 	moveInFlight     bool
+	inventoryOpen    bool
+	renderer         Renderer
 }
 
 type characterCreatedMsg struct {
 	character *domain.Character
+	inventory *domain.Inventory
 	err       error
 }
 
@@ -141,10 +161,12 @@ type movementTickMsg struct{}
 
 func newGameModel(
 	characters repository.CharacterRepository,
+	inventories repository.InventoryRepository,
 	worldManager *world.Manager,
 	log *slog.Logger,
 	identity Identity,
 	char *domain.Character,
+	inventory *domain.Inventory,
 ) *gameModel {
 	input := textinput.New()
 	input.Prompt = ""
@@ -161,9 +183,11 @@ func newGameModel(
 		currentPhase = phaseJoining
 	}
 	return &gameModel{
-		characters: characters, world: worldManager, log: log, identity: identity,
-		phase: currentPhase, input: input, character: char,
+		characters: characters, inventories: inventories,
+		world: worldManager, log: log, identity: identity,
+		phase: currentPhase, input: input, character: char, inventory: inventory,
 		width: 80, height: 24, heldDirections: make(map[string]bool),
+		renderer: NewRenderer(),
 	}
 }
 
@@ -190,6 +214,21 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateOnboarding(msg)
 		}
 		if m.phase == phasePlaying {
+			switch strings.ToLower(msg.String()) {
+			case "i":
+				m.inventoryOpen = !m.inventoryOpen
+				clear(m.heldDirections)
+				m.movementLoop = false
+				return m, nil
+			case "esc":
+				if m.inventoryOpen {
+					m.inventoryOpen = false
+					return m, nil
+				}
+			}
+			if m.inventoryOpen {
+				return m, nil
+			}
 			return m, m.handleMovementPress(msg.String())
 		}
 	case tea.KeyReleaseMsg:
@@ -198,6 +237,10 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case movementTickMsg:
+		if m.inventoryOpen {
+			m.movementLoop = false
+			return m, nil
+		}
 		return m, m.handleMovementTick()
 	case characterCreatedMsg:
 		m.creating = false
@@ -205,6 +248,12 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if errors.Is(msg.err, repository.ErrCharacterKeyExists) {
 				if existing, err := m.characters.FindByFingerprint(context.Background(), m.identity.Fingerprint); err == nil && existing != nil {
 					m.character = existing
+					inventory, inventoryErr := m.inventories.FindOrCreate(context.Background(), existing.ID)
+					if inventoryErr != nil {
+						m.message = inventoryErr.Error()
+						return m, nil
+					}
+					m.inventory = inventory
 					m.phase = phaseJoining
 					return m, m.joinWorld()
 				}
@@ -213,6 +262,7 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.character = msg.character
+		m.inventory = msg.inventory
 		m.phase = phaseJoining
 		m.input.Blur()
 		return m, m.joinWorld()
@@ -288,151 +338,26 @@ func (m *gameModel) updateOnboarding(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *gameModel) View() tea.View {
-	var content string
-	switch m.phase {
-	case phaseOnboarding:
-		content = m.welcomeView()
-	case phaseJoining:
-		content = lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, mutedStyle.Render("Entering the realm…"))
-	case phasePlaying:
-		content = m.gameView()
-	}
-	view := tea.NewView(content)
+	view := tea.NewView(m.renderer.Render(m.viewState()))
 	view.AltScreen = true
 	view.WindowTitle = "SSH Realms"
 	view.KeyboardEnhancements.ReportEventTypes = true
 	return view
 }
 
-func (m *gameModel) welcomeView() string {
-	if m.width < 46 || m.height < 14 {
-		return lipgloss.Place(
-			max(m.width, 1), max(m.height, 1),
-			lipgloss.Center, lipgloss.Center,
-			errorStyle.Render("Please resize your terminal to at least 46×14."),
-		)
+func (m *gameModel) viewState() ViewState {
+	return ViewState{
+		Phase:         m.phase,
+		Width:         m.width,
+		Height:        m.height,
+		Input:         m.input.View(),
+		Message:       m.message,
+		Creating:      m.creating,
+		Character:     m.character,
+		Snapshot:      m.snapshot,
+		InventoryOpen: m.inventoryOpen,
+		Inventory:     m.inventory,
 	}
-
-	status := "Enter to begin • Ctrl+C to leave"
-	if m.creating {
-		status = "Creating character…"
-	}
-	if m.message != "" {
-		status = errorStyle.Render(m.message)
-	} else {
-		status = mutedStyle.Render(status)
-	}
-
-	field := lipgloss.JoinHorizontal(
-		lipgloss.Center,
-		labelStyle.Render("Character name: "),
-		m.input.View(),
-	)
-	body := lipgloss.JoinVertical(
-		lipgloss.Center,
-		titleStyle.Render("SSH REALMS"),
-		"",
-		"Your SSH key has no character yet.",
-		"",
-		field,
-		"",
-		status,
-	)
-	box := welcomeBoxStyle.Render(body)
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
-}
-
-func (m *gameModel) gameView() string {
-	if m.width < 40 || m.height < 10 {
-		return lipgloss.Place(
-			max(m.width, 1), max(m.height, 1),
-			lipgloss.Center, lipgloss.Center,
-			errorStyle.Render("Please resize your terminal to at least 40×10."),
-		)
-	}
-
-	mapHeight := max(m.height-3, 1)
-	grid := make([][]string, mapHeight)
-	for y := range grid {
-		grid[y] = make([]string, m.width)
-		for x := range grid[y] {
-			grid[y][x] = " "
-		}
-	}
-
-	self := world.Player{
-		ID: m.character.ID, Name: m.character.Name, AreaID: m.character.AreaID,
-		X: m.character.X, Y: m.character.Y,
-	}
-	for _, player := range m.snapshot.Players {
-		if player.ID == m.character.ID {
-			self = player
-			break
-		}
-	}
-	left, top := self.X-m.width/2, self.Y-mapHeight/2
-	if m.snapshot.Area != nil {
-		for screenY := 0; screenY < mapHeight; screenY++ {
-			for screenX := 0; screenX < m.width; screenX++ {
-				point := world.Point{X: left + screenX, Y: top + screenY}
-				if !m.snapshot.Area.InBounds(point) {
-					continue
-				}
-				tile := m.snapshot.Area.Tile(point)
-				grid[screenY][screenX] = renderTile(tile)
-				if _, ok := m.snapshot.Area.Waypoint(point); ok {
-					grid[screenY][screenX] = waypointStyle.Render("◇")
-				}
-			}
-		}
-	}
-	nearby := make([]string, 0, len(m.snapshot.Players))
-	visiblePlayers := make([]world.Player, 0, len(m.snapshot.Players))
-	for _, player := range m.snapshot.Players {
-		x, y := player.X-left, player.Y-top
-		if x < 0 || y < 0 || x >= m.width || y >= mapHeight {
-			continue
-		}
-		visiblePlayers = append(visiblePlayers, player)
-		if player.ID != m.character.ID {
-			nearby = append(nearby, player.Name)
-		}
-	}
-	sort.SliceStable(visiblePlayers, func(i, j int) bool {
-		return visiblePlayers[i].ID != m.character.ID &&
-			visiblePlayers[j].ID == m.character.ID
-	})
-	for _, player := range visiblePlayers {
-		style := otherPlayerStyle
-		marker := "○"
-		if player.ID == m.character.ID {
-			style = selfPlayerStyle
-			marker = "@"
-		}
-		drawPlayer(
-			grid,
-			player.X-left,
-			player.Y-top,
-			marker,
-			player.Name,
-			style,
-		)
-	}
-	sort.Strings(nearby)
-
-	rows := make([]string, mapHeight)
-	for y, row := range grid {
-		rows[y] = strings.Join(row, "")
-	}
-	header := headerStyle.Render(fmt.Sprintf(
-		" %s • %s  (%d, %d)  Players here: %d",
-		self.Name, areaName(m.snapshot.Area), self.X, self.Y, len(m.snapshot.Players),
-	))
-	footer := " WASD/arrows: move • Ctrl+C: quit"
-	if len(nearby) > 0 {
-		footer += " • Nearby: " + strings.Join(nearby, ", ")
-	}
-	return header + "\n" + strings.Join(rows, "\n") + "\n" + mutedStyle.Render(footer)
 }
 
 func (m *gameModel) createCharacter(name string) tea.Cmd {
@@ -446,7 +371,11 @@ func (m *gameModel) createCharacter(name string) tea.Cmd {
 				Name:           name,
 			},
 		)
-		return characterCreatedMsg{character: char, err: err}
+		if err != nil {
+			return characterCreatedMsg{err: err}
+		}
+		inventory, err := m.inventories.FindOrCreate(context.Background(), char.ID)
+		return characterCreatedMsg{character: char, inventory: inventory, err: err}
 	}
 }
 
@@ -525,57 +454,6 @@ func (m *gameModel) savePosition() tea.Cmd {
 	}
 }
 
-func areaName(area *world.Area) string {
-	if area == nil {
-		return "Unknown Area"
-	}
-	return area.Name
-}
-
-func renderTile(tile rune) string {
-	switch tile {
-	case '#':
-		return wallStyle.Render("█")
-	case '.':
-		return " "
-	default:
-		return string(tile)
-	}
-}
-
-func drawPlayer(grid [][]string, x, baseY int, marker, name string, style lipgloss.Style) {
-	drawCentered(grid, x, baseY-3, terminalCellRunes(marker+" "+name), style)
-	drawCentered(grid, x, baseY-2, []rune("O"), style)
-	drawCentered(grid, x, baseY-1, []rune("/|\\"), style)
-	drawCentered(grid, x, baseY, []rune("/ \\"), style)
-}
-
-func drawCentered(grid [][]string, centerX, y int, content []rune, style lipgloss.Style) {
-	if y < 0 || y >= len(grid) {
-		return
-	}
-	startX := centerX - len(content)/2
-	for offset, cell := range content {
-		x := startX + offset
-		if x < 0 || x >= len(grid[y]) || cell == ' ' {
-			continue
-		}
-		grid[y][x] = style.Render(string(cell))
-	}
-}
-
-func terminalCellRunes(value string) []rune {
-	cells := make([]rune, 0, len(value))
-	for _, cell := range value {
-		if lipgloss.Width(string(cell)) == 1 {
-			cells = append(cells, cell)
-		} else {
-			cells = append(cells, '?')
-		}
-	}
-	return cells
-}
-
 func waitForSnapshot(updates <-chan world.Snapshot) tea.Cmd {
 	return func() tea.Msg {
 		snapshot, ok := <-updates
@@ -643,35 +521,3 @@ func heldMovement(held map[string]bool) (int, int) {
 	}
 	return dx, dy
 }
-
-var (
-	titleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#7DD3FC"))
-	labelStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#E2E8F0"))
-	mutedStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#94A3B8"))
-	errorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FB7185"))
-	welcomeBoxStyle = lipgloss.NewStyle().
-			Width(40).
-			Align(lipgloss.Center).
-			Padding(1, 2).
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#38BDF8"))
-	headerStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#E2E8F0"))
-	selfPlayerStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#FBBF24"))
-	otherPlayerStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(lipgloss.Color("#38BDF8"))
-	wallStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#334155"))
-	waypointStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#A78BFA"))
-)

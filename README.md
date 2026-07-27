@@ -32,6 +32,8 @@ Use a different SSH key to create another character.
 | Input | Action |
 |---|---|
 | WASD or arrow keys | Move |
+| I | Open or close inventory |
+| Esc | Close inventory |
 | Enter | Submit the character name |
 | Ctrl+C | Disconnect |
 
@@ -49,6 +51,7 @@ Configuration is supplied through environment variables.
 | `SSH_HOST_KEY_PATH` | `./data/ssh_host_ed25519` | Persistent Ed25519 server host-key path |
 | `DATABASE_PATH` | `./data/game.db` | Persistent SQLite database path |
 | `MAPS_PATH` | `./maps` | Directory containing JSON area definitions |
+| `ITEMS_PATH` | `./items/items.json` | JSON file containing available game items |
 
 Example:
 
@@ -56,6 +59,7 @@ Example:
 SSH_LISTEN_ADDR=:2022 \
 DATABASE_PATH=./data/development.db \
 MAPS_PATH=./maps \
+ITEMS_PATH=./items/items.json \
 make run
 ```
 
@@ -114,6 +118,27 @@ Large areas can use a compact generated layout instead of listing every row:
 
 Features are rectangular tile regions applied over the default tile. Generated
 layouts and explicit row layouts use the same spawn and waypoint validation.
+
+## Items
+
+Available game items are defined in `ITEMS_PATH`. Item IDs must be unique and
+use lowercase letters, numbers, underscores, or hyphens. `max_stack` must be at
+least 1.
+
+```json
+{
+  "items": [
+    {
+      "id": "health_potion",
+      "name": "Health Potion",
+      "description": "Restores a small amount of health.",
+      "max_stack": 10
+    }
+  ]
+}
+```
+
+The server validates and loads the full catalog during startup.
 
 ## Persistent data
 

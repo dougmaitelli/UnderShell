@@ -1,0 +1,22 @@
+{
+  "items": [
+    {
+      "id": "health_potion",
+      "name": "Health Potion",
+      "description": "Restores a small amount of health.",
+      "max_stack": 10
+    },
+    {
+      "id": "rusty_sword",
+      "name": "Rusty Sword",
+      "description": "An old blade that has seen better days.",
+      "max_stack": 1
+    },
+    {
+      "id": "slime_gel",
+      "name": "Slime Gel",
+      "description": "A sticky material left behind by slimes.",
+      "max_stack": 50
+    }
+  ]
+}

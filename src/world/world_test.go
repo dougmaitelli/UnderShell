@@ -6,7 +6,7 @@ import (
 )
 
 func TestPlayersOnlySeeOthersInTheirArea(t *testing.T) {
-	manager := New(testAreas(t))
+	manager := New(testAreas(t), nil)
 	defer manager.Close()
 
 	first := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
@@ -32,7 +32,7 @@ func TestPlayersOnlySeeOthersInTheirArea(t *testing.T) {
 }
 
 func TestWallsBlockMovementAndReconnectReplacesSession(t *testing.T) {
-	manager := New(testAreas(t))
+	manager := New(testAreas(t), nil)
 	defer manager.Close()
 
 	first := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
@@ -57,7 +57,7 @@ func TestWallsBlockMovementAndReconnectReplacesSession(t *testing.T) {
 }
 
 func TestUnknownOrBlockedSavedLocationUsesDefaultSpawn(t *testing.T) {
-	manager := New(testAreas(t))
+	manager := New(testAreas(t), nil)
 	defer manager.Close()
 
 	session := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "missing", X: 99, Y: 99})

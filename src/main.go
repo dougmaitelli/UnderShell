@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"sshrpg/src/config"
+	"sshrpg/src/item"
 	"sshrpg/src/persistence"
 	"sshrpg/src/repository"
 	"sshrpg/src/sshserver"
@@ -33,16 +34,22 @@ func main() {
 	}
 	defer database.Close()
 	characters := repository.NewCharacterRepository(database.ORM())
+	inventories := repository.NewInventoryRepository(database.ORM())
 
 	areas, err := world.LoadAreas(cfg.MapsPath)
 	if err != nil {
 		log.Error("load maps", "path", cfg.MapsPath, "error", err)
 		os.Exit(1)
 	}
-	worldManager := world.New(areas)
+	items, err := item.LoadCatalog(cfg.ItemsPath)
+	if err != nil {
+		log.Error("load items", "path", cfg.ItemsPath, "error", err)
+		os.Exit(1)
+	}
+	worldManager := world.New(areas, items)
 	defer worldManager.Close()
 
-	runner := ui.New(characters, worldManager, log)
+	runner := ui.New(characters, inventories, worldManager, log)
 	server, err := sshserver.New(cfg.ListenAddr, cfg.HostKeyPath, runner, log)
 	if err != nil {
 		log.Error("configure SSH server", "error", err)

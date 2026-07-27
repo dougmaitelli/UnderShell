@@ -4,6 +4,8 @@ package world
 import (
 	"crypto/rand"
 	"encoding/hex"
+
+	"sshrpg/src/item"
 )
 
 type Player struct {
@@ -27,6 +29,7 @@ type Session struct {
 
 type Manager struct {
 	areas  *AreaSet
+	items  *item.Catalog
 	events chan any
 	done   chan struct{}
 }
@@ -54,10 +57,17 @@ type leaveRequest struct {
 	token string
 }
 
-func New(areas *AreaSet) *Manager {
-	m := &Manager{areas: areas, events: make(chan any), done: make(chan struct{})}
+func New(areas *AreaSet, items *item.Catalog) *Manager {
+	m := &Manager{
+		areas: areas, items: items,
+		events: make(chan any), done: make(chan struct{}),
+	}
 	go m.run()
 	return m
+}
+
+func (m *Manager) Items() *item.Catalog {
+	return m.items
 }
 
 func (m *Manager) Close() { close(m.done) }

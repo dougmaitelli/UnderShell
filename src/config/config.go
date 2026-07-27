@@ -10,6 +10,7 @@ type Config struct {
 	HostKeyPath  string
 	DatabasePath string
 	MapsPath     string
+	ItemsPath    string
 }
 
 func Load() Config {
@@ -18,6 +19,7 @@ func Load() Config {
 		HostKeyPath:  env("SSH_HOST_KEY_PATH", "./data/ssh_host_ed25519"),
 		DatabasePath: env("DATABASE_PATH", "./data/game.db"),
 		MapsPath:     env("MAPS_PATH", "./maps"),
+		ItemsPath:    env("ITEMS_PATH", "./items/items.json"),
 	}
 }
 

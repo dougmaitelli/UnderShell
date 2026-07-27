@@ -69,5 +69,17 @@ func (d *Database) createSchema(ctx context.Context) error {
 		Exec(ctx); err != nil {
 		return fmt.Errorf("create character location schema: %w", err)
 	}
+	if _, err := d.orm.NewCreateTable().
+		Model((*entity.Inventory)(nil)).
+		IfNotExists().
+		Exec(ctx); err != nil {
+		return fmt.Errorf("create inventory schema: %w", err)
+	}
+	if _, err := d.orm.NewCreateTable().
+		Model((*entity.InventoryItem)(nil)).
+		IfNotExists().
+		Exec(ctx); err != nil {
+		return fmt.Errorf("create inventory item schema: %w", err)
+	}
 	return nil
 }

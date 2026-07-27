@@ -27,7 +27,7 @@ func TestMovementKeys(t *testing.T) {
 }
 
 func TestEnhancedMovementKeepsEarlierDirectionHeld(t *testing.T) {
-	model := newGameModel(nil, nil, nil, Identity{}, &domain.Character{ID: 1})
+	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{ID: 1}, nil)
 	model.phase = phasePlaying
 	model.enhancedKeyboard = true
 
@@ -44,10 +44,40 @@ func TestEnhancedMovementKeepsEarlierDirectionHeld(t *testing.T) {
 	}
 }
 
+func TestInventoryCanBeOpenedAndClosed(t *testing.T) {
+	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{ID: 1, Name: "Aria"}, nil)
+	model.phase = phasePlaying
+	model.width, model.height = 80, 24
+	model.heldDirections["left"] = true
+
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "i", Code: 'i'}))
+	if !model.inventoryOpen {
+		t.Fatal("inventory did not open")
+	}
+	if len(model.heldDirections) != 0 {
+		t.Fatal("opening inventory did not clear held movement")
+	}
+	output := ansi.Strip(model.View().Content)
+	if !strings.Contains(output, "INVENTORY") || !strings.Contains(output, "Your inventory is empty.") {
+		t.Fatalf("inventory window not rendered: %q", output)
+	}
+
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
+	if model.inventoryOpen {
+		t.Fatal("inventory did not close with Escape")
+	}
+
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "i", Code: 'i'}))
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "i", Code: 'i'}))
+	if model.inventoryOpen {
+		t.Fatal("inventory did not close with I")
+	}
+}
+
 func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
-	model := newGameModel(nil, nil, nil, Identity{}, &domain.Character{
+	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
 		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
-	})
+	}, nil)
 	areas, err := world.NewAreaSet([]world.AreaDefinition{{
 		ID: "meadow", Name: "Meadow",
 		Layout: []string{"######", "#....#", "######"},
@@ -63,7 +93,7 @@ func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
 		{ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1},
 		{ID: 2, Name: "Rowan", AreaID: "meadow", X: 12, Y: 1},
 	}}
-	output := model.gameView()
+	output := model.renderer.game.Render(model.viewState())
 	plain := ansi.Strip(output)
 	if !strings.Contains(plain, "Aria") ||
 		!strings.Contains(plain, "Rowan") ||
@@ -128,9 +158,9 @@ func TestWelcomeBorderRowsHaveEqualWidth(t *testing.T) {
 }
 
 func TestWelcomeViewUsesTerminalDimensions(t *testing.T) {
-	model := newGameModel(nil, nil, nil, Identity{}, nil)
+	model := newGameModel(nil, nil, nil, nil, Identity{}, nil, nil)
 	model.width, model.height = 80, 24
-	output := model.welcomeView()
+	output := model.renderer.welcome.Render(model.viewState())
 	if width, height := lipgloss.Size(output); width != 80 || height != 24 {
 		t.Fatalf("welcome size = %dx%d, want 80x24", width, height)
 	}

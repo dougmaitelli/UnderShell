@@ -90,7 +90,7 @@ func TestEnemiesSpawnToCapAndRespawnInsideTheirArea(t *testing.T) {
 		t.Fatal(err)
 	}
 	enemies, err := enemy.NewEnemies([]enemy.Definition{{
-		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 3,
+		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 3, Experience: 1,
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -142,7 +142,7 @@ func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
 		t.Fatal(err)
 	}
 	enemies, err := enemy.NewEnemies([]enemy.Definition{{
-		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 2,
+		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 2, Experience: 25,
 		Drops: []enemy.Drop{{ItemID: "slime_gel", Chance: 1}},
 	}})
 	if err != nil {
@@ -180,6 +180,12 @@ func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
 	if len(snapshot.Enemies) != 0 || len(snapshot.Drops) != 1 {
 		t.Fatalf("enemy death snapshot = enemies %#v, drops %#v", snapshot.Enemies, snapshot.Drops)
 	}
+	if len(snapshot.Players) != 1 ||
+		snapshot.Players[0].Level != 1 ||
+		snapshot.Players[0].Experience != 25 ||
+		snapshot.Players[0].SkillPoints != 0 {
+		t.Fatalf("enemy experience was not awarded: %#v", snapshot.Players)
+	}
 	dropID := snapshot.Drops[0].ID
 	if result := manager.Pickup(1, "wrong token"); result.Found {
 		t.Fatalf("unauthenticated pickup succeeded: %#v", result)
@@ -191,6 +197,21 @@ func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
 	snapshot = receiveSnapshot(t, session.Updates)
 	if len(snapshot.Drops) != 0 {
 		t.Fatalf("picked-up drop remains in snapshot: %#v", snapshot.Drops)
+	}
+}
+
+func TestExperienceCurveSupportsMultipleLevels(t *testing.T) {
+	if got := ExperienceToNextLevel(1); got != 100 {
+		t.Fatalf("level 1 requirement = %d, want 100", got)
+	}
+	if got := ExperienceToNextLevel(4); got != 1600 {
+		t.Fatalf("level 4 requirement = %d, want 1600", got)
+	}
+	player := Player{Level: 1}
+	grantExperience(&player, 750)
+	if player.Level != 3 || player.Experience != 250 || player.SkillPoints != 2 {
+		t.Fatalf("progress after 750 XP = level %d, XP %d, SP %d",
+			player.Level, player.Experience, player.SkillPoints)
 	}
 }
 

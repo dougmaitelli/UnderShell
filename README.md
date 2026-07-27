@@ -197,6 +197,7 @@ row. Leading and trailing spaces are preserved for shaping the art.
       "description": "A wobbling blob that roams the meadow.",
       "health": 3,
       "damage": 1,
+      "experience": 25,
       "drops": [
         { "item_id": "slime_gel", "chance": 0.75 }
       ],
@@ -222,6 +223,22 @@ roams without pursuing or attacking players. Player health is shown in the HUD.
 At zero health, the player immediately returns to the default area's starting
 point with full health. This default spawn currently serves as the global new
 player and death-respawn location.
+
+Killing an enemy grants its configured `experience` to the player who dealt the
+final hit. Characters begin at level 1. Reaching a new level grants one unspent
+skill point, and excess experience carries toward subsequent levels:
+
+| Current level | XP required |
+|---|---:|
+| 1 | 100 |
+| 2 | 400 |
+| 3 | 900 |
+| 4 | 1,600 |
+
+The requirement follows `100 × level²`, requiring 32,835,000 cumulative XP to
+reach level 100. There is no configured maximum level. Level, experience toward
+the next level, and unspent skill points are persisted with the character and
+displayed in the HUD.
 
 Each drop entry references an item from `ITEMS_PATH`. `chance` is greater than
 zero and at most one, where `1` always drops and `0.25` is a 25% chance. Dropped

@@ -70,6 +70,12 @@ func (d *Database) createSchema(ctx context.Context) error {
 		return fmt.Errorf("create character location schema: %w", err)
 	}
 	if _, err := d.orm.NewCreateTable().
+		Model((*entity.CharacterProgress)(nil)).
+		IfNotExists().
+		Exec(ctx); err != nil {
+		return fmt.Errorf("create character progress schema: %w", err)
+	}
+	if _, err := d.orm.NewCreateTable().
 		Model((*entity.Inventory)(nil)).
 		IfNotExists().
 		Exec(ctx); err != nil {

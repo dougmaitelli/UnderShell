@@ -12,13 +12,16 @@ import (
 )
 
 type Player struct {
-	ID        int64
-	Name      string
-	AreaID    string
-	X         int
-	Y         int
-	Health    int
-	MaxHealth int
+	ID          int64
+	Name        string
+	AreaID      string
+	X           int
+	Y           int
+	Health      int
+	MaxHealth   int
+	Level       int
+	Experience  int64
+	SkillPoints int
 }
 
 type Snapshot struct {
@@ -36,6 +39,7 @@ type Enemy struct {
 	Health       int
 	MaxHealth    int
 	Damage       int
+	Experience   int64
 	AreaID       string
 	X            int
 	Y            int
@@ -277,6 +281,7 @@ func (m *Manager) run() {
 					result.HitIDs = append(result.HitIDs, target.ID)
 					if target.Health <= 0 {
 						result.DefeatedIDs = append(result.DefeatedIDs, target.ID)
+						grantExperience(&player.Player, target.Experience)
 						m.removeEnemy(
 							liveEnemies, groundItems, spawns, target, &nextGroundItemID,
 						)
@@ -343,6 +348,9 @@ func (m *Manager) placePlayer(player *Player) {
 	if player.MaxHealth < 1 {
 		player.Health = playerMaxHealth
 		player.MaxHealth = playerMaxHealth
+	}
+	if player.Level < 1 {
+		player.Level = 1
 	}
 	area, ok := m.areas.Area(player.AreaID)
 	if !ok {
@@ -425,7 +433,7 @@ func (m *Manager) spawnEnemy(live map[uint64]*Enemy, area *Area, spawnIndex int,
 		ID: id, DefinitionID: definition.ID, Name: definition.Name,
 		Visual: append([]string(nil), definition.Visual...),
 		Health: definition.Health, MaxHealth: definition.Health,
-		Damage: definition.Damage,
+		Damage: definition.Damage, Experience: definition.Experience,
 		AreaID: area.ID, X: point.X, Y: point.Y, spawnIndex: spawnIndex,
 	}
 }
@@ -573,6 +581,45 @@ func sign(value int) int {
 		return 1
 	default:
 		return 0
+	}
+}
+
+// ExperienceToNextLevel returns the XP required to advance from level to level+1.
+// The quadratic requirement is 100*level² and saturates only at integer capacity.
+func ExperienceToNextLevel(level int) int64 {
+	const maxExperience = int64(1<<63 - 1)
+	if level < 1 {
+		level = 1
+	}
+	const largestSafeLevel = 303700049
+	if level > largestSafeLevel {
+		return maxExperience
+	}
+	value := int64(level)
+	return 100 * value * value
+}
+
+func grantExperience(player *Player, reward int64) {
+	const maxExperience = int64(1<<63 - 1)
+	if reward <= 0 {
+		return
+	}
+	if player.Level < 1 {
+		player.Level = 1
+	}
+	if reward > maxExperience-player.Experience {
+		player.Experience = maxExperience
+	} else {
+		player.Experience += reward
+	}
+	for {
+		requirement := ExperienceToNextLevel(player.Level)
+		if player.Experience < requirement {
+			return
+		}
+		player.Experience -= requirement
+		player.Level++
+		player.SkillPoints++
 	}
 }
 

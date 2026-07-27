@@ -161,6 +161,9 @@ type playerMovedMsg struct {
 type positionSavedMsg struct {
 	err error
 }
+type progressSavedMsg struct {
+	err error
+}
 
 type movementTickMsg struct{}
 type attackAnimationMsg struct{ frame int }
@@ -329,6 +332,7 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		m.snapshot = msg.snapshot
+		commands := []tea.Cmd{waitForSnapshot(m.worldSession.Updates)}
 		for _, player := range msg.snapshot.Players {
 			if player.ID != m.character.ID {
 				continue
@@ -336,17 +340,23 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			locationChanged := m.character.AreaID != player.AreaID ||
 				m.character.X != player.X ||
 				m.character.Y != player.Y
+			progressChanged := m.character.Level != player.Level ||
+				m.character.Experience != player.Experience ||
+				m.character.SkillPoints != player.SkillPoints
 			m.character.AreaID = player.AreaID
 			m.character.X, m.character.Y = player.X, player.Y
+			m.character.Level = player.Level
+			m.character.Experience = player.Experience
+			m.character.SkillPoints = player.SkillPoints
 			if locationChanged {
-				return m, tea.Batch(
-					waitForSnapshot(m.worldSession.Updates),
-					m.savePosition(),
-				)
+				commands = append(commands, m.savePosition())
+			}
+			if progressChanged {
+				commands = append(commands, m.saveProgress())
 			}
 			break
 		}
-		return m, waitForSnapshot(m.worldSession.Updates)
+		return m, tea.Batch(commands...)
 	case worldKickedMsg:
 		m.message = "This character connected from another session."
 		return m, tea.Quit
@@ -361,6 +371,10 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case positionSavedMsg:
 		if msg.err != nil {
 			m.log.Error("save position", "character_id", m.character.ID, "error", msg.err)
+		}
+	case progressSavedMsg:
+		if msg.err != nil {
+			m.log.Error("save progress", "character_id", m.character.ID, "error", msg.err)
 		}
 	}
 	return m, nil
@@ -440,6 +454,8 @@ func (m *gameModel) joinWorld() tea.Cmd {
 		session := m.world.Join(world.Player{
 			ID: m.character.ID, Name: m.character.Name,
 			AreaID: m.character.AreaID, X: m.character.X, Y: m.character.Y,
+			Level: m.character.Level, Experience: m.character.Experience,
+			SkillPoints: m.character.SkillPoints,
 		})
 		return worldJoinedMsg{session: session}
 	}
@@ -545,6 +561,16 @@ func (m *gameModel) savePosition() tea.Cmd {
 	id, areaID, x, y := m.character.ID, m.character.AreaID, m.character.X, m.character.Y
 	return func() tea.Msg {
 		return positionSavedMsg{err: m.characters.UpdateLocation(context.Background(), id, areaID, x, y)}
+	}
+}
+
+func (m *gameModel) saveProgress() tea.Cmd {
+	id := m.character.ID
+	level, experience, skillPoints := m.character.Level, m.character.Experience, m.character.SkillPoints
+	return func() tea.Msg {
+		return progressSavedMsg{err: m.characters.UpdateProgress(
+			context.Background(), id, level, experience, skillPoints,
+		)}
 	}
 }
 

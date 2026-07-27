@@ -25,6 +25,7 @@ type Definition struct {
 	Visual      []string `json:"visual"`
 	Health      int      `json:"health"`
 	Damage      int      `json:"damage"`
+	Experience  int64    `json:"experience"`
 	Drops       []Drop   `json:"drops"`
 }
 
@@ -164,6 +165,9 @@ func validateDefinition(definition Definition) error {
 	}
 	if definition.Damage < 0 {
 		return errors.New("damage cannot be negative")
+	}
+	if definition.Experience < 1 {
+		return errors.New("experience must be at least 1")
 	}
 	for index, drop := range definition.Drops {
 		if drop.ItemID == "" {

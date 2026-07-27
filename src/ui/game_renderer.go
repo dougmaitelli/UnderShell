@@ -114,9 +114,17 @@ func (GameRenderer) Render(state ViewState) string {
 	for y, row := range grid {
 		rows[y] = strings.Join(row, "")
 	}
+	progression := fmt.Sprintf(
+		"Lv %d • XP %d/%d", self.Level, self.Experience,
+		world.ExperienceToNextLevel(self.Level),
+	)
+	if self.SkillPoints > 0 {
+		progression += fmt.Sprintf(" • SP %d", self.SkillPoints)
+	}
 	header := headerStyle.Render(fmt.Sprintf(
-		" %s • HP %d/%d • %s  (%d, %d)  Players here: %d • Enemies: %d",
-		self.Name, self.Health, self.MaxHealth, areaName(state.Snapshot.Area), self.X, self.Y,
+		" %s • %s • HP %d/%d • %s  (%d, %d)  Players here: %d • Enemies: %d",
+		self.Name, progression, self.Health, self.MaxHealth,
+		areaName(state.Snapshot.Area), self.X, self.Y,
 		len(state.Snapshot.Players), len(state.Snapshot.Enemies),
 	))
 	footer := " WASD/arrows: move • X: attack • E: pick up • I: inventory • Ctrl+C: quit"

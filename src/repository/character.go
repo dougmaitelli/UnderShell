@@ -32,6 +32,7 @@ type CharacterRepository interface {
 	FindByFingerprint(context.Context, string) (*domain.Character, error)
 	Create(context.Context, CreateCharacterParams) (*domain.Character, error)
 	UpdateLocation(context.Context, int64, string, int, int) error
+	UpdateProgress(context.Context, int64, int, int64, int) error
 }
 
 type BunCharacterRepository struct {
@@ -68,7 +69,14 @@ func (r *BunCharacterRepository) FindByFingerprint(
 	} else if err != nil {
 		return nil, fmt.Errorf("find character location: %w", err)
 	}
-	return toDomain(record, location), nil
+	progress := &entity.CharacterProgress{CharacterID: record.ID}
+	err = r.db.NewSelect().Model(progress).WherePK().Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		progress = nil
+	} else if err != nil {
+		return nil, fmt.Errorf("find character progress: %w", err)
+	}
+	return toDomain(record, location, progress), nil
 }
 
 func (r *BunCharacterRepository) Create(
@@ -101,7 +109,7 @@ func (r *BunCharacterRepository) Create(
 			return nil, fmt.Errorf("create character: %w", err)
 		}
 	}
-	return toDomain(record, nil), nil
+	return toDomain(record, nil, nil), nil
 }
 
 func (r *BunCharacterRepository) UpdateLocation(
@@ -154,12 +162,47 @@ func (r *BunCharacterRepository) UpdateLocation(
 	return nil
 }
 
-func toDomain(record *entity.Character, location *entity.CharacterLocation) *domain.Character {
-	character := &domain.Character{ID: record.ID, Name: record.Name}
+func (r *BunCharacterRepository) UpdateProgress(
+	ctx context.Context,
+	id int64,
+	level int,
+	experience int64,
+	skillPoints int,
+) error {
+	if level < 1 || experience < 0 || skillPoints < 0 {
+		return errors.New("invalid character progress")
+	}
+	progress := &entity.CharacterProgress{
+		CharacterID: id,
+		Level:       level, Experience: experience, SkillPoints: skillPoints,
+	}
+	if _, err := r.db.NewInsert().
+		Model(progress).
+		On("CONFLICT (character_id) DO UPDATE").
+		Set("level = EXCLUDED.level").
+		Set("experience = EXCLUDED.experience").
+		Set("skill_points = EXCLUDED.skill_points").
+		Exec(ctx); err != nil {
+		return fmt.Errorf("update character progress: %w", err)
+	}
+	return nil
+}
+
+func toDomain(
+	record *entity.Character,
+	location *entity.CharacterLocation,
+	progress *entity.CharacterProgress,
+) *domain.Character {
+	character := &domain.Character{ID: record.ID, Name: record.Name, Level: 1}
 	if location != nil {
 		character.AreaID = location.AreaID
 		character.X = location.X
 		character.Y = location.Y
+	}
+	if progress != nil {
+		character.Level = progress.Level
+		character.Experience = progress.Experience
+		character.SkillPoints = progress.SkillPoints
 	}
 	return character
 }

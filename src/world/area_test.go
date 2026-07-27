@@ -89,7 +89,7 @@ func TestEnemySpawnValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	enemies, err := enemy.NewEnemies([]enemy.Definition{{
-		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 3,
+		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 3, Experience: 1,
 	}})
 	if err != nil {
 		t.Fatal(err)

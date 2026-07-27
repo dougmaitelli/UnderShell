@@ -30,7 +30,13 @@ func TestCharacterIdentityAndPersistence(t *testing.T) {
 	if created.AreaID != "" {
 		t.Fatalf("new character should not have a persisted location yet: %#v", created)
 	}
+	if created.Level != 1 || created.Experience != 0 || created.SkillPoints != 0 {
+		t.Fatalf("unexpected initial progression: %#v", created)
+	}
 	if err := characters.UpdateLocation(ctx, created.ID, "cavern", 7, 9); err != nil {
+		t.Fatal(err)
+	}
+	if err := characters.UpdateProgress(ctx, created.ID, 3, 50, 2); err != nil {
 		t.Fatal(err)
 	}
 
@@ -38,7 +44,9 @@ func TestCharacterIdentityAndPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if found == nil || found.Name != "Aria" || found.AreaID != "cavern" || found.X != 7 || found.Y != 9 {
+	if found == nil || found.Name != "Aria" || found.AreaID != "cavern" ||
+		found.X != 7 || found.Y != 9 ||
+		found.Level != 3 || found.Experience != 50 || found.SkillPoints != 2 {
 		t.Fatalf("unexpected character: %#v", found)
 	}
 

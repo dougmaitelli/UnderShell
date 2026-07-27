@@ -115,7 +115,10 @@ func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
 	model.phase = phasePlaying
 	model.width, model.height = 50, 15
 	model.snapshot = world.Snapshot{Area: area, Players: []world.Player{
-		{ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1},
+		{
+			ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
+			Level: 2, Experience: 25, SkillPoints: 1, Health: 8, MaxHealth: 10,
+		},
 		{ID: 2, Name: "Rowan", AreaID: "meadow", X: 12, Y: 1},
 	}}
 	output := model.renderer.game.Render(model.viewState())
@@ -139,6 +142,9 @@ func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
 	if !strings.Contains(output, "E: pick up") {
 		t.Fatalf("pickup control not rendered: %q", output)
 	}
+	if !strings.Contains(plain, "Lv 2 • XP 25/400 • SP 1 • HP 8/10") {
+		t.Fatalf("player progression not rendered: %q", plain)
+	}
 }
 
 func TestGroundItemsUseOneGenericMarker(t *testing.T) {
@@ -157,6 +163,9 @@ func TestGroundItemsUseOneGenericMarker(t *testing.T) {
 	plain := ansi.Strip(model.renderer.game.Render(model.viewState()))
 	if count := strings.Count(plain, "◆"); count != 2 {
 		t.Fatalf("generic ground item marker count = %d, want 2: %q", count, plain)
+	}
+	if strings.Contains(plain, "SP 0") {
+		t.Fatalf("zero skill points should not be rendered: %q", plain)
 	}
 }
 

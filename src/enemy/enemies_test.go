@@ -31,7 +31,7 @@ func TestLoadBundledEnemies(t *testing.T) {
 func TestLoadEnemiesRejectsInvalidVisualAndUnknownFields(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "enemies.json")
 	if err := os.WriteFile(path, []byte(`{
-		"enemies":[{"id":"slime","name":"Slime","description":"","health":1,"visual":[""]}]
+		"enemies":[{"id":"slime","name":"Slime","description":"","health":1,"experience":1,"visual":[""]}]
 	}`), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -49,12 +49,12 @@ func TestLoadEnemiesRejectsInvalidVisualAndUnknownFields(t *testing.T) {
 
 func TestEnemiesAllowPeacefulButRejectNegativeDamage(t *testing.T) {
 	if _, err := NewEnemies([]Definition{{
-		ID: "deer", Name: "Deer", Health: 2, Damage: 0, Visual: []string{"d"},
+		ID: "deer", Name: "Deer", Health: 2, Damage: 0, Experience: 1, Visual: []string{"d"},
 	}}); err != nil {
 		t.Fatalf("peaceful enemy was rejected: %v", err)
 	}
 	if _, err := NewEnemies([]Definition{{
-		ID: "broken", Name: "Broken", Health: 2, Damage: -1, Visual: []string{"b"},
+		ID: "broken", Name: "Broken", Health: 2, Damage: -1, Experience: 1, Visual: []string{"b"},
 	}}); err == nil {
 		t.Fatal("expected negative damage to fail")
 	}

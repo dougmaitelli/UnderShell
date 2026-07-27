@@ -97,10 +97,16 @@ func (GameRenderer) Render(state ViewState) string {
 	// Draw players last so the local character remains visible when entities overlap.
 	for _, player := range visiblePlayers {
 		style, marker := otherPlayerStyle, "○"
+		walkFrame, facingX, facingY := 0, 0, 0
 		if player.ID == state.Character.ID {
 			style, marker = selfPlayerStyle, "@"
+			walkFrame = state.WalkFrame
+			facingX, facingY = state.FacingX, state.FacingY
 		}
-		drawPlayer(grid, player.X-left, player.Y-top, marker, player.Name, style)
+		drawPlayer(
+			grid, player.X-left, player.Y-top,
+			marker, player.Name, walkFrame, facingX, facingY, style,
+		)
 	}
 	if state.AttackFrame > 0 {
 		drawSlash(
@@ -152,11 +158,35 @@ func renderTile(tile rune) string {
 	}
 }
 
-func drawPlayer(grid [][]string, x, baseY int, marker, name string, style lipgloss.Style) {
+func drawPlayer(
+	grid [][]string,
+	x, baseY int,
+	marker, name string,
+	walkFrame, facingX, facingY int,
+	style lipgloss.Style,
+) {
 	drawCentered(grid, x, baseY-3, terminalCellRunes(marker+" "+name), style)
 	drawCentered(grid, x, baseY-2, []rune("O"), style)
 	drawCentered(grid, x, baseY-1, []rune("/|\\"), style)
-	drawCentered(grid, x, baseY, []rune("/ \\"), style)
+	drawCentered(grid, x, baseY, []rune(playerLegs(walkFrame, facingX, facingY)), style)
+}
+
+func playerLegs(walkFrame, facingX, facingY int) string {
+	if walkFrame == 0 || walkFrame == 2 {
+		return "/ \\"
+	}
+	switch {
+	case facingX < 0:
+		return " /| "
+	case facingX > 0:
+		return "  |\\"
+	case facingY < 0:
+		return "/| "
+	case facingY > 0:
+		return " |\\"
+	default:
+		return "/ \\"
+	}
 }
 
 func drawEnemy(grid [][]string, x, baseY int, name string, visual []string, style lipgloss.Style) {

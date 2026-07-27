@@ -8,12 +8,15 @@ import (
 )
 
 type movementState struct {
-	enhanced bool
-	held     map[string]bool
-	looping  bool
-	inFlight bool
-	facingX  int
-	facingY  int
+	enhanced       bool
+	held           map[string]bool
+	looping        bool
+	inFlight       bool
+	facingX        int
+	facingY        int
+	walkFrame      int
+	walkSteps      uint64
+	walkGeneration uint64
 }
 
 func newMovementState() movementState {
@@ -23,11 +26,29 @@ func newMovementState() movementState {
 func (s *movementState) stop() {
 	clear(s.held)
 	s.looping = false
+	s.walkFrame = 0
+	s.walkGeneration++
 }
 
 func (s *movementState) setFacing(dx, dy int) {
 	if dx != 0 || dy != 0 {
 		s.facingX, s.facingY = dx, dy
+	}
+}
+
+func (s *movementState) step() tea.Cmd {
+	s.walkSteps++
+	s.walkFrame = int((s.walkSteps-1)/2%2) + 1
+	s.walkGeneration++
+	generation := s.walkGeneration
+	return tea.Tick(240*time.Millisecond, func(time.Time) tea.Msg {
+		return walkAnimationDoneMsg{generation: generation}
+	})
+}
+
+func (s *movementState) finishStep(generation uint64) {
+	if generation == s.walkGeneration {
+		s.walkFrame = 0
 	}
 }
 
@@ -43,7 +64,7 @@ func (m *gameModel) handleMovementPress(key string) tea.Cmd {
 			return nil
 		}
 		m.movement.inFlight = true
-		return m.movePlayer(dx, dy)
+		return tea.Batch(m.movePlayer(dx, dy), m.movement.step())
 	}
 
 	m.movement.held[direction] = true
@@ -51,7 +72,7 @@ func (m *gameModel) handleMovementPress(key string) tea.Cmd {
 	if !m.movement.inFlight {
 		dx, dy := heldMovement(m.movement.held)
 		m.movement.inFlight = true
-		commands = append(commands, m.movePlayer(dx, dy))
+		commands = append(commands, m.movePlayer(dx, dy), m.movement.step())
 	}
 	if !m.movement.looping {
 		m.movement.looping = true
@@ -70,7 +91,7 @@ func (m *gameModel) handleMovementTick() tea.Cmd {
 		dx, dy := heldMovement(m.movement.held)
 		if dx != 0 || dy != 0 {
 			m.movement.inFlight = true
-			commands = append(commands, m.movePlayer(dx, dy))
+			commands = append(commands, m.movePlayer(dx, dy), m.movement.step())
 		}
 	}
 	return tea.Batch(commands...)

@@ -25,6 +25,7 @@ type ViewState struct {
 	ChatInput     string
 	HelpOpen      bool
 	AttackFrame   int
+	WalkFrame     int
 	FacingX       int
 	FacingY       int
 }

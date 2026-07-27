@@ -44,6 +44,35 @@ func TestEnhancedMovementKeepsEarlierDirectionHeld(t *testing.T) {
 	}
 }
 
+func TestWalkingAnimationAlternatesAndReturnsToStanding(t *testing.T) {
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{ID: 1}, nil)
+
+	model.handleMovementPress("d")
+	firstGeneration := model.movement.walkGeneration
+	if model.movement.walkFrame != 1 {
+		t.Fatalf("first walk frame = %d, want 1", model.movement.walkFrame)
+	}
+
+	model.movement.inFlight = false
+	model.handleMovementPress("d")
+	if model.movement.walkFrame != 1 {
+		t.Fatalf("second walk frame = %d, want held frame 1", model.movement.walkFrame)
+	}
+	model.movement.inFlight = false
+	model.handleMovementPress("d")
+	if model.movement.walkFrame != 2 {
+		t.Fatalf("third walk frame = %d, want 2", model.movement.walkFrame)
+	}
+	model.movement.finishStep(firstGeneration)
+	if model.movement.walkFrame != 2 {
+		t.Fatal("an older animation timer stopped the current step")
+	}
+	model.movement.finishStep(model.movement.walkGeneration)
+	if model.movement.walkFrame != 0 {
+		t.Fatalf("finished walk frame = %d, want standing frame 0", model.movement.walkFrame)
+	}
+}
+
 func TestInventoryCanBeOpenedAndClosed(t *testing.T) {
 	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{ID: 1, Name: "Aria"}, nil)
 	model.phase = phasePlaying
@@ -253,13 +282,28 @@ func TestPlayerBaseIsAnchoredAtWorldCoordinate(t *testing.T) {
 			grid[y][x] = " "
 		}
 	}
-	drawPlayer(grid, 6, 6, "@", "Aria", lipgloss.NewStyle())
+	drawPlayer(grid, 6, 6, "@", "Aria", 0, 1, 0, lipgloss.NewStyle())
 
 	if grid[6][5] != "/" || grid[6][6] != " " || grid[6][7] != "\\" {
 		t.Fatalf("feet are not centered on base coordinate: %#v", grid[6][4:9])
 	}
 	if strings.Join(grid[3], "") != "   @ Aria   " {
 		t.Fatalf("name is not centered above the figure: %q", strings.Join(grid[3], ""))
+	}
+}
+
+func TestWalkingLegsExtendOnlyTowardMovement(t *testing.T) {
+	if legs := playerLegs(1, 1, 0); legs != "  |\\" {
+		t.Fatalf("right-facing legs = %q", legs)
+	}
+	if legs := playerLegs(1, -1, 0); legs != " /| " {
+		t.Fatalf("left-facing legs = %q", legs)
+	}
+	if legs := playerLegs(1, 0, -1); len([]rune(legs)) != 3 {
+		t.Fatalf("vertical legs are too wide: %q", legs)
+	}
+	if legs := playerLegs(2, 1, 0); legs != "/ \\" {
+		t.Fatalf("return pose = %q", legs)
 	}
 }
 

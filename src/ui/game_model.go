@@ -82,6 +82,7 @@ type progressSavedMsg struct {
 }
 
 type movementTickMsg struct{}
+type walkAnimationDoneMsg struct{ generation uint64 }
 type attackAnimationMsg struct{ frame int }
 type attackResultMsg struct{ result world.AttackResult }
 type pickupResultMsg struct{ result world.PickupResult }
@@ -155,6 +156,9 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m, m.handleMovementTick()
+	case walkAnimationDoneMsg:
+		m.movement.finishStep(msg.generation)
+		return m, nil
 	case attackAnimationMsg:
 		if !m.actions.advanceAttack(msg.frame) {
 			return m, nil
@@ -281,6 +285,7 @@ func (m *gameModel) viewState() ViewState {
 		ChatInput:     m.chat.input.View(),
 		HelpOpen:      m.mode == inputModeHelp,
 		AttackFrame:   m.actions.attackFrame,
+		WalkFrame:     m.movement.walkFrame,
 		FacingX:       m.movement.facingX,
 		FacingY:       m.movement.facingY,
 	}

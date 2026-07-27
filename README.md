@@ -37,6 +37,7 @@ Use a different SSH key to create another character.
 | I | Open or close inventory |
 | K | Open or close skills |
 | T | Focus chat |
+| F1 | Open or close help |
 | Esc | Close inventory |
 | Enter | Submit the character name |
 | Ctrl+C | Disconnect |
@@ -44,6 +45,9 @@ Use a different SSH key to create another character.
 Players are rendered as stick figures with identity markers and names overhead:
 `@ Aria` identifies your yellow character, while `○ Rowan` identifies another
 player in blue. `█` is a wall, and `◇` marks a waypoint to another area.
+
+The in-game footer stays compact and points to F1. The help window contains the
+complete shortcut list; close it with F1 or Escape.
 
 ## Configuration
 

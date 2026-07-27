@@ -187,20 +187,40 @@ func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
 	if !strings.Contains(output, "Nearby: Rowan") {
 		t.Fatalf("nearby player name not rendered: %q", output)
 	}
-	if !strings.Contains(output, "X: attack") {
-		t.Fatalf("attack control not rendered: %q", output)
-	}
-	if !strings.Contains(output, "E: pick up") {
-		t.Fatalf("pickup control not rendered: %q", output)
-	}
-	if !strings.Contains(output, "K: skills") {
-		t.Fatalf("skills control not rendered: %q", output)
-	}
-	if !strings.Contains(output, "T: chat") {
-		t.Fatalf("chat control not rendered: %q", output)
+	if !strings.Contains(output, "F1: help") {
+		t.Fatalf("help control not rendered: %q", output)
 	}
 	if !strings.Contains(plain, "Lv 2 • XP 25/400 • SP 1 • HP 8/10") {
 		t.Fatalf("player progression not rendered: %q", plain)
+	}
+}
+
+func TestHelpWindowListsCommandsAndBlocksGameplayInput(t *testing.T) {
+	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
+		ID: 1, Name: "Aria", Level: 1,
+	}, nil)
+	model.phase = phasePlaying
+	model.width, model.height = 80, 24
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyF1}))
+	if !model.helpOpen {
+		t.Fatal("F1 did not open help")
+	}
+	plain := ansi.Strip(model.View().Content)
+	for _, command := range []string{
+		"HELP", "WASD / arrows", "Attack nearby", "Open inventory",
+		"Open skills", "Focus chat", "Ctrl+C",
+	} {
+		if !strings.Contains(plain, command) {
+			t.Fatalf("help is missing %q: %q", command, plain)
+		}
+	}
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "i", Code: 'i'}))
+	if model.inventoryOpen {
+		t.Fatal("gameplay shortcut opened inventory over help")
+	}
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
+	if model.helpOpen {
+		t.Fatal("Escape did not close help")
 	}
 }
 

@@ -143,6 +143,7 @@ type gameModel struct {
 	nextEventID        uint64
 	chatFocused        bool
 	chatMessages       []world.ChatMessage
+	helpOpen           bool
 }
 
 type characterCreatedMsg struct {
@@ -265,7 +266,14 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if m.chatFocused {
 				return m.updateChat(msg)
 			}
-			switch strings.ToLower(msg.String()) {
+			key := strings.ToLower(msg.String())
+			if m.helpOpen {
+				if key == "f1" || key == "esc" {
+					m.helpOpen = false
+				}
+				return m, nil
+			}
+			switch key {
 			case "i":
 				if m.skillsOpen {
 					return m, nil
@@ -290,6 +298,14 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				clear(m.heldDirections)
 				m.movementLoop = false
 				return m, m.chatInput.Focus()
+			case "f1":
+				if m.inventoryOpen || m.skillsOpen {
+					return m, nil
+				}
+				m.helpOpen = true
+				clear(m.heldDirections)
+				m.movementLoop = false
+				return m, nil
 			case "esc":
 				if m.inventoryOpen {
 					m.inventoryOpen = false
@@ -562,6 +578,7 @@ func (m *gameModel) viewState() ViewState {
 		ChatMessages:  append([]world.ChatMessage(nil), m.chatMessages...),
 		ChatFocused:   m.chatFocused,
 		ChatInput:     m.chatInput.View(),
+		HelpOpen:      m.helpOpen,
 		AttackFrame:   m.attackFrame,
 		FacingX:       m.facingX,
 		FacingY:       m.facingY,

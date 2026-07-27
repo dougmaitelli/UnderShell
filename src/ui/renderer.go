@@ -23,6 +23,7 @@ type ViewState struct {
 	ChatMessages  []world.ChatMessage
 	ChatFocused   bool
 	ChatInput     string
+	HelpOpen      bool
 	AttackFrame   int
 	FacingX       int
 	FacingY       int
@@ -35,6 +36,7 @@ type Renderer struct {
 	skills    SkillsRenderer
 	events    EventRenderer
 	chat      ChatRenderer
+	help      HelpRenderer
 }
 
 func NewRenderer() Renderer {
@@ -45,6 +47,7 @@ func NewRenderer() Renderer {
 		skills:    SkillsRenderer{},
 		events:    EventRenderer{},
 		chat:      ChatRenderer{},
+		help:      HelpRenderer{},
 	}
 }
 
@@ -72,7 +75,11 @@ func (r Renderer) Render(state ViewState) string {
 			game, state.Width, state.Height,
 			state.ChatMessages, state.ChatFocused, state.ChatInput,
 		)
-		return r.events.RenderOver(game, state.Width, state.Height, state.Events)
+		game = r.events.RenderOver(game, state.Width, state.Height, state.Events)
+		if state.HelpOpen {
+			game = r.help.RenderOver(game, state.Width, state.Height)
+		}
+		return game
 	default:
 		return ""
 	}

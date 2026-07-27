@@ -20,6 +20,9 @@ type ViewState struct {
 	Inventory     *domain.Inventory
 	SkillsOpen    bool
 	Events        []EventView
+	ChatMessages  []world.ChatMessage
+	ChatFocused   bool
+	ChatInput     string
 	AttackFrame   int
 	FacingX       int
 	FacingY       int
@@ -31,6 +34,7 @@ type Renderer struct {
 	inventory InventoryRenderer
 	skills    SkillsRenderer
 	events    EventRenderer
+	chat      ChatRenderer
 }
 
 func NewRenderer() Renderer {
@@ -40,6 +44,7 @@ func NewRenderer() Renderer {
 		inventory: InventoryRenderer{},
 		skills:    SkillsRenderer{},
 		events:    EventRenderer{},
+		chat:      ChatRenderer{},
 	}
 }
 
@@ -63,6 +68,10 @@ func (r Renderer) Render(state ViewState) string {
 		if state.SkillsOpen {
 			game = r.skills.RenderOver(game, state.Width, state.Height, state.Character)
 		}
+		game = r.chat.RenderOver(
+			game, state.Width, state.Height,
+			state.ChatMessages, state.ChatFocused, state.ChatInput,
+		)
 		return r.events.RenderOver(game, state.Width, state.Height, state.Events)
 	default:
 		return ""

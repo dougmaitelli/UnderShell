@@ -1,6 +1,7 @@
 package world
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -270,6 +271,42 @@ func TestSkillPointsUpgradePlayerAttributes(t *testing.T) {
 	}
 }
 
+func TestGlobalChatBroadcastsAndPreloadsLatestTenMessages(t *testing.T) {
+	manager := New(testAreas(t), nil, nil)
+	defer manager.Close()
+	first := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
+	second := manager.Join(Player{ID: 2, Name: "Rowan", AreaID: "cavern", X: 1, Y: 1})
+	receiveSnapshot(t, first.Updates)
+	receiveSnapshot(t, second.Updates)
+
+	if manager.Chat(1, "wrong token", "nope") {
+		t.Fatal("unauthenticated chat message was accepted")
+	}
+	if !manager.Chat(1, first.Token, "hello realm") {
+		t.Fatal("valid chat message was rejected")
+	}
+	for _, session := range []Session{first, second} {
+		message := receiveChat(t, session.Chats)
+		if message.PlayerName != "Aria" || message.Message != "hello realm" {
+			t.Fatalf("broadcast chat = %#v", message)
+		}
+	}
+	for index := 0; index < 11; index++ {
+		if !manager.Chat(2, second.Token, fmt.Sprintf("message-%02d", index)) {
+			t.Fatal("valid chat message was rejected")
+		}
+	}
+	third := manager.Join(Player{ID: 3, Name: "Mira", AreaID: "meadow", X: 1, Y: 1})
+	receiveSnapshot(t, third.Updates)
+	for index := 1; index < 11; index++ {
+		message := receiveChat(t, third.Chats)
+		expected := fmt.Sprintf("message-%02d", index)
+		if message.Message != expected {
+			t.Fatalf("history message %d = %q, want %q", index, message.Message, expected)
+		}
+	}
+}
+
 func TestEnemyPursuesAndAttacksNearestPlayer(t *testing.T) {
 	areas, err := NewAreas([]AreaDefinition{{
 		ID: "meadow", Name: "Meadow",
@@ -425,6 +462,17 @@ func receiveEvent(t *testing.T, events <-chan Event) Event {
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for event")
 		return Event{}
+	}
+}
+
+func receiveChat(t *testing.T, messages <-chan ChatMessage) ChatMessage {
+	t.Helper()
+	select {
+	case message := <-messages:
+		return message
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for chat message")
+		return ChatMessage{}
 	}
 }
 

@@ -114,6 +114,7 @@ type gameModel struct {
 
 	phase     phase
 	input     textinput.Model
+	chatInput textinput.Model
 	message   string
 	creating  bool
 	character *domain.Character
@@ -140,6 +141,8 @@ type gameModel struct {
 	renderer           Renderer
 	events             []timedEvent
 	nextEventID        uint64
+	chatFocused        bool
+	chatMessages       []world.ChatMessage
 }
 
 type characterCreatedMsg struct {
@@ -159,6 +162,10 @@ type worldSnapshotMsg struct {
 type worldEventMsg struct {
 	event world.Event
 	ok    bool
+}
+type chatMessageMsg struct {
+	message world.ChatMessage
+	ok      bool
 }
 type worldKickedMsg struct{}
 
@@ -184,6 +191,7 @@ type itemStoredMsg struct {
 }
 type skillSpentMsg struct{ player world.Player }
 type eventExpiredMsg struct{ id uint64 }
+type chatSentMsg struct{ ok bool }
 
 type timedEvent struct {
 	id uint64
@@ -210,6 +218,11 @@ func newGameModel(
 		_, err := domain.ValidateCharacterName(value)
 		return err
 	}
+	chatInput := textinput.New()
+	chatInput.Prompt = ""
+	chatInput.Placeholder = "Message"
+	chatInput.CharLimit = 200
+	chatInput.SetWidth(28)
 
 	currentPhase := phaseOnboarding
 	if char != nil {
@@ -218,7 +231,8 @@ func newGameModel(
 	return &gameModel{
 		characters: characters, inventories: inventories,
 		world: worldManager, log: log, identity: identity,
-		phase: currentPhase, input: input, character: char, inventory: inventory,
+		phase: currentPhase, input: input, chatInput: chatInput,
+		character: char, inventory: inventory,
 		width: 80, height: 24, heldDirections: make(map[string]bool),
 		facingX:  1,
 		renderer: NewRenderer(),
@@ -248,6 +262,9 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateOnboarding(msg)
 		}
 		if m.phase == phasePlaying {
+			if m.chatFocused {
+				return m.updateChat(msg)
+			}
 			switch strings.ToLower(msg.String()) {
 			case "i":
 				if m.skillsOpen {
@@ -265,6 +282,14 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				clear(m.heldDirections)
 				m.movementLoop = false
 				return m, nil
+			case "t":
+				if m.inventoryOpen || m.skillsOpen {
+					return m, nil
+				}
+				m.chatFocused = true
+				clear(m.heldDirections)
+				m.movementLoop = false
+				return m, m.chatInput.Focus()
 			case "esc":
 				if m.inventoryOpen {
 					m.inventoryOpen = false
@@ -305,7 +330,7 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case movementTickMsg:
-		if m.inventoryOpen || m.skillsOpen {
+		if m.inventoryOpen || m.skillsOpen || m.chatFocused {
 			m.movementLoop = false
 			return m, nil
 		}
@@ -379,6 +404,7 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(
 			waitForSnapshot(msg.session.Updates),
 			waitForWorldEvent(msg.session.Events),
+			waitForChatMessage(msg.session.Chats),
 			waitForKick(msg.session.Kicked),
 		)
 	case worldEventMsg:
@@ -387,6 +413,17 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		expiry := m.addEvent(EventView{Kind: msg.event.Kind, Message: msg.event.Message})
 		return m, tea.Batch(expiry, waitForWorldEvent(m.worldSession.Events))
+	case chatMessageMsg:
+		if !msg.ok {
+			return m, nil
+		}
+		m.chatMessages = append(m.chatMessages, msg.message)
+		if len(m.chatMessages) > chatMessageLimit {
+			m.chatMessages = m.chatMessages[len(m.chatMessages)-chatMessageLimit:]
+		}
+		return m, waitForChatMessage(m.worldSession.Chats)
+	case chatSentMsg:
+		return m, nil
 	case eventExpiredMsg:
 		for index, event := range m.events {
 			if event.id == msg.id {
@@ -478,6 +515,28 @@ func (m *gameModel) updateOnboarding(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m *gameModel) updateChat(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "enter":
+		message := strings.TrimSpace(m.chatInput.Value())
+		m.chatInput.SetValue("")
+		m.chatInput.Blur()
+		m.chatFocused = false
+		if message == "" {
+			return m, nil
+		}
+		return m, m.sendChat(message)
+	case "esc":
+		m.chatInput.SetValue("")
+		m.chatInput.Blur()
+		m.chatFocused = false
+		return m, nil
+	}
+	var command tea.Cmd
+	m.chatInput, command = m.chatInput.Update(msg)
+	return m, command
+}
+
 func (m *gameModel) View() tea.View {
 	view := tea.NewView(m.renderer.Render(m.viewState()))
 	view.AltScreen = true
@@ -500,6 +559,9 @@ func (m *gameModel) viewState() ViewState {
 		Inventory:     m.inventory,
 		SkillsOpen:    m.skillsOpen,
 		Events:        m.eventViews(),
+		ChatMessages:  append([]world.ChatMessage(nil), m.chatMessages...),
+		ChatFocused:   m.chatFocused,
+		ChatInput:     m.chatInput.View(),
 		AttackFrame:   m.attackFrame,
 		FacingX:       m.facingX,
 		FacingY:       m.facingY,
@@ -564,6 +626,14 @@ func (m *gameModel) spendSkill(key string) tea.Cmd {
 	return func() tea.Msg {
 		return skillSpentMsg{player: m.world.SpendSkillPoint(
 			m.character.ID, m.worldSession.Token, skill,
+		)}
+	}
+}
+
+func (m *gameModel) sendChat(message string) tea.Cmd {
+	return func() tea.Msg {
+		return chatSentMsg{ok: m.world.Chat(
+			m.character.ID, m.worldSession.Token, message,
 		)}
 	}
 }
@@ -681,6 +751,13 @@ func waitForWorldEvent(events <-chan world.Event) tea.Cmd {
 	return func() tea.Msg {
 		event, ok := <-events
 		return worldEventMsg{event: event, ok: ok}
+	}
+}
+
+func waitForChatMessage(messages <-chan world.ChatMessage) tea.Cmd {
+	return func() tea.Msg {
+		message, ok := <-messages
+		return chatMessageMsg{message: message, ok: ok}
 	}
 }
 

@@ -6,7 +6,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	mathrand "math/rand/v2"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"sshrpg/src/enemy"
 	"sshrpg/src/item"
@@ -64,7 +67,14 @@ type Session struct {
 	Token   string
 	Updates <-chan Snapshot
 	Events  <-chan Event
+	Chats   <-chan ChatMessage
 	Kicked  <-chan struct{}
+}
+
+type ChatMessage struct {
+	PlayerID   int64
+	PlayerName string
+	Message    string
 }
 
 type EventKind string
@@ -96,6 +106,7 @@ type activePlayer struct {
 	token   string
 	updates chan Snapshot
 	events  chan Event
+	chats   chan ChatMessage
 	kicked  chan struct{}
 }
 
@@ -134,6 +145,12 @@ type spendSkillRequest struct {
 	skill string
 	reply chan Player
 }
+type chatRequest struct {
+	id      int64
+	token   string
+	message string
+	reply   chan bool
+}
 
 type AttackResult struct {
 	HitIDs      []uint64
@@ -146,6 +163,8 @@ const enemyAggroRange = 8
 const playerMaxHealth = 10
 const enemyAttackInterval = 1500 * time.Millisecond
 const vitalityHealthPerRank = 5
+const chatHistoryLimit = 10
+const chatMessageLimit = 200
 
 type PickupResult struct {
 	Item  GroundItem
@@ -211,6 +230,16 @@ func (m *Manager) SpendSkillPoint(id int64, token, skill string) Player {
 	}
 }
 
+func (m *Manager) Chat(id int64, token, message string) bool {
+	reply := make(chan bool)
+	select {
+	case m.events <- chatRequest{id: id, token: token, message: message, reply: reply}:
+		return <-reply
+	case <-m.done:
+		return false
+	}
+}
+
 func (m *Manager) Leave(id int64, token string) {
 	select {
 	case m.events <- leaveRequest{id: id, token: token}:
@@ -246,6 +275,7 @@ func (m *Manager) run() {
 	spawns := make(map[spawnKey]*spawnState)
 	var nextEnemyID uint64
 	var nextGroundItemID uint64
+	chatHistory := make([]ChatMessage, 0, chatHistoryLimit)
 	for _, area := range m.areas.areas {
 		for index, spawn := range area.EnemySpawns {
 			state := &spawnState{}
@@ -268,17 +298,23 @@ func (m *Manager) run() {
 					close(previous.kicked)
 					close(previous.updates)
 					close(previous.events)
+					close(previous.chats)
 				}
 				m.placePlayer(&e.player)
 				p := &activePlayer{
 					Player: e.player, token: newToken(),
 					updates: make(chan Snapshot, 1),
-					events:  make(chan Event, 32), kicked: make(chan struct{}),
+					events:  make(chan Event, 32),
+					chats:   make(chan ChatMessage, 32), kicked: make(chan struct{}),
 				}
 				players[p.ID] = p
+				for _, message := range chatHistory {
+					p.chats <- message
+				}
 				m.broadcastState(players, liveEnemies, groundItems)
 				e.reply <- Session{
-					Token: p.token, Updates: p.updates, Events: p.events, Kicked: p.kicked,
+					Token: p.token, Updates: p.updates, Events: p.events,
+					Chats: p.chats, Kicked: p.kicked,
 				}
 			case moveRequest:
 				p := players[e.id]
@@ -295,6 +331,7 @@ func (m *Manager) run() {
 					close(p.kicked)
 					close(p.updates)
 					close(p.events)
+					close(p.chats)
 					m.broadcastState(players, liveEnemies, groundItems)
 				}
 			case defeatEnemyRequest:
@@ -397,6 +434,27 @@ func (m *Manager) run() {
 				player.SkillPoints--
 				m.broadcastState(players, liveEnemies, groundItems)
 				e.reply <- player.Player
+			case chatRequest:
+				player := players[e.id]
+				message, ok := validateChatMessage(e.message)
+				if player == nil || player.token != e.token || !ok {
+					e.reply <- false
+					break
+				}
+				chat := ChatMessage{
+					PlayerID: player.ID, PlayerName: player.Name, Message: message,
+				}
+				chatHistory = append(chatHistory, chat)
+				if len(chatHistory) > chatHistoryLimit {
+					chatHistory = chatHistory[len(chatHistory)-chatHistoryLimit:]
+				}
+				for _, recipient := range players {
+					select {
+					case recipient.chats <- chat:
+					default:
+					}
+				}
+				e.reply <- true
 			}
 		case now := <-ticker.C:
 			changed := m.updateEnemies(players, liveEnemies, now)
@@ -424,6 +482,7 @@ func (m *Manager) run() {
 				close(p.kicked)
 				close(p.updates)
 				close(p.events)
+				close(p.chats)
 			}
 			return
 		}
@@ -692,6 +751,19 @@ func sendEvent(player *activePlayer, event Event) {
 	default:
 		// Keep the world loop responsive if a client stops consuming events.
 	}
+}
+
+func validateChatMessage(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" || utf8.RuneCountInString(value) > chatMessageLimit {
+		return "", false
+	}
+	for _, character := range value {
+		if unicode.IsControl(character) || !unicode.IsPrint(character) {
+			return "", false
+		}
+	}
+	return value, true
 }
 
 // ExperienceToNextLevel returns the XP required to advance from level to level+1.

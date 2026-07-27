@@ -104,6 +104,27 @@ func TestSkillsAndInventoryMenusAreMutuallyExclusive(t *testing.T) {
 	}
 }
 
+func TestChatFocusCapturesTypingUntilEnter(t *testing.T) {
+	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
+		ID: 1, Name: "Aria", Level: 1,
+	}, nil)
+	model.phase = phasePlaying
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "t", Code: 't'}))
+	if !model.chatFocused {
+		t.Fatal("T did not focus chat")
+	}
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "i", Code: 'i'}))
+	if model.inventoryOpen || model.chatInput.Value() != "i" {
+		t.Fatalf("chat did not capture gameplay key: inventory %v, input %q",
+			model.inventoryOpen, model.chatInput.Value())
+	}
+	_, command := model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+	if model.chatFocused || command == nil {
+		t.Fatalf("Enter did not send and return focus: focused %v, command %v",
+			model.chatFocused, command != nil)
+	}
+}
+
 func TestAttackKeyStartsSlashAnimation(t *testing.T) {
 	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
 		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
@@ -174,6 +195,9 @@ func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
 	}
 	if !strings.Contains(output, "K: skills") {
 		t.Fatalf("skills control not rendered: %q", output)
+	}
+	if !strings.Contains(output, "T: chat") {
+		t.Fatalf("chat control not rendered: %q", output)
 	}
 	if !strings.Contains(plain, "Lv 2 • XP 25/400 • SP 1 • HP 8/10") {
 		t.Fatalf("player progression not rendered: %q", plain)

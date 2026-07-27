@@ -127,7 +127,7 @@ func (GameRenderer) Render(state ViewState) string {
 		areaName(state.Snapshot.Area), self.X, self.Y,
 		len(state.Snapshot.Players), len(state.Snapshot.Enemies),
 	))
-	footer := " WASD/arrows: move • X: attack • E: pick up • I: inventory • K: skills • Ctrl+C: quit"
+	footer := " WASD/arrows: move • X: attack • E: pick up • I: inventory • K: skills • T: chat • Ctrl+C: quit"
 	if len(nearby) > 0 {
 		footer += " • Nearby: " + strings.Join(nearby, ", ")
 	}

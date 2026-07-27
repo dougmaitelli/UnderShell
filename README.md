@@ -36,6 +36,7 @@ Use a different SSH key to create another character.
 | E | Pick up nearby item drops |
 | I | Open or close inventory |
 | K | Open or close skills |
+| T | Focus chat |
 | Esc | Close inventory |
 | Enter | Submit the character name |
 | Ctrl+C | Disconnect |
@@ -264,6 +265,17 @@ skills menu is open.
 Events report item pickups, XP gains, level-ups, newly earned skill points,
 defeated enemies, incoming damage, player defeat, and respawning. Spending a
 skill point does not create an event.
+
+## Chat
+
+Global chat appears in a persistent overlay at the bottom-left, opposite the
+event overlay. It retains the latest 10 messages and appends new messages at the
+bottom without expiration. Newly connected players receive the current recent
+history.
+
+Press `T` to focus the chat input. While focused, gameplay shortcuts are treated
+as message text. Enter sends the message and returns focus to the game; Escape
+cancels the draft and returns focus without sending.
 
 Each drop entry references an item from `ITEMS_PATH`. `chance` is greater than
 zero and at most one, where `1` always drops and `0.25` is a 25% chance. Dropped

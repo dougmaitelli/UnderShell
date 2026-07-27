@@ -72,6 +72,15 @@ func (GameRenderer) Render(state ViewState) string {
 		return visiblePlayers[i].ID != state.Character.ID &&
 			visiblePlayers[j].ID == state.Character.ID
 	})
+	visibleDrops := append([]world.GroundItem(nil), state.Snapshot.Drops...)
+	sort.Slice(visibleDrops, func(i, j int) bool { return visibleDrops[i].ID < visibleDrops[j].ID })
+	for _, drop := range visibleDrops {
+		x, y := drop.X-left, drop.Y-top
+		if x < 0 || y < 0 || x >= state.Width || y >= mapHeight {
+			continue
+		}
+		drawCentered(grid, x, y, []rune("◆"), groundItemStyle)
+	}
 	visibleEnemies := append([]world.Enemy(nil), state.Snapshot.Enemies...)
 	sort.Slice(visibleEnemies, func(i, j int) bool { return visibleEnemies[i].ID < visibleEnemies[j].ID })
 	for _, enemy := range visibleEnemies {
@@ -110,7 +119,7 @@ func (GameRenderer) Render(state ViewState) string {
 		self.Name, areaName(state.Snapshot.Area), self.X, self.Y,
 		len(state.Snapshot.Players), len(state.Snapshot.Enemies),
 	))
-	footer := " WASD/arrows: move • X: attack • I: inventory • Ctrl+C: quit"
+	footer := " WASD/arrows: move • X: attack • E: pick up • I: inventory • Ctrl+C: quit"
 	if len(nearby) > 0 {
 		footer += " • Nearby: " + strings.Join(nearby, ", ")
 	}
@@ -210,6 +219,9 @@ var (
 	attackStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#FDE68A"))
+	groundItemStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#4ADE80"))
 	wallStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#334155"))
 	waypointStyle = lipgloss.NewStyle().

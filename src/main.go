@@ -56,6 +56,10 @@ func main() {
 		log.Error("validate enemy spawns", "error", err)
 		os.Exit(1)
 	}
+	if err := enemies.ValidateDrops(items); err != nil {
+		log.Error("validate enemy drops", "error", err)
+		os.Exit(1)
+	}
 	worldManager := world.New(areas, items, enemies)
 	defer worldManager.Close()
 

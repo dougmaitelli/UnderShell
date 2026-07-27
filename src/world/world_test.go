@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"sshrpg/src/enemy"
+	"sshrpg/src/item"
 )
 
 func TestPlayersOnlySeeOthersInTheirArea(t *testing.T) {
@@ -134,11 +135,18 @@ func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
 	}
 	enemies, err := enemy.NewEnemies([]enemy.Definition{{
 		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 2,
+		Drops: []enemy.Drop{{ItemID: "slime_gel", Chance: 1}},
 	}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	manager := New(areas, nil, enemies)
+	items, err := item.NewItems([]item.Definition{{
+		ID: "slime_gel", Name: "Slime Gel", MaxStack: 10,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := New(areas, items, enemies)
 	defer manager.Close()
 	session := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
 	snapshot := receiveSnapshot(t, session.Updates)
@@ -161,8 +169,20 @@ func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
 		t.Fatalf("second attack = %#v", second)
 	}
 	snapshot = receiveSnapshot(t, session.Updates)
-	if len(snapshot.Enemies) != 0 {
-		t.Fatalf("defeated enemy remains in snapshot: %#v", snapshot.Enemies)
+	if len(snapshot.Enemies) != 0 || len(snapshot.Drops) != 1 {
+		t.Fatalf("enemy death snapshot = enemies %#v, drops %#v", snapshot.Enemies, snapshot.Drops)
+	}
+	dropID := snapshot.Drops[0].ID
+	if result := manager.Pickup(1, "wrong token"); result.Found {
+		t.Fatalf("unauthenticated pickup succeeded: %#v", result)
+	}
+	pickedUp := manager.Pickup(1, session.Token)
+	if !pickedUp.Found || pickedUp.Item.ID != dropID || pickedUp.Item.ItemID != "slime_gel" {
+		t.Fatalf("pickup = %#v", pickedUp)
+	}
+	snapshot = receiveSnapshot(t, session.Updates)
+	if len(snapshot.Drops) != 0 {
+		t.Fatalf("picked-up drop remains in snapshot: %#v", snapshot.Drops)
 	}
 }
 

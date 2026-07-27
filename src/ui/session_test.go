@@ -88,6 +88,17 @@ func TestAttackKeyStartsSlashAnimation(t *testing.T) {
 	}
 }
 
+func TestPickupKeyRequestsNearbyDrop(t *testing.T) {
+	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
+		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
+	}, nil)
+	model.phase = phasePlaying
+	_, command := model.Update(tea.KeyPressMsg(tea.Key{Text: "e", Code: 'e'}))
+	if command == nil || !model.pickupInFlight {
+		t.Fatalf("pickup state = in-flight %v, command %v", model.pickupInFlight, command != nil)
+	}
+}
+
 func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
 	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
 		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
@@ -124,6 +135,28 @@ func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
 	}
 	if !strings.Contains(output, "X: attack") {
 		t.Fatalf("attack control not rendered: %q", output)
+	}
+	if !strings.Contains(output, "E: pick up") {
+		t.Fatalf("pickup control not rendered: %q", output)
+	}
+}
+
+func TestGroundItemsUseOneGenericMarker(t *testing.T) {
+	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
+		ID: 1, Name: "Aria", AreaID: "meadow", X: 10, Y: 5,
+	}, nil)
+	model.phase = phasePlaying
+	model.width, model.height = 40, 14
+	model.snapshot = world.Snapshot{
+		Players: []world.Player{{ID: 1, Name: "Aria", AreaID: "meadow", X: 10, Y: 5}},
+		Drops: []world.GroundItem{
+			{ID: 1, ItemID: "slime_gel", Name: "Slime Gel", AreaID: "meadow", X: 3, Y: 5},
+			{ID: 2, ItemID: "health_potion", Name: "Health Potion", AreaID: "meadow", X: 17, Y: 5},
+		},
+	}
+	plain := ansi.Strip(model.renderer.game.Render(model.viewState()))
+	if count := strings.Count(plain, "◆"); count != 2 {
+		t.Fatalf("generic ground item marker count = %d, want 2: %q", count, plain)
 	}
 }
 

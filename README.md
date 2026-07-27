@@ -33,6 +33,7 @@ Use a different SSH key to create another character.
 |---|---|
 | WASD or arrow keys | Move |
 | X | Attack nearby enemies |
+| E | Pick up nearby item drops |
 | I | Open or close inventory |
 | Esc | Close inventory |
 | Enter | Submit the character name |
@@ -175,6 +176,9 @@ row. Leading and trailing spaces are preserved for shaping the art.
       "name": "Slime",
       "description": "A wobbling blob that roams the meadow.",
       "health": 3,
+      "drops": [
+        { "item_id": "slime_gel", "chance": 0.75 }
+      ],
       "visual": [
         " .-. ",
         "(o_o)"
@@ -188,7 +192,13 @@ Enemies are initially created up to each spawn's cap, appear in world snapshots,
 and roam within their configured area. Each definition's `health` controls how
 many attacks it survives. Pressing `X` plays a directional slash and damages
 enemies within melee range; enemies at zero health die and enter their spawn's
-respawn cycle. Enemy state is currently runtime-only.
+respawn cycle.
+
+Each drop entry references an item from `ITEMS_PATH`. `chance` is greater than
+zero and at most one, where `1` always drops and `0.25` is a 25% chance. Dropped
+items appear as the same green `◆` marker regardless of type. Press `E` within
+two tiles to collect one into the persistent inventory; normal item stack limits
+are respected. Enemies and uncollected ground drops are runtime-only.
 
 ## Persistent data
 

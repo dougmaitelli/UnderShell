@@ -23,6 +23,7 @@ type Snapshot struct {
 	Area    *Area
 	Players []Player
 	Enemies []Enemy
+	Drops   []GroundItem
 }
 
 type Enemy struct {
@@ -36,6 +37,15 @@ type Enemy struct {
 	X            int
 	Y            int
 	spawnIndex   int
+}
+
+type GroundItem struct {
+	ID     uint64
+	ItemID string
+	Name   string
+	AreaID string
+	X      int
+	Y      int
 }
 
 type Session struct {
@@ -83,6 +93,11 @@ type attackRequest struct {
 	token string
 	reply chan AttackResult
 }
+type pickupRequest struct {
+	id    int64
+	token string
+	reply chan PickupResult
+}
 
 type AttackResult struct {
 	HitIDs      []uint64
@@ -90,6 +105,12 @@ type AttackResult struct {
 }
 
 const attackRange = 2
+const pickupRange = 2
+
+type PickupResult struct {
+	Item  GroundItem
+	Found bool
+}
 
 func New(areas *Areas, items *item.Items, enemies *enemy.Enemies) *Manager {
 	m := &Manager{
@@ -130,6 +151,16 @@ func (m *Manager) Attack(id int64, token string) AttackResult {
 	}
 }
 
+func (m *Manager) Pickup(id int64, token string) PickupResult {
+	reply := make(chan PickupResult)
+	select {
+	case m.events <- pickupRequest{id: id, token: token, reply: reply}:
+		return <-reply
+	case <-m.done:
+		return PickupResult{}
+	}
+}
+
 func (m *Manager) Leave(id int64, token string) {
 	select {
 	case m.events <- leaveRequest{id: id, token: token}:
@@ -161,8 +192,10 @@ type spawnState struct {
 func (m *Manager) run() {
 	players := make(map[int64]*activePlayer)
 	liveEnemies := make(map[uint64]*Enemy)
+	groundItems := make(map[uint64]*GroundItem)
 	spawns := make(map[spawnKey]*spawnState)
 	var nextEnemyID uint64
+	var nextGroundItemID uint64
 	for _, area := range m.areas.areas {
 		for index, spawn := range area.EnemySpawns {
 			state := &spawnState{}
@@ -192,13 +225,13 @@ func (m *Manager) run() {
 				}
 				players[p.ID] = p
 				e.reply <- Session{Token: p.token, Updates: p.updates, Kicked: p.kicked}
-				m.broadcastState(players, liveEnemies)
+				m.broadcastState(players, liveEnemies, groundItems)
 			case moveRequest:
 				p := players[e.id]
 				if p != nil && p.token == e.token {
 					m.move(p, e.dx, e.dy)
 					e.reply <- p.Player
-					m.broadcastState(players, liveEnemies)
+					m.broadcastState(players, liveEnemies, groundItems)
 				} else {
 					e.reply <- Player{}
 				}
@@ -207,7 +240,7 @@ func (m *Manager) run() {
 					delete(players, e.id)
 					close(p.kicked)
 					close(p.updates)
-					m.broadcastState(players, liveEnemies)
+					m.broadcastState(players, liveEnemies, groundItems)
 				}
 			case defeatEnemyRequest:
 				target := liveEnemies[e.id]
@@ -215,9 +248,11 @@ func (m *Manager) run() {
 					e.reply <- false
 					break
 				}
-				m.removeEnemy(liveEnemies, spawns, target)
+				m.removeEnemy(
+					liveEnemies, groundItems, spawns, target, &nextGroundItemID,
+				)
 				e.reply <- true
-				m.broadcastState(players, liveEnemies)
+				m.broadcastState(players, liveEnemies, groundItems)
 			case attackRequest:
 				result := AttackResult{}
 				player := players[e.id]
@@ -235,12 +270,35 @@ func (m *Manager) run() {
 					result.HitIDs = append(result.HitIDs, target.ID)
 					if target.Health <= 0 {
 						result.DefeatedIDs = append(result.DefeatedIDs, target.ID)
-						m.removeEnemy(liveEnemies, spawns, target)
+						m.removeEnemy(
+							liveEnemies, groundItems, spawns, target, &nextGroundItemID,
+						)
 					}
 				}
 				e.reply <- result
 				if len(result.HitIDs) > 0 {
-					m.broadcastState(players, liveEnemies)
+					m.broadcastState(players, liveEnemies, groundItems)
+				}
+			case pickupRequest:
+				result := PickupResult{}
+				player := players[e.id]
+				if player == nil || player.token != e.token {
+					e.reply <- result
+					break
+				}
+				for id, drop := range groundItems {
+					if drop.AreaID != player.AreaID ||
+						abs(drop.X-player.X) > pickupRange ||
+						abs(drop.Y-player.Y) > pickupRange {
+						continue
+					}
+					result.Item, result.Found = *drop, true
+					delete(groundItems, id)
+					break
+				}
+				e.reply <- result
+				if result.Found {
+					m.broadcastState(players, liveEnemies, groundItems)
 				}
 			}
 		case now := <-ticker.C:
@@ -262,7 +320,7 @@ func (m *Manager) run() {
 				}
 			}
 			if changed {
-				m.broadcastState(players, liveEnemies)
+				m.broadcastState(players, liveEnemies, groundItems)
 			}
 		case <-m.done:
 			for _, p := range players {
@@ -305,13 +363,18 @@ func (m *Manager) move(player *activePlayer, dx, dy int) {
 	}
 }
 
-func (m *Manager) broadcastState(players map[int64]*activePlayer, enemies map[uint64]*Enemy) {
+func (m *Manager) broadcastState(
+	players map[int64]*activePlayer,
+	enemies map[uint64]*Enemy,
+	drops map[uint64]*GroundItem,
+) {
 	for _, recipient := range players {
 		area, _ := m.areas.Area(recipient.AreaID)
 		snapshot := Snapshot{
 			Area:    area,
 			Players: make([]Player, 0, len(players)),
 			Enemies: make([]Enemy, 0),
+			Drops:   make([]GroundItem, 0),
 		}
 		for _, player := range players {
 			if player.AreaID == recipient.AreaID {
@@ -321,6 +384,11 @@ func (m *Manager) broadcastState(players map[int64]*activePlayer, enemies map[ui
 		for _, enemy := range enemies {
 			if enemy.AreaID == recipient.AreaID {
 				snapshot.Enemies = append(snapshot.Enemies, *enemy)
+			}
+		}
+		for _, drop := range drops {
+			if drop.AreaID == recipient.AreaID {
+				snapshot.Drops = append(snapshot.Drops, *drop)
 			}
 		}
 		select {
@@ -350,9 +418,31 @@ func (m *Manager) spawnEnemy(live map[uint64]*Enemy, area *Area, spawnIndex int,
 	}
 }
 
-func (m *Manager) removeEnemy(live map[uint64]*Enemy, spawns map[spawnKey]*spawnState, target *Enemy) {
+func (m *Manager) removeEnemy(
+	live map[uint64]*Enemy,
+	groundItems map[uint64]*GroundItem,
+	spawns map[spawnKey]*spawnState,
+	target *Enemy,
+	nextGroundItemID *uint64,
+) {
 	key := spawnKey{areaID: target.AreaID, index: target.spawnIndex}
 	delete(live, target.ID)
+	if definition, ok := m.enemies.Enemy(target.DefinitionID); ok {
+		for _, drop := range definition.Drops {
+			if mathrand.Float64() > drop.Chance {
+				continue
+			}
+			itemDefinition, ok := m.items.Item(drop.ItemID)
+			if !ok {
+				continue
+			}
+			*nextGroundItemID++
+			groundItems[*nextGroundItemID] = &GroundItem{
+				ID: *nextGroundItemID, ItemID: itemDefinition.ID, Name: itemDefinition.Name,
+				AreaID: target.AreaID, X: target.X, Y: target.Y,
+			}
+		}
+	}
 	state := spawns[key]
 	state.count--
 	if state.nextSpawn.IsZero() {

@@ -130,6 +130,7 @@ type gameModel struct {
 	movementLoop     bool
 	moveInFlight     bool
 	attackInFlight   bool
+	pickupInFlight   bool
 	attackFrame      int
 	facingX          int
 	facingY          int
@@ -164,6 +165,12 @@ type positionSavedMsg struct {
 type movementTickMsg struct{}
 type attackAnimationMsg struct{ frame int }
 type attackResultMsg struct{ result world.AttackResult }
+type pickupResultMsg struct{ result world.PickupResult }
+type itemStoredMsg struct {
+	inventory *domain.Inventory
+	itemName  string
+	err       error
+}
 
 func newGameModel(
 	characters repository.CharacterRepository,
@@ -239,6 +246,12 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 					return m, tea.Batch(m.attack(), attackAnimationTick(2))
 				}
 				return m, nil
+			case "e":
+				if !m.inventoryOpen && !m.pickupInFlight {
+					m.pickupInFlight = true
+					return m, m.pickup()
+				}
+				return m, nil
 			}
 			if m.inventoryOpen {
 				return m, nil
@@ -265,6 +278,22 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.attackFrame = msg.frame
 		return m, attackAnimationTick(msg.frame + 1)
 	case attackResultMsg:
+		return m, nil
+	case pickupResultMsg:
+		if !msg.result.Found {
+			m.pickupInFlight = false
+			return m, nil
+		}
+		return m, m.storePickup(msg.result.Item)
+	case itemStoredMsg:
+		m.pickupInFlight = false
+		if msg.err != nil {
+			m.log.Error("store picked up item", "character_id", m.character.ID, "error", msg.err)
+			m.message = "Could not add that item to your inventory."
+			return m, nil
+		}
+		m.inventory = msg.inventory
+		m.message = "Picked up " + msg.itemName + "."
 		return m, nil
 	case characterCreatedMsg:
 		m.creating = false
@@ -427,6 +456,25 @@ func (m *gameModel) movePlayer(dx, dy int) tea.Cmd {
 func (m *gameModel) attack() tea.Cmd {
 	return func() tea.Msg {
 		return attackResultMsg{result: m.world.Attack(m.character.ID, m.worldSession.Token)}
+	}
+}
+
+func (m *gameModel) pickup() tea.Cmd {
+	return func() tea.Msg {
+		return pickupResultMsg{result: m.world.Pickup(m.character.ID, m.worldSession.Token)}
+	}
+}
+
+func (m *gameModel) storePickup(drop world.GroundItem) tea.Cmd {
+	return func() tea.Msg {
+		definition, ok := m.world.Items().Item(drop.ItemID)
+		if !ok {
+			return itemStoredMsg{itemName: drop.Name, err: errors.New("unknown picked up item")}
+		}
+		inventory, err := m.inventories.AddItem(
+			context.Background(), m.character.ID, definition.ID, definition.MaxStack,
+		)
+		return itemStoredMsg{inventory: inventory, itemName: definition.Name, err: err}
 	}
 }
 

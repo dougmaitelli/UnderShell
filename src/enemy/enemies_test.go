@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"sshrpg/src/item"
 )
 
 func TestLoadBundledEnemies(t *testing.T) {
@@ -16,6 +18,13 @@ func TestLoadBundledEnemies(t *testing.T) {
 	}
 	if slime, ok := enemies.Enemy("slime"); !ok || len(slime.Visual) != 2 {
 		t.Fatalf("unexpected slime definition: %#v, %v", slime, ok)
+	}
+	items, err := item.LoadItems(filepath.Join("..", "..", "items", "items.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := enemies.ValidateDrops(items); err != nil {
+		t.Fatal(err)
 	}
 }
 

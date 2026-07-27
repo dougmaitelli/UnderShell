@@ -5,6 +5,9 @@
       "name": "Slime",
       "description": "A wobbling blob that roams the meadow.",
       "health": 3,
+      "drops": [
+        { "item_id": "slime_gel", "chance": 0.75 }
+      ],
       "visual": [
         " .-. ",
         "(o_o)"
@@ -15,6 +18,9 @@
       "name": "Cave Bat",
       "description": "A restless bat from the deeper caverns.",
       "health": 2,
+      "drops": [
+        { "item_id": "health_potion", "chance": 0.1 }
+      ],
       "visual": [
         "\\v/",
         "/ \\"

@@ -9,7 +9,14 @@ import (
 	"os"
 	"strings"
 	"unicode"
+
+	"sshrpg/src/item"
 )
+
+type Drop struct {
+	ItemID string  `json:"item_id"`
+	Chance float64 `json:"chance"`
+}
 
 type Definition struct {
 	ID          string   `json:"id"`
@@ -17,6 +24,7 @@ type Definition struct {
 	Description string   `json:"description"`
 	Visual      []string `json:"visual"`
 	Health      int      `json:"health"`
+	Drops       []Drop   `json:"drops"`
 }
 
 type enemiesFile struct {
@@ -63,6 +71,10 @@ func NewEnemies(definitions []Definition) (*Enemies, error) {
 		definition.Name = strings.TrimSpace(definition.Name)
 		definition.Description = strings.TrimSpace(definition.Description)
 		definition.Visual = append([]string(nil), definition.Visual...)
+		definition.Drops = append([]Drop(nil), definition.Drops...)
+		for dropIndex := range definition.Drops {
+			definition.Drops[dropIndex].ItemID = strings.TrimSpace(definition.Drops[dropIndex].ItemID)
+		}
 		if err := validateDefinition(definition); err != nil {
 			return nil, fmt.Errorf("enemy %d (%q): %w", index, definition.ID, err)
 		}
@@ -89,6 +101,23 @@ func (e *Enemies) All() []Definition {
 }
 
 func (e *Enemies) Len() int { return len(e.enemies) }
+
+func (e *Enemies) ValidateDrops(items *item.Items) error {
+	if items == nil {
+		return errors.New("items are required")
+	}
+	for _, definition := range e.enemies {
+		for index, drop := range definition.Drops {
+			if _, ok := items.Item(drop.ItemID); !ok {
+				return fmt.Errorf(
+					"enemy %q drop %d references unknown item %q",
+					definition.ID, index, drop.ItemID,
+				)
+			}
+		}
+	}
+	return nil
+}
 
 func validateDefinition(definition Definition) error {
 	if definition.ID == "" || definition.Name == "" {
@@ -131,6 +160,14 @@ func validateDefinition(definition Definition) error {
 	}
 	if definition.Health < 1 {
 		return errors.New("health must be at least 1")
+	}
+	for index, drop := range definition.Drops {
+		if drop.ItemID == "" {
+			return fmt.Errorf("drop %d requires item_id", index)
+		}
+		if drop.Chance <= 0 || drop.Chance > 1 {
+			return fmt.Errorf("drop %d chance must be greater than 0 and at most 1", index)
+		}
 	}
 	return nil
 }

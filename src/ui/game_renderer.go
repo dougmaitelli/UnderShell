@@ -72,6 +72,16 @@ func (GameRenderer) Render(state ViewState) string {
 		return visiblePlayers[i].ID != state.Character.ID &&
 			visiblePlayers[j].ID == state.Character.ID
 	})
+	visibleEnemies := append([]world.Enemy(nil), state.Snapshot.Enemies...)
+	sort.Slice(visibleEnemies, func(i, j int) bool { return visibleEnemies[i].ID < visibleEnemies[j].ID })
+	for _, enemy := range visibleEnemies {
+		x, y := enemy.X-left, enemy.Y-top
+		if x < 0 || y < 0 || x >= state.Width || y >= mapHeight {
+			continue
+		}
+		drawEnemy(grid, x, y, enemy.Name, enemy.Visual, enemyStyle)
+	}
+	// Draw players last so the local character remains visible when entities overlap.
 	for _, player := range visiblePlayers {
 		style, marker := otherPlayerStyle, "○"
 		if player.ID == state.Character.ID {
@@ -86,8 +96,9 @@ func (GameRenderer) Render(state ViewState) string {
 		rows[y] = strings.Join(row, "")
 	}
 	header := headerStyle.Render(fmt.Sprintf(
-		" %s • %s  (%d, %d)  Players here: %d",
-		self.Name, areaName(state.Snapshot.Area), self.X, self.Y, len(state.Snapshot.Players),
+		" %s • %s  (%d, %d)  Players here: %d • Enemies: %d",
+		self.Name, areaName(state.Snapshot.Area), self.X, self.Y,
+		len(state.Snapshot.Players), len(state.Snapshot.Enemies),
 	))
 	footer := " WASD/arrows: move • I: inventory • Ctrl+C: quit"
 	if len(nearby) > 0 {
@@ -119,6 +130,14 @@ func drawPlayer(grid [][]string, x, baseY int, marker, name string, style lipglo
 	drawCentered(grid, x, baseY-2, []rune("O"), style)
 	drawCentered(grid, x, baseY-1, []rune("/|\\"), style)
 	drawCentered(grid, x, baseY, []rune("/ \\"), style)
+}
+
+func drawEnemy(grid [][]string, x, baseY int, name string, visual []string, style lipgloss.Style) {
+	drawCentered(grid, x, baseY-len(visual), terminalCellRunes(name), style)
+	for rowIndex, row := range visual {
+		y := baseY - len(visual) + 1 + rowIndex
+		drawCentered(grid, x, y, terminalCellRunes(row), style)
+	}
 }
 
 func drawCentered(grid [][]string, centerX, y int, content []rune, style lipgloss.Style) {
@@ -157,6 +176,9 @@ var (
 	otherPlayerStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(lipgloss.Color("#38BDF8"))
+	enemyStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#FB7185"))
 	wallStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#334155"))
 	waypointStyle = lipgloss.NewStyle().

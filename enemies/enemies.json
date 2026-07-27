@@ -1,0 +1,22 @@
+{
+  "enemies": [
+    {
+      "id": "slime",
+      "name": "Slime",
+      "description": "A wobbling blob that roams the meadow.",
+      "visual": [
+        " .-. ",
+        "(o_o)"
+      ]
+    },
+    {
+      "id": "cave_bat",
+      "name": "Cave Bat",
+      "description": "A restless bat from the deeper caverns.",
+      "visual": [
+        "\\v/",
+        "/ \\"
+      ]
+    }
+  ]
+}

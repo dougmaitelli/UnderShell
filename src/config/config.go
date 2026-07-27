@@ -11,6 +11,7 @@ type Config struct {
 	DatabasePath string
 	MapsPath     string
 	ItemsPath    string
+	EnemiesPath  string
 }
 
 func Load() Config {
@@ -20,6 +21,7 @@ func Load() Config {
 		DatabasePath: env("DATABASE_PATH", "./data/game.db"),
 		MapsPath:     env("MAPS_PATH", "./maps"),
 		ItemsPath:    env("ITEMS_PATH", "./items/items.json"),
+		EnemiesPath:  env("ENEMIES_PATH", "./enemies/enemies.json"),
 	}
 }
 

@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"sshrpg/src/enemy"
 )
 
 func TestLoadAreasValidatesInterAreaWaypoints(t *testing.T) {
@@ -64,6 +66,36 @@ func TestBundledAreasAreValid(t *testing.T) {
 	}
 	if _, ok := cavern.Waypoint(Point{X: 2, Y: 32}); !ok {
 		t.Fatal("cavern waypoint does not cover its 3x3 center tile")
+	}
+	enemies, err := enemy.LoadEnemies(filepath.Join("..", "..", "enemies", "enemies.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := areas.ValidateEnemySpawns(enemies); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEnemySpawnValidation(t *testing.T) {
+	areas, err := NewAreas([]AreaDefinition{{
+		ID: "one", Name: "One", Layout: []string{"#####", "#...#", "#####"},
+		Spawn: Point{X: 1, Y: 1},
+		EnemySpawns: []EnemySpawn{{
+			EnemyID: "missing", X: 1, Y: 1, Width: 3, Height: 1,
+			MaxEnemies: 2, RespawnSeconds: 5,
+		}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	enemies, err := enemy.NewEnemies([]enemy.Definition{{
+		ID: "slime", Name: "Slime", Visual: []string{"(s)"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := areas.ValidateEnemySpawns(enemies); err == nil {
+		t.Fatal("expected unknown enemy reference to fail")
 	}
 }
 

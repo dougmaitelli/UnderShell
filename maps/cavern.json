@@ -16,6 +16,17 @@
     { "x": 125, "y": 52, "width": 43, "height": 3, "tile": "#" }
   ],
   "spawn": { "x": 7, "y": 32 },
+  "enemy_spawns": [
+    {
+      "enemy_id": "cave_bat",
+      "x": 110,
+      "y": 24,
+      "width": 24,
+      "height": 14,
+      "max_enemies": 5,
+      "respawn_seconds": 15
+    }
+  ],
   "waypoints": [
     {
       "x": 1,

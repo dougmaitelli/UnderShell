@@ -16,6 +16,17 @@
     { "x": 157, "y": 23, "width": 4, "height": 13, "tile": "#" }
   ],
   "spawn": { "x": 7, "y": 32 },
+  "enemy_spawns": [
+    {
+      "enemy_id": "slime",
+      "x": 40,
+      "y": 18,
+      "width": 20,
+      "height": 12,
+      "max_enemies": 4,
+      "respawn_seconds": 10
+    }
+  ],
   "waypoints": [
     {
       "x": 188,

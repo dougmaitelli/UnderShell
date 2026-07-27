@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"sshrpg/src/config"
+	"sshrpg/src/enemy"
 	"sshrpg/src/item"
 	"sshrpg/src/persistence"
 	"sshrpg/src/repository"
@@ -41,12 +42,21 @@ func main() {
 		log.Error("load maps", "path", cfg.MapsPath, "error", err)
 		os.Exit(1)
 	}
-	items, err := item.LoadCatalog(cfg.ItemsPath)
+	items, err := item.LoadItems(cfg.ItemsPath)
 	if err != nil {
 		log.Error("load items", "path", cfg.ItemsPath, "error", err)
 		os.Exit(1)
 	}
-	worldManager := world.New(areas, items)
+	enemies, err := enemy.LoadEnemies(cfg.EnemiesPath)
+	if err != nil {
+		log.Error("load enemies", "path", cfg.EnemiesPath, "error", err)
+		os.Exit(1)
+	}
+	if err := areas.ValidateEnemySpawns(enemies); err != nil {
+		log.Error("validate enemy spawns", "error", err)
+		os.Exit(1)
+	}
+	worldManager := world.New(areas, items, enemies)
 	defer worldManager.Close()
 
 	runner := ui.New(characters, inventories, worldManager, log)

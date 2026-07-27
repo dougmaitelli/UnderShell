@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestLoadCatalog(t *testing.T) {
+func TestLoadItems(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "items.json")
 	if err := os.WriteFile(path, []byte(`{
 		"items": [
@@ -16,18 +16,18 @@ func TestLoadCatalog(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	catalog, err := LoadCatalog(path)
+	items, err := LoadItems(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	definition, ok := catalog.Item("health_potion")
+	definition, ok := items.Item("health_potion")
 	if !ok || definition.Name != "Health Potion" || definition.MaxStack != 10 {
 		t.Fatalf("unexpected item definition: %#v", definition)
 	}
 }
 
-func TestCatalogRejectsDuplicateIDs(t *testing.T) {
-	_, err := NewCatalog([]Definition{
+func TestItemsRejectDuplicateIDs(t *testing.T) {
+	_, err := NewItems([]Definition{
 		{ID: "potion", Name: "Potion", MaxStack: 10},
 		{ID: "potion", Name: "Other Potion", MaxStack: 10},
 	})
@@ -36,12 +36,12 @@ func TestCatalogRejectsDuplicateIDs(t *testing.T) {
 	}
 }
 
-func TestBundledCatalogIsValid(t *testing.T) {
-	catalog, err := LoadCatalog(filepath.Join("..", "..", "items", "items.json"))
+func TestBundledItemsAreValid(t *testing.T) {
+	items, err := LoadItems(filepath.Join("..", "..", "items", "items.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if catalog.Len() == 0 {
-		t.Fatal("bundled item catalog is empty")
+	if items.Len() == 0 {
+		t.Fatal("bundled item definitions is empty")
 	}
 }

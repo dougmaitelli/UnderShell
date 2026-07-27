@@ -52,6 +52,7 @@ Configuration is supplied through environment variables.
 | `DATABASE_PATH` | `./data/game.db` | Persistent SQLite database path |
 | `MAPS_PATH` | `./maps` | Directory containing JSON area definitions |
 | `ITEMS_PATH` | `./items/items.json` | JSON file containing available game items |
+| `ENEMIES_PATH` | `./enemies/enemies.json` | JSON file containing available enemy types |
 
 Example:
 
@@ -60,6 +61,7 @@ SSH_LISTEN_ADDR=:2022 \
 DATABASE_PATH=./data/development.db \
 MAPS_PATH=./maps \
 ITEMS_PATH=./items/items.json \
+ENEMIES_PATH=./enemies/enemies.json \
 make run
 ```
 
@@ -78,6 +80,17 @@ same width. A `#` tile is a wall; every other printable character is walkable.
     "##########"
   ],
   "spawn": { "x": 1, "y": 1 },
+  "enemy_spawns": [
+    {
+      "enemy_id": "slime",
+      "x": 1,
+      "y": 1,
+      "width": 4,
+      "height": 3,
+      "max_enemies": 3,
+      "respawn_seconds": 10
+    }
+  ],
   "waypoints": [
     {
       "x": 6,
@@ -119,6 +132,12 @@ Large areas can use a compact generated layout instead of listing every row:
 Features are rectangular tile regions applied over the default tile. Generated
 layouts and explicit row layouts use the same spawn and waypoint validation.
 
+Each `enemy_spawns` entry is a rectangular roaming area. The referenced
+`enemy_id` must exist in the enemy definitions. `max_enemies` controls how many
+enemies owned by that spawn may be alive at once. After one is defeated, the
+spawn creates one replacement every `respawn_seconds` until it reaches its cap.
+Enemies choose walkable steps and cannot leave their owning spawn rectangle.
+
 ## Items
 
 Available game items are defined in `ITEMS_PATH`. Item IDs must be unique and
@@ -138,7 +157,33 @@ least 1.
 }
 ```
 
-The server validates and loads the full catalog during startup.
+The server validates and loads the full item definitions during startup.
+
+## Enemies
+
+Enemy types are defined in `ENEMIES_PATH`, separately from their map-owned
+spawn locations. IDs follow the same format as item IDs. `visual` contains
+between one and five rows of small ASCII art, with at most 15 characters per
+row. Leading and trailing spaces are preserved for shaping the art.
+
+```json
+{
+  "enemies": [
+    {
+      "id": "slime",
+      "name": "Slime",
+      "description": "A wobbling blob that roams the meadow.",
+      "visual": [
+        " .-. ",
+        "(o_o)"
+      ]
+    }
+  ]
+}
+```
+
+Enemies are initially created up to each spawn's cap, appear in world snapshots,
+and roam within their configured area. Enemy state is currently runtime-only.
 
 ## Persistent data
 

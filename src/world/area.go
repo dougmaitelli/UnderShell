@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode"
+
+	"sshrpg/src/enemy"
 )
 
 type Point struct {
@@ -26,16 +28,27 @@ type Waypoint struct {
 }
 
 type AreaDefinition struct {
-	ID        string     `json:"id"`
-	Name      string     `json:"name"`
-	Layout    []string   `json:"layout"`
-	Width     int        `json:"width"`
-	Height    int        `json:"height"`
-	Default   string     `json:"default_tile"`
-	Border    string     `json:"border_tile"`
-	Features  []TileRect `json:"features"`
-	Spawn     Point      `json:"spawn"`
-	Waypoints []Waypoint `json:"waypoints"`
+	ID          string       `json:"id"`
+	Name        string       `json:"name"`
+	Layout      []string     `json:"layout"`
+	Width       int          `json:"width"`
+	Height      int          `json:"height"`
+	Default     string       `json:"default_tile"`
+	Border      string       `json:"border_tile"`
+	Features    []TileRect   `json:"features"`
+	Spawn       Point        `json:"spawn"`
+	Waypoints   []Waypoint   `json:"waypoints"`
+	EnemySpawns []EnemySpawn `json:"enemy_spawns"`
+}
+
+type EnemySpawn struct {
+	EnemyID        string `json:"enemy_id"`
+	X              int    `json:"x"`
+	Y              int    `json:"y"`
+	Width          int    `json:"width"`
+	Height         int    `json:"height"`
+	MaxEnemies     int    `json:"max_enemies"`
+	RespawnSeconds int    `json:"respawn_seconds"`
 }
 
 type TileRect struct {
@@ -47,21 +60,22 @@ type TileRect struct {
 }
 
 type Area struct {
-	ID        string
-	Name      string
-	Layout    []string
-	Width     int
-	Height    int
-	Spawn     Point
-	waypoints map[Point]Waypoint
+	ID          string
+	Name        string
+	Layout      []string
+	Width       int
+	Height      int
+	Spawn       Point
+	EnemySpawns []EnemySpawn
+	waypoints   map[Point]Waypoint
 }
 
-type AreaSet struct {
+type Areas struct {
 	areas     map[string]*Area
 	defaultID string
 }
 
-func LoadAreas(directory string) (*AreaSet, error) {
+func LoadAreas(directory string) (*Areas, error) {
 	paths, err := filepath.Glob(filepath.Join(directory, "*.json"))
 	if err != nil {
 		return nil, fmt.Errorf("find area files: %w", err)
@@ -84,15 +98,15 @@ func LoadAreas(directory string) (*AreaSet, error) {
 		}
 		definitions = append(definitions, definition)
 	}
-	return NewAreaSet(definitions)
+	return NewAreas(definitions)
 }
 
-func NewAreaSet(definitions []AreaDefinition) (*AreaSet, error) {
+func NewAreas(definitions []AreaDefinition) (*Areas, error) {
 	if len(definitions) == 0 {
 		return nil, errors.New("at least one area is required")
 	}
 
-	set := &AreaSet{areas: make(map[string]*Area, len(definitions))}
+	set := &Areas{areas: make(map[string]*Area, len(definitions))}
 	for _, definition := range definitions {
 		area, err := buildArea(definition)
 		if err != nil {
@@ -128,13 +142,30 @@ func NewAreaSet(definitions []AreaDefinition) (*AreaSet, error) {
 	return set, nil
 }
 
-func (s *AreaSet) Area(id string) (*Area, bool) {
+func (s *Areas) Area(id string) (*Area, bool) {
 	area, ok := s.areas[id]
 	return area, ok
 }
 
-func (s *AreaSet) Default() *Area {
+func (s *Areas) Default() *Area {
 	return s.areas[s.defaultID]
+}
+
+func (s *Areas) ValidateEnemySpawns(enemies *enemy.Enemies) error {
+	if enemies == nil {
+		return errors.New("enemies are required")
+	}
+	for _, area := range s.areas {
+		for index, spawn := range area.EnemySpawns {
+			if _, ok := enemies.Enemy(spawn.EnemyID); !ok {
+				return fmt.Errorf(
+					"area %q enemy spawn %d references unknown enemy %q",
+					area.ID, index, spawn.EnemyID,
+				)
+			}
+		}
+	}
+	return nil
 }
 
 func (a *Area) Tile(point Point) rune {
@@ -190,7 +221,8 @@ func buildArea(definition AreaDefinition) (*Area, error) {
 		ID: definition.ID, Name: definition.Name,
 		Layout: append([]string(nil), definition.Layout...),
 		Width:  width, Height: len(definition.Layout), Spawn: definition.Spawn,
-		waypoints: make(map[Point]Waypoint, len(definition.Waypoints)),
+		EnemySpawns: append([]EnemySpawn(nil), definition.EnemySpawns...),
+		waypoints:   make(map[Point]Waypoint, len(definition.Waypoints)),
 	}
 	if !area.Walkable(area.Spawn) {
 		return nil, errors.New("spawn point must be on a walkable tile")
@@ -217,6 +249,33 @@ func buildArea(definition AreaDefinition) (*Area, error) {
 				area.waypoints[point] = waypoint
 			}
 		}
+	}
+	for index, spawn := range area.EnemySpawns {
+		spawn.EnemyID = strings.TrimSpace(spawn.EnemyID)
+		if spawn.EnemyID == "" {
+			return nil, fmt.Errorf("enemy spawn %d requires enemy_id", index)
+		}
+		if spawn.Width < 1 || spawn.Height < 1 {
+			return nil, fmt.Errorf("enemy spawn %d must have positive dimensions", index)
+		}
+		if spawn.MaxEnemies < 1 {
+			return nil, fmt.Errorf("enemy spawn %d max_enemies must be at least 1", index)
+		}
+		if spawn.RespawnSeconds < 1 {
+			return nil, fmt.Errorf("enemy spawn %d respawn_seconds must be at least 1", index)
+		}
+		hasWalkableTile := false
+		for y := spawn.Y; y < spawn.Y+spawn.Height; y++ {
+			for x := spawn.X; x < spawn.X+spawn.Width; x++ {
+				if area.Walkable(Point{X: x, Y: y}) {
+					hasWalkableTile = true
+				}
+			}
+		}
+		if !hasWalkableTile {
+			return nil, fmt.Errorf("enemy spawn %d must contain a walkable tile", index)
+		}
+		area.EnemySpawns[index] = spawn
 	}
 	return area, nil
 }

@@ -3,10 +3,12 @@ package world
 import (
 	"testing"
 	"time"
+
+	"sshrpg/src/enemy"
 )
 
 func TestPlayersOnlySeeOthersInTheirArea(t *testing.T) {
-	manager := New(testAreas(t), nil)
+	manager := New(testAreas(t), nil, nil)
 	defer manager.Close()
 
 	first := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
@@ -32,7 +34,7 @@ func TestPlayersOnlySeeOthersInTheirArea(t *testing.T) {
 }
 
 func TestWallsBlockMovementAndReconnectReplacesSession(t *testing.T) {
-	manager := New(testAreas(t), nil)
+	manager := New(testAreas(t), nil, nil)
 	defer manager.Close()
 
 	first := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
@@ -57,7 +59,7 @@ func TestWallsBlockMovementAndReconnectReplacesSession(t *testing.T) {
 }
 
 func TestUnknownOrBlockedSavedLocationUsesDefaultSpawn(t *testing.T) {
-	manager := New(testAreas(t), nil)
+	manager := New(testAreas(t), nil, nil)
 	defer manager.Close()
 
 	session := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "missing", X: 99, Y: 99})
@@ -65,9 +67,73 @@ func TestUnknownOrBlockedSavedLocationUsesDefaultSpawn(t *testing.T) {
 	assertPlayer(t, snapshot, 1, "meadow", 1, 1)
 }
 
-func testAreas(t *testing.T) *AreaSet {
+func TestEnemiesSpawnToCapAndRespawnInsideTheirArea(t *testing.T) {
+	areas, err := NewAreas([]AreaDefinition{{
+		ID: "meadow", Name: "Meadow",
+		Layout: []string{"#######", "#.....#", "#######"},
+		Spawn:  Point{X: 1, Y: 1},
+		EnemySpawns: []EnemySpawn{{
+			EnemyID: "slime", X: 2, Y: 1, Width: 3, Height: 1,
+			MaxEnemies: 2, RespawnSeconds: 1,
+		}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	enemies, err := enemy.NewEnemies([]enemy.Definition{{
+		ID: "slime", Name: "Slime", Visual: []string{"(s)"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := New(areas, nil, enemies)
+	defer manager.Close()
+
+	session := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
+	snapshot := receiveSnapshot(t, session.Updates)
+	assertEnemiesInSpawn(t, snapshot, 2)
+	if len(snapshot.Enemies[0].Visual) != 1 || snapshot.Enemies[0].Visual[0] != "(s)" {
+		t.Fatalf("enemy visual was not copied from its definition: %#v", snapshot.Enemies[0].Visual)
+	}
+	defeatedID := snapshot.Enemies[0].ID
+	if !manager.DefeatEnemy(defeatedID) {
+		t.Fatal("expected live enemy to be defeated")
+	}
+	snapshot = receiveSnapshot(t, session.Updates)
+	assertEnemiesInSpawn(t, snapshot, 1)
+
+	deadline := time.After(3 * time.Second)
+	for {
+		select {
+		case snapshot = <-session.Updates:
+			assertEnemiesInSpawn(t, snapshot, len(snapshot.Enemies))
+			if len(snapshot.Enemies) == 2 {
+				if snapshot.Enemies[0].ID == defeatedID || snapshot.Enemies[1].ID == defeatedID {
+					t.Fatal("respawned enemy reused a live ID")
+				}
+				return
+			}
+		case <-deadline:
+			t.Fatal("enemy did not respawn to the configured cap")
+		}
+	}
+}
+
+func assertEnemiesInSpawn(t *testing.T, snapshot Snapshot, count int) {
 	t.Helper()
-	areas, err := NewAreaSet([]AreaDefinition{
+	if len(snapshot.Enemies) != count {
+		t.Fatalf("enemy count = %d, want %d", len(snapshot.Enemies), count)
+	}
+	for _, current := range snapshot.Enemies {
+		if current.AreaID != "meadow" || current.X < 2 || current.X > 4 || current.Y != 1 {
+			t.Fatalf("enemy left its spawn area: %#v", current)
+		}
+	}
+}
+
+func testAreas(t *testing.T) *Areas {
+	t.Helper()
+	areas, err := NewAreas([]AreaDefinition{
 		{
 			ID: "meadow", Name: "Meadow",
 			Layout: []string{"####", "#..#", "####"},

@@ -78,7 +78,7 @@ func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
 	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
 		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
 	}, nil)
-	areas, err := world.NewAreaSet([]world.AreaDefinition{{
+	areas, err := world.NewAreas([]world.AreaDefinition{{
 		ID: "meadow", Name: "Meadow",
 		Layout: []string{"######", "#....#", "######"},
 		Spawn:  world.Point{X: 1, Y: 1},

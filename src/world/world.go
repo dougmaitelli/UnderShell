@@ -4,6 +4,7 @@ package world
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	mathrand "math/rand/v2"
 	"time"
 
@@ -62,7 +63,24 @@ type GroundItem struct {
 type Session struct {
 	Token   string
 	Updates <-chan Snapshot
+	Events  <-chan Event
 	Kicked  <-chan struct{}
+}
+
+type EventKind string
+
+const (
+	EventPickup      EventKind = "pickup"
+	EventProgression EventKind = "progression"
+	EventCombat      EventKind = "combat"
+	EventDamage      EventKind = "damage"
+	EventDeath       EventKind = "death"
+	EventRespawn     EventKind = "respawn"
+)
+
+type Event struct {
+	Kind    EventKind
+	Message string
 }
 
 type Manager struct {
@@ -77,6 +95,7 @@ type activePlayer struct {
 	Player
 	token   string
 	updates chan Snapshot
+	events  chan Event
 	kicked  chan struct{}
 }
 
@@ -248,21 +267,25 @@ func (m *Manager) run() {
 				if previous := players[e.player.ID]; previous != nil {
 					close(previous.kicked)
 					close(previous.updates)
+					close(previous.events)
 				}
 				m.placePlayer(&e.player)
 				p := &activePlayer{
 					Player: e.player, token: newToken(),
-					updates: make(chan Snapshot, 1), kicked: make(chan struct{}),
+					updates: make(chan Snapshot, 1),
+					events:  make(chan Event, 32), kicked: make(chan struct{}),
 				}
 				players[p.ID] = p
-				e.reply <- Session{Token: p.token, Updates: p.updates, Kicked: p.kicked}
 				m.broadcastState(players, liveEnemies, groundItems)
+				e.reply <- Session{
+					Token: p.token, Updates: p.updates, Events: p.events, Kicked: p.kicked,
+				}
 			case moveRequest:
 				p := players[e.id]
 				if p != nil && p.token == e.token {
 					m.move(p, e.dx, e.dy)
-					e.reply <- p.Player
 					m.broadcastState(players, liveEnemies, groundItems)
+					e.reply <- p.Player
 				} else {
 					e.reply <- Player{}
 				}
@@ -271,6 +294,7 @@ func (m *Manager) run() {
 					delete(players, e.id)
 					close(p.kicked)
 					close(p.updates)
+					close(p.events)
 					m.broadcastState(players, liveEnemies, groundItems)
 				}
 			case defeatEnemyRequest:
@@ -282,8 +306,8 @@ func (m *Manager) run() {
 				m.removeEnemy(
 					liveEnemies, groundItems, spawns, target, &nextGroundItemID,
 				)
-				e.reply <- true
 				m.broadcastState(players, liveEnemies, groundItems)
+				e.reply <- true
 			case attackRequest:
 				result := AttackResult{}
 				player := players[e.id]
@@ -301,16 +325,31 @@ func (m *Manager) run() {
 					result.HitIDs = append(result.HitIDs, target.ID)
 					if target.Health <= 0 {
 						result.DefeatedIDs = append(result.DefeatedIDs, target.ID)
+						sendEvent(player, Event{Kind: EventCombat, Message: "Defeated " + target.Name})
+						sendEvent(player, Event{
+							Kind:    EventProgression,
+							Message: fmt.Sprintf("Gained %d XP", target.Experience),
+						})
+						previousLevel := player.Level
 						grantExperience(&player.Player, target.Experience)
+						for level := previousLevel + 1; level <= player.Level; level++ {
+							sendEvent(player, Event{
+								Kind:    EventProgression,
+								Message: fmt.Sprintf("Level up! Reached level %d", level),
+							})
+							sendEvent(player, Event{
+								Kind: EventProgression, Message: "Gained 1 skill point",
+							})
+						}
 						m.removeEnemy(
 							liveEnemies, groundItems, spawns, target, &nextGroundItemID,
 						)
 					}
 				}
-				e.reply <- result
 				if len(result.HitIDs) > 0 {
 					m.broadcastState(players, liveEnemies, groundItems)
 				}
+				e.reply <- result
 			case pickupRequest:
 				result := PickupResult{}
 				player := players[e.id]
@@ -328,10 +367,10 @@ func (m *Manager) run() {
 					delete(groundItems, id)
 					break
 				}
-				e.reply <- result
 				if result.Found {
 					m.broadcastState(players, liveEnemies, groundItems)
 				}
+				e.reply <- result
 			case spendSkillRequest:
 				player := players[e.id]
 				if player == nil || player.token != e.token || player.SkillPoints < 1 {
@@ -356,8 +395,8 @@ func (m *Manager) run() {
 					break
 				}
 				player.SkillPoints--
-				e.reply <- player.Player
 				m.broadcastState(players, liveEnemies, groundItems)
+				e.reply <- player.Player
 			}
 		case now := <-ticker.C:
 			changed := m.updateEnemies(players, liveEnemies, now)
@@ -384,6 +423,7 @@ func (m *Manager) run() {
 			for _, p := range players {
 				close(p.kicked)
 				close(p.updates)
+				close(p.events)
 			}
 			return
 		}
@@ -539,10 +579,23 @@ func (m *Manager) updateEnemies(
 				continue
 			}
 			damage := max(current.Damage-targetPlayer.Defense, 0)
+			previousHealth := targetPlayer.Health
 			targetPlayer.Health = max(targetPlayer.Health-damage, 0)
 			current.nextAttack = now.Add(enemyAttackInterval)
+			if actualDamage := previousHealth - targetPlayer.Health; actualDamage > 0 {
+				sendEvent(targetPlayer, Event{
+					Kind:    EventDamage,
+					Message: fmt.Sprintf("Took %d damage from %s", actualDamage, current.Name),
+				})
+			}
 			if targetPlayer.Health == 0 {
+				sendEvent(targetPlayer, Event{Kind: EventDeath, Message: "You were defeated"})
 				m.respawnPlayer(&targetPlayer.Player)
+				spawnArea, _ := m.areas.Area(targetPlayer.AreaID)
+				sendEvent(targetPlayer, Event{
+					Kind:    EventRespawn,
+					Message: "Respawned in " + spawnArea.Name,
+				})
 				respawned[targetPlayer.ID] = true
 			}
 			changed = true
@@ -630,6 +683,14 @@ func sign(value int) int {
 		return 1
 	default:
 		return 0
+	}
+}
+
+func sendEvent(player *activePlayer, event Event) {
+	select {
+	case player.events <- event:
+	default:
+		// Keep the world loop responsive if a client stops consuming events.
 	}
 }
 

@@ -19,6 +19,7 @@ type ViewState struct {
 	InventoryOpen bool
 	Inventory     *domain.Inventory
 	SkillsOpen    bool
+	Events        []EventView
 	AttackFrame   int
 	FacingX       int
 	FacingY       int
@@ -29,6 +30,7 @@ type Renderer struct {
 	game      GameRenderer
 	inventory InventoryRenderer
 	skills    SkillsRenderer
+	events    EventRenderer
 }
 
 func NewRenderer() Renderer {
@@ -37,6 +39,7 @@ func NewRenderer() Renderer {
 		game:      GameRenderer{},
 		inventory: InventoryRenderer{},
 		skills:    SkillsRenderer{},
+		events:    EventRenderer{},
 	}
 }
 
@@ -55,12 +58,12 @@ func (r Renderer) Render(state ViewState) string {
 	case phasePlaying:
 		game := r.game.Render(state)
 		if state.InventoryOpen {
-			return r.inventory.RenderOver(game, state.Width, state.Height, state.Inventory)
+			game = r.inventory.RenderOver(game, state.Width, state.Height, state.Inventory)
 		}
 		if state.SkillsOpen {
-			return r.skills.RenderOver(game, state.Width, state.Height, state.Character)
+			game = r.skills.RenderOver(game, state.Width, state.Height, state.Character)
 		}
-		return game
+		return r.events.RenderOver(game, state.Width, state.Height, state.Events)
 	default:
 		return ""
 	}

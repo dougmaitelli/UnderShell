@@ -253,6 +253,18 @@ Attribute ranks are persistent. The skills and inventory menus are mutually
 exclusive; close the open menu with its shortcut or Escape before opening the
 other one.
 
+## Event overlay
+
+Temporary events appear in a color-coded overlay on the right side of the game.
+New messages append at the bottom and push older messages upward. The overlay
+shows at most the most recent 10 wrapped lines, and every event expires
+independently after six seconds. It remains visible while the inventory or
+skills menu is open.
+
+Events report item pickups, XP gains, level-ups, newly earned skill points,
+defeated enemies, incoming damage, player defeat, and respawning. Spending a
+skill point does not create an event.
+
 Each drop entry references an item from `ITEMS_PATH`. `chance` is greater than
 zero and at most one, where `1` always drops and `0.25` is a 25% chance. Dropped
 items appear as the same green `◆` marker regardless of type. Press `E` within

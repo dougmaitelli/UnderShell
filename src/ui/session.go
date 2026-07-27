@@ -138,6 +138,8 @@ type gameModel struct {
 	skillsOpen         bool
 	skillSpendInFlight bool
 	renderer           Renderer
+	events             []timedEvent
+	nextEventID        uint64
 }
 
 type characterCreatedMsg struct {
@@ -153,6 +155,10 @@ type worldJoinedMsg struct {
 type worldSnapshotMsg struct {
 	snapshot world.Snapshot
 	ok       bool
+}
+type worldEventMsg struct {
+	event world.Event
+	ok    bool
 }
 type worldKickedMsg struct{}
 
@@ -177,6 +183,14 @@ type itemStoredMsg struct {
 	err       error
 }
 type skillSpentMsg struct{ player world.Player }
+type eventExpiredMsg struct{ id uint64 }
+
+type timedEvent struct {
+	id uint64
+	EventView
+}
+
+const eventLifetime = 6 * time.Second
 
 func newGameModel(
 	characters repository.CharacterRepository,
@@ -321,7 +335,9 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.inventory = msg.inventory
 		m.message = "Picked up " + msg.itemName + "."
-		return m, nil
+		return m, m.addEvent(EventView{
+			Kind: world.EventPickup, Message: "Picked up " + msg.itemName,
+		})
 	case skillSpentMsg:
 		m.skillSpendInFlight = false
 		if msg.player.ID == 0 {
@@ -360,7 +376,25 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.worldSession = msg.session
 		m.joined = true
 		m.phase = phasePlaying
-		return m, tea.Batch(waitForSnapshot(msg.session.Updates), waitForKick(msg.session.Kicked))
+		return m, tea.Batch(
+			waitForSnapshot(msg.session.Updates),
+			waitForWorldEvent(msg.session.Events),
+			waitForKick(msg.session.Kicked),
+		)
+	case worldEventMsg:
+		if !msg.ok {
+			return m, nil
+		}
+		expiry := m.addEvent(EventView{Kind: msg.event.Kind, Message: msg.event.Message})
+		return m, tea.Batch(expiry, waitForWorldEvent(m.worldSession.Events))
+	case eventExpiredMsg:
+		for index, event := range m.events {
+			if event.id == msg.id {
+				m.events = append(m.events[:index], m.events[index+1:]...)
+				break
+			}
+		}
+		return m, nil
 	case worldSnapshotMsg:
 		if !msg.ok {
 			return m, tea.Quit
@@ -465,6 +499,7 @@ func (m *gameModel) viewState() ViewState {
 		InventoryOpen: m.inventoryOpen,
 		Inventory:     m.inventory,
 		SkillsOpen:    m.skillsOpen,
+		Events:        m.eventViews(),
 		AttackFrame:   m.attackFrame,
 		FacingX:       m.facingX,
 		FacingY:       m.facingY,
@@ -640,6 +675,30 @@ func waitForKick(kicked <-chan struct{}) tea.Cmd {
 		<-kicked
 		return worldKickedMsg{}
 	}
+}
+
+func waitForWorldEvent(events <-chan world.Event) tea.Cmd {
+	return func() tea.Msg {
+		event, ok := <-events
+		return worldEventMsg{event: event, ok: ok}
+	}
+}
+
+func (m *gameModel) addEvent(event EventView) tea.Cmd {
+	m.nextEventID++
+	id := m.nextEventID
+	m.events = append(m.events, timedEvent{id: id, EventView: event})
+	return tea.Tick(eventLifetime, func(time.Time) tea.Msg {
+		return eventExpiredMsg{id: id}
+	})
+}
+
+func (m *gameModel) eventViews() []EventView {
+	events := make([]EventView, len(m.events))
+	for index, event := range m.events {
+		events[index] = event.EventView
+	}
+	return events
 }
 
 func (m *gameModel) leaveWorld() {

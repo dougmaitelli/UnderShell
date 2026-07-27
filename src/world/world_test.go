@@ -142,7 +142,7 @@ func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
 		t.Fatal(err)
 	}
 	enemies, err := enemy.NewEnemies([]enemy.Definition{{
-		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 3, Experience: 25,
+		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 3, Experience: 125,
 		Drops: []enemy.Drop{{ItemID: "slime_gel", Chance: 1}},
 	}})
 	if err != nil {
@@ -183,10 +183,28 @@ func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
 		t.Fatalf("enemy death snapshot = enemies %#v, drops %#v", snapshot.Enemies, snapshot.Drops)
 	}
 	if len(snapshot.Players) != 1 ||
-		snapshot.Players[0].Level != 1 ||
+		snapshot.Players[0].Level != 2 ||
 		snapshot.Players[0].Experience != 25 ||
-		snapshot.Players[0].SkillPoints != 0 {
+		snapshot.Players[0].SkillPoints != 1 {
 		t.Fatalf("enemy experience was not awarded: %#v", snapshot.Players)
+	}
+	combatEvent := receiveEvent(t, session.Events)
+	if combatEvent.Kind != EventCombat || combatEvent.Message != "Defeated Slime" {
+		t.Fatalf("combat event = %#v", combatEvent)
+	}
+	xpEvent := receiveEvent(t, session.Events)
+	if xpEvent.Kind != EventProgression || xpEvent.Message != "Gained 125 XP" {
+		t.Fatalf("XP event = %#v", xpEvent)
+	}
+	levelEvent := receiveEvent(t, session.Events)
+	if levelEvent.Kind != EventProgression ||
+		levelEvent.Message != "Level up! Reached level 2" {
+		t.Fatalf("level event = %#v", levelEvent)
+	}
+	pointEvent := receiveEvent(t, session.Events)
+	if pointEvent.Kind != EventProgression ||
+		pointEvent.Message != "Gained 1 skill point" {
+		t.Fatalf("skill-point event = %#v", pointEvent)
 	}
 	dropID := snapshot.Drops[0].ID
 	if result := manager.Pickup(1, "wrong token"); result.Found {
@@ -245,6 +263,11 @@ func TestSkillPointsUpgradePlayerAttributes(t *testing.T) {
 	if exhausted := manager.SpendSkillPoint(1, session.Token, "attack"); exhausted.ID != 0 {
 		t.Fatalf("upgrade without points was accepted: %#v", exhausted)
 	}
+	select {
+	case event := <-session.Events:
+		t.Fatalf("spending a skill point emitted an event: %#v", event)
+	default:
+	}
 }
 
 func TestEnemyPursuesAndAttacksNearestPlayer(t *testing.T) {
@@ -267,10 +290,11 @@ func TestEnemyPursuesAndAttacksNearestPlayer(t *testing.T) {
 	player := &activePlayer{Player: Player{
 		ID: 1, AreaID: "meadow", X: 1, Y: 1,
 		Health: 10, MaxHealth: 10, Defense: 1,
-	}}
+	}, events: make(chan Event, 10)}
 	players := map[int64]*activePlayer{1: player}
 	live := map[uint64]*Enemy{1: {
-		ID: 1, AreaID: "meadow", X: 5, Y: 1, Damage: 2, spawnIndex: 0,
+		ID: 1, Name: "Cave Bat", AreaID: "meadow", X: 5, Y: 1,
+		Damage: 2, spawnIndex: 0,
 	}}
 	now := time.Now()
 
@@ -300,6 +324,18 @@ func TestEnemyPursuesAndAttacksNearestPlayer(t *testing.T) {
 	if player.Health != playerMaxHealth || player.MaxHealth != playerMaxHealth ||
 		player.AreaID != "meadow" || player.X != 4 || player.Y != 1 {
 		t.Fatalf("dead player did not respawn at full health: %#v", player.Player)
+	}
+	expectedEvents := []Event{
+		{Kind: EventDamage, Message: "Took 1 damage from Cave Bat"},
+		{Kind: EventDamage, Message: "Took 1 damage from Cave Bat"},
+		{Kind: EventDamage, Message: "Took 1 damage from Cave Bat"},
+		{Kind: EventDeath, Message: "You were defeated"},
+		{Kind: EventRespawn, Message: "Respawned in Meadow"},
+	}
+	for index, expected := range expectedEvents {
+		if actual := <-player.events; actual != expected {
+			t.Fatalf("event %d = %#v, want %#v", index, actual, expected)
+		}
 	}
 }
 
@@ -378,6 +414,17 @@ func receiveSnapshot(t *testing.T, updates <-chan Snapshot) Snapshot {
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for snapshot")
 		return Snapshot{}
+	}
+}
+
+func receiveEvent(t *testing.T, events <-chan Event) Event {
+	t.Helper()
+	select {
+	case event := <-events:
+		return event
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for event")
+		return Event{}
 	}
 }
 

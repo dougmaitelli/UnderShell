@@ -1,0 +1,68 @@
+// Command sshrpg starts the SSH game server.
+package main
+
+import (
+	"context"
+	"log/slog"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
+	"time"
+
+	"sshrpg/src/config"
+	"sshrpg/src/persistence"
+	"sshrpg/src/repository"
+	"sshrpg/src/sshserver"
+	"sshrpg/src/ui"
+	"sshrpg/src/world"
+)
+
+func main() {
+	cfg := config.Load()
+	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
+
+	if err := os.MkdirAll(filepath.Dir(cfg.DatabasePath), 0700); err != nil {
+		log.Error("create data directory", "error", err)
+		os.Exit(1)
+	}
+	database, err := persistence.Open(cfg.DatabasePath)
+	if err != nil {
+		log.Error("open database", "error", err)
+		os.Exit(1)
+	}
+	defer database.Close()
+	characters := repository.NewCharacterRepository(database.ORM())
+
+	worldManager := world.New(cfg.WorldWidth, cfg.WorldHeight)
+	defer worldManager.Close()
+
+	runner := ui.New(characters, worldManager, log)
+	server, err := sshserver.New(cfg.ListenAddr, cfg.HostKeyPath, runner, log)
+	if err != nil {
+		log.Error("configure SSH server", "error", err)
+		os.Exit(1)
+	}
+
+	errs := make(chan error, 1)
+	go func() { errs <- server.ListenAndServe() }()
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case sig := <-signals:
+		log.Info("shutting down", "signal", sig)
+	case err := <-errs:
+		if err != nil {
+			log.Error("SSH server stopped", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		log.Error("graceful shutdown", "error", err)
+	}
+}

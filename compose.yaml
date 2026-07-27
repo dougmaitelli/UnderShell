@@ -1,0 +1,11 @@
+services:
+  game:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "22:2222"
+    volumes:
+      - game-data:/app/data
+
+volumes:
+  game-data:

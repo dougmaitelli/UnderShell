@@ -30,6 +30,8 @@ type Enemy struct {
 	DefinitionID string
 	Name         string
 	Visual       []string
+	Health       int
+	MaxHealth    int
 	AreaID       string
 	X            int
 	Y            int
@@ -76,6 +78,18 @@ type defeatEnemyRequest struct {
 	id    uint64
 	reply chan bool
 }
+type attackRequest struct {
+	id    int64
+	token string
+	reply chan AttackResult
+}
+
+type AttackResult struct {
+	HitIDs      []uint64
+	DefeatedIDs []uint64
+}
+
+const attackRange = 2
 
 func New(areas *Areas, items *item.Items, enemies *enemy.Enemies) *Manager {
 	m := &Manager{
@@ -104,6 +118,16 @@ func (m *Manager) Move(id int64, token string, dx, dy int) Player {
 	reply := make(chan Player)
 	m.events <- moveRequest{id: id, token: token, dx: dx, dy: dy, reply: reply}
 	return <-reply
+}
+
+func (m *Manager) Attack(id int64, token string) AttackResult {
+	reply := make(chan AttackResult)
+	select {
+	case m.events <- attackRequest{id: id, token: token, reply: reply}:
+		return <-reply
+	case <-m.done:
+		return AttackResult{}
+	}
 }
 
 func (m *Manager) Leave(id int64, token string) {
@@ -191,16 +215,33 @@ func (m *Manager) run() {
 					e.reply <- false
 					break
 				}
-				key := spawnKey{areaID: target.AreaID, index: target.spawnIndex}
-				delete(liveEnemies, e.id)
-				state := spawns[key]
-				state.count--
-				if state.nextSpawn.IsZero() {
-					spawn := m.areas.areas[key.areaID].EnemySpawns[key.index]
-					state.nextSpawn = time.Now().Add(time.Duration(spawn.RespawnSeconds) * time.Second)
-				}
+				m.removeEnemy(liveEnemies, spawns, target)
 				e.reply <- true
 				m.broadcastState(players, liveEnemies)
+			case attackRequest:
+				result := AttackResult{}
+				player := players[e.id]
+				if player == nil || player.token != e.token {
+					e.reply <- result
+					break
+				}
+				for _, target := range liveEnemies {
+					if target.AreaID != player.AreaID ||
+						abs(target.X-player.X) > attackRange ||
+						abs(target.Y-player.Y) > attackRange {
+						continue
+					}
+					target.Health--
+					result.HitIDs = append(result.HitIDs, target.ID)
+					if target.Health <= 0 {
+						result.DefeatedIDs = append(result.DefeatedIDs, target.ID)
+						m.removeEnemy(liveEnemies, spawns, target)
+					}
+				}
+				e.reply <- result
+				if len(result.HitIDs) > 0 {
+					m.broadcastState(players, liveEnemies)
+				}
 			}
 		case now := <-ticker.C:
 			changed := m.moveEnemies(liveEnemies)
@@ -304,7 +345,19 @@ func (m *Manager) spawnEnemy(live map[uint64]*Enemy, area *Area, spawnIndex int,
 	live[id] = &Enemy{
 		ID: id, DefinitionID: definition.ID, Name: definition.Name,
 		Visual: append([]string(nil), definition.Visual...),
+		Health: definition.Health, MaxHealth: definition.Health,
 		AreaID: area.ID, X: point.X, Y: point.Y, spawnIndex: spawnIndex,
+	}
+}
+
+func (m *Manager) removeEnemy(live map[uint64]*Enemy, spawns map[spawnKey]*spawnState, target *Enemy) {
+	key := spawnKey{areaID: target.AreaID, index: target.spawnIndex}
+	delete(live, target.ID)
+	state := spawns[key]
+	state.count--
+	if state.nextSpawn.IsZero() {
+		spawn := m.areas.areas[key.areaID].EnemySpawns[key.index]
+		state.nextSpawn = time.Now().Add(time.Duration(spawn.RespawnSeconds) * time.Second)
 	}
 }
 
@@ -340,6 +393,13 @@ func walkableSpawnPoints(area *Area, spawn EnemySpawn) []Point {
 		}
 	}
 	return points
+}
+
+func abs(value int) int {
+	if value < 0 {
+		return -value
+	}
+	return value
 }
 
 func newToken() string {

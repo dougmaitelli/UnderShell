@@ -16,6 +16,7 @@ type Definition struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
 	Visual      []string `json:"visual"`
+	Health      int      `json:"health"`
 }
 
 type enemiesFile struct {
@@ -127,6 +128,9 @@ func validateDefinition(definition Definition) error {
 	}
 	if !hasVisibleCell {
 		return errors.New("visual must contain at least one non-space character")
+	}
+	if definition.Health < 1 {
+		return errors.New("health must be at least 1")
 	}
 	return nil
 }

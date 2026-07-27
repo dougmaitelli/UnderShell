@@ -129,6 +129,10 @@ type gameModel struct {
 	heldDirections   map[string]bool
 	movementLoop     bool
 	moveInFlight     bool
+	attackInFlight   bool
+	attackFrame      int
+	facingX          int
+	facingY          int
 	inventoryOpen    bool
 	renderer         Renderer
 }
@@ -158,6 +162,8 @@ type positionSavedMsg struct {
 }
 
 type movementTickMsg struct{}
+type attackAnimationMsg struct{ frame int }
+type attackResultMsg struct{ result world.AttackResult }
 
 func newGameModel(
 	characters repository.CharacterRepository,
@@ -187,6 +193,7 @@ func newGameModel(
 		world: worldManager, log: log, identity: identity,
 		phase: currentPhase, input: input, character: char, inventory: inventory,
 		width: 80, height: 24, heldDirections: make(map[string]bool),
+		facingX:  1,
 		renderer: NewRenderer(),
 	}
 }
@@ -225,6 +232,13 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 					m.inventoryOpen = false
 					return m, nil
 				}
+			case "x":
+				if !m.inventoryOpen && !m.attackInFlight {
+					m.attackInFlight = true
+					m.attackFrame = 1
+					return m, tea.Batch(m.attack(), attackAnimationTick(2))
+				}
+				return m, nil
 			}
 			if m.inventoryOpen {
 				return m, nil
@@ -242,6 +256,16 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m, m.handleMovementTick()
+	case attackAnimationMsg:
+		if msg.frame > 2 {
+			m.attackFrame = 0
+			m.attackInFlight = false
+			return m, nil
+		}
+		m.attackFrame = msg.frame
+		return m, attackAnimationTick(msg.frame + 1)
+	case attackResultMsg:
+		return m, nil
 	case characterCreatedMsg:
 		m.creating = false
 		if msg.err != nil {
@@ -357,6 +381,9 @@ func (m *gameModel) viewState() ViewState {
 		Snapshot:      m.snapshot,
 		InventoryOpen: m.inventoryOpen,
 		Inventory:     m.inventory,
+		AttackFrame:   m.attackFrame,
+		FacingX:       m.facingX,
+		FacingY:       m.facingY,
 	}
 }
 
@@ -397,11 +424,18 @@ func (m *gameModel) movePlayer(dx, dy int) tea.Cmd {
 	}
 }
 
+func (m *gameModel) attack() tea.Cmd {
+	return func() tea.Msg {
+		return attackResultMsg{result: m.world.Attack(m.character.ID, m.worldSession.Token)}
+	}
+}
+
 func (m *gameModel) handleMovementPress(key string) tea.Cmd {
 	direction := directionKey(key)
 	if direction == "" {
 		return nil
 	}
+	m.setFacing(movement(key))
 	if !m.enhancedKeyboard {
 		dx, dy := movement(key)
 		if m.moveInFlight {
@@ -425,6 +459,12 @@ func (m *gameModel) handleMovementPress(key string) tea.Cmd {
 	return tea.Batch(commands...)
 }
 
+func (m *gameModel) setFacing(dx, dy int) {
+	if dx != 0 || dy != 0 {
+		m.facingX, m.facingY = dx, dy
+	}
+}
+
 func (m *gameModel) handleMovementTick() tea.Cmd {
 	if !m.enhancedKeyboard || len(m.heldDirections) == 0 {
 		m.movementLoop = false
@@ -444,6 +484,12 @@ func (m *gameModel) handleMovementTick() tea.Cmd {
 func movementTick() tea.Cmd {
 	return tea.Tick(80*time.Millisecond, func(time.Time) tea.Msg {
 		return movementTickMsg{}
+	})
+}
+
+func attackAnimationTick(frame int) tea.Cmd {
+	return tea.Tick(90*time.Millisecond, func(time.Time) tea.Msg {
+		return attackAnimationMsg{frame: frame}
 	})
 }
 

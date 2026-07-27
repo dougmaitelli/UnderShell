@@ -79,7 +79,11 @@ func (GameRenderer) Render(state ViewState) string {
 		if x < 0 || y < 0 || x >= state.Width || y >= mapHeight {
 			continue
 		}
-		drawEnemy(grid, x, y, enemy.Name, enemy.Visual, enemyStyle)
+		drawEnemy(
+			grid, x, y,
+			fmt.Sprintf("%s [%d/%d]", enemy.Name, enemy.Health, enemy.MaxHealth),
+			enemy.Visual, enemyStyle,
+		)
 	}
 	// Draw players last so the local character remains visible when entities overlap.
 	for _, player := range visiblePlayers {
@@ -88,6 +92,12 @@ func (GameRenderer) Render(state ViewState) string {
 			style, marker = selfPlayerStyle, "@"
 		}
 		drawPlayer(grid, player.X-left, player.Y-top, marker, player.Name, style)
+	}
+	if state.AttackFrame > 0 {
+		drawSlash(
+			grid, self.X-left, self.Y-top,
+			state.FacingX, state.FacingY, state.AttackFrame,
+		)
 	}
 	sort.Strings(nearby)
 
@@ -100,7 +110,7 @@ func (GameRenderer) Render(state ViewState) string {
 		self.Name, areaName(state.Snapshot.Area), self.X, self.Y,
 		len(state.Snapshot.Players), len(state.Snapshot.Enemies),
 	))
-	footer := " WASD/arrows: move • I: inventory • Ctrl+C: quit"
+	footer := " WASD/arrows: move • X: attack • I: inventory • Ctrl+C: quit"
 	if len(nearby) > 0 {
 		footer += " • Nearby: " + strings.Join(nearby, ", ")
 	}
@@ -138,6 +148,24 @@ func drawEnemy(grid [][]string, x, baseY int, name string, visual []string, styl
 		y := baseY - len(visual) + 1 + rowIndex
 		drawCentered(grid, x, y, terminalCellRunes(row), style)
 	}
+}
+
+func drawSlash(grid [][]string, x, baseY, dx, dy, frame int) {
+	if dx == 0 && dy == 0 {
+		dx = 1
+	}
+	slashX, slashY := x+dx*2, baseY-1+dy*2
+	glyph := "/"
+	if frame == 2 {
+		if dx != 0 {
+			glyph = "─"
+		} else {
+			glyph = "│"
+		}
+	} else if dx < 0 || dy > 0 {
+		glyph = "\\"
+	}
+	drawCentered(grid, slashX, slashY, []rune(glyph), attackStyle)
 }
 
 func drawCentered(grid [][]string, centerX, y int, content []rune, style lipgloss.Style) {
@@ -179,6 +207,9 @@ var (
 	enemyStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#FB7185"))
+	attackStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#FDE68A"))
 	wallStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#334155"))
 	waypointStyle = lipgloss.NewStyle().

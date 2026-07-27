@@ -32,6 +32,7 @@ Use a different SSH key to create another character.
 | Input | Action |
 |---|---|
 | WASD or arrow keys | Move |
+| X | Attack nearby enemies |
 | I | Open or close inventory |
 | Esc | Close inventory |
 | Enter | Submit the character name |
@@ -173,6 +174,7 @@ row. Leading and trailing spaces are preserved for shaping the art.
       "id": "slime",
       "name": "Slime",
       "description": "A wobbling blob that roams the meadow.",
+      "health": 3,
       "visual": [
         " .-. ",
         "(o_o)"
@@ -183,7 +185,10 @@ row. Leading and trailing spaces are preserved for shaping the art.
 ```
 
 Enemies are initially created up to each spawn's cap, appear in world snapshots,
-and roam within their configured area. Enemy state is currently runtime-only.
+and roam within their configured area. Each definition's `health` controls how
+many attacks it survives. Pressing `X` plays a directional slash and damages
+enemies within melee range; enemies at zero health die and enter their spawn's
+respawn cycle. Enemy state is currently runtime-only.
 
 ## Persistent data
 

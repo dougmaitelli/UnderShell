@@ -74,6 +74,20 @@ func TestInventoryCanBeOpenedAndClosed(t *testing.T) {
 	}
 }
 
+func TestAttackKeyStartsSlashAnimation(t *testing.T) {
+	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
+		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
+	}, nil)
+	model.phase = phasePlaying
+	_, command := model.Update(tea.KeyPressMsg(tea.Key{Text: "x", Code: 'x'}))
+	if command == nil || !model.attackInFlight || model.attackFrame != 1 {
+		t.Fatalf(
+			"attack state = in-flight %v, frame %d, command %v",
+			model.attackInFlight, model.attackFrame, command != nil,
+		)
+	}
+}
+
 func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
 	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
 		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
@@ -108,6 +122,9 @@ func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
 	if !strings.Contains(output, "Nearby: Rowan") {
 		t.Fatalf("nearby player name not rendered: %q", output)
 	}
+	if !strings.Contains(output, "X: attack") {
+		t.Fatalf("attack control not rendered: %q", output)
+	}
 }
 
 func TestPlayerBaseIsAnchoredAtWorldCoordinate(t *testing.T) {
@@ -125,6 +142,24 @@ func TestPlayerBaseIsAnchoredAtWorldCoordinate(t *testing.T) {
 	}
 	if strings.Join(grid[3], "") != "   @ Aria   " {
 		t.Fatalf("name is not centered above the figure: %q", strings.Join(grid[3], ""))
+	}
+}
+
+func TestSlashFramesAreDirectional(t *testing.T) {
+	grid := make([][]string, 8)
+	for y := range grid {
+		grid[y] = make([]string, 12)
+		for x := range grid[y] {
+			grid[y][x] = " "
+		}
+	}
+	drawSlash(grid, 5, 5, 1, 0, 1)
+	if ansi.Strip(grid[4][7]) != "/" {
+		t.Fatalf("first right-facing slash frame = %q", grid[4][7])
+	}
+	drawSlash(grid, 5, 5, 1, 0, 2)
+	if ansi.Strip(grid[4][7]) != "─" {
+		t.Fatalf("second right-facing slash frame = %q", grid[4][7])
 	}
 }
 

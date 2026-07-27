@@ -22,7 +22,7 @@ func TestLoadBundledEnemies(t *testing.T) {
 func TestLoadEnemiesRejectsInvalidVisualAndUnknownFields(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "enemies.json")
 	if err := os.WriteFile(path, []byte(`{
-		"enemies":[{"id":"slime","name":"Slime","description":"","visual":[""]}]
+		"enemies":[{"id":"slime","name":"Slime","description":"","health":1,"visual":[""]}]
 	}`), 0600); err != nil {
 		t.Fatal(err)
 	}

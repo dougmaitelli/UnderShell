@@ -4,6 +4,7 @@
       "id": "slime",
       "name": "Slime",
       "description": "A wobbling blob that roams the meadow.",
+      "health": 3,
       "visual": [
         " .-. ",
         "(o_o)"
@@ -13,6 +14,7 @@
       "id": "cave_bat",
       "name": "Cave Bat",
       "description": "A restless bat from the deeper caverns.",
+      "health": 2,
       "visual": [
         "\\v/",
         "/ \\"

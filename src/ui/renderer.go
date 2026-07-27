@@ -18,6 +18,9 @@ type ViewState struct {
 	Snapshot      world.Snapshot
 	InventoryOpen bool
 	Inventory     *domain.Inventory
+	AttackFrame   int
+	FacingX       int
+	FacingY       int
 }
 
 type Renderer struct {

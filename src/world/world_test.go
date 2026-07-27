@@ -81,7 +81,7 @@ func TestEnemiesSpawnToCapAndRespawnInsideTheirArea(t *testing.T) {
 		t.Fatal(err)
 	}
 	enemies, err := enemy.NewEnemies([]enemy.Definition{{
-		ID: "slime", Name: "Slime", Visual: []string{"(s)"},
+		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 3,
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -116,6 +116,53 @@ func TestEnemiesSpawnToCapAndRespawnInsideTheirArea(t *testing.T) {
 		case <-deadline:
 			t.Fatal("enemy did not respawn to the configured cap")
 		}
+	}
+}
+
+func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
+	areas, err := NewAreas([]AreaDefinition{{
+		ID: "meadow", Name: "Meadow",
+		Layout: []string{"#####", "#...#", "#####"},
+		Spawn:  Point{X: 1, Y: 1},
+		EnemySpawns: []EnemySpawn{{
+			EnemyID: "slime", X: 2, Y: 1, Width: 1, Height: 1,
+			MaxEnemies: 1, RespawnSeconds: 10,
+		}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	enemies, err := enemy.NewEnemies([]enemy.Definition{{
+		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 2,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := New(areas, nil, enemies)
+	defer manager.Close()
+	session := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
+	snapshot := receiveSnapshot(t, session.Updates)
+	enemyID := snapshot.Enemies[0].ID
+
+	if result := manager.Attack(1, "wrong token"); len(result.HitIDs) != 0 {
+		t.Fatalf("unauthenticated attack hit enemies: %#v", result)
+	}
+	first := manager.Attack(1, session.Token)
+	if len(first.HitIDs) != 1 || first.HitIDs[0] != enemyID || len(first.DefeatedIDs) != 0 {
+		t.Fatalf("first attack = %#v", first)
+	}
+	snapshot = receiveSnapshot(t, session.Updates)
+	if len(snapshot.Enemies) != 1 || snapshot.Enemies[0].Health != 1 {
+		t.Fatalf("enemy did not take damage: %#v", snapshot.Enemies)
+	}
+
+	second := manager.Attack(1, session.Token)
+	if len(second.DefeatedIDs) != 1 || second.DefeatedIDs[0] != enemyID {
+		t.Fatalf("second attack = %#v", second)
+	}
+	snapshot = receiveSnapshot(t, session.Updates)
+	if len(snapshot.Enemies) != 0 {
+		t.Fatalf("defeated enemy remains in snapshot: %#v", snapshot.Enemies)
 	}
 }
 

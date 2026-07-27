@@ -1,0 +1,30 @@
+{
+  "id": "meadow",
+  "name": "Green Meadow",
+  "width": 192,
+  "height": 64,
+  "default_tile": ".",
+  "border_tile": "#",
+  "features": [
+    { "x": 21, "y": 8, "width": 27, "height": 2, "tile": "#" },
+    { "x": 69, "y": 5, "width": 4, "height": 17, "tile": "#" },
+    { "x": 112, "y": 12, "width": 37, "height": 2, "tile": "#" },
+    { "x": 29, "y": 33, "width": 5, "height": 19, "tile": "#" },
+    { "x": 67, "y": 40, "width": 45, "height": 2, "tile": "#" },
+    { "x": 133, "y": 45, "width": 32, "height": 3, "tile": "#" },
+    { "x": 93, "y": 25, "width": 21, "height": 2, "tile": "#" },
+    { "x": 157, "y": 23, "width": 4, "height": 13, "tile": "#" }
+  ],
+  "spawn": { "x": 7, "y": 32 },
+  "waypoints": [
+    {
+      "x": 188,
+      "y": 31,
+      "width": 3,
+      "height": 3,
+      "destination_area": "cavern",
+      "destination_x": 5,
+      "destination_y": 32
+    }
+  ]
+}

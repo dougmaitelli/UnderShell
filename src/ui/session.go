@@ -8,10 +8,12 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/colorprofile"
 	"github.com/charmbracelet/ssh"
 
 	"sshrpg/src/domain"
@@ -56,6 +58,7 @@ func (r *Runner) Run(session ssh.Session, identity Identity) {
 		tea.WithInput(session),
 		tea.WithOutput(session),
 		tea.WithEnvironment(append(session.Environ(), "TERM="+pty.Term)),
+		tea.WithColorProfile(colorprofile.TrueColor),
 		tea.WithoutSignalHandler(),
 	)
 
@@ -104,6 +107,11 @@ type gameModel struct {
 	snapshot     world.Snapshot
 	width        int
 	height       int
+
+	enhancedKeyboard bool
+	heldDirections   map[string]bool
+	movementLoop     bool
+	moveInFlight     bool
 }
 
 type characterCreatedMsg struct {
@@ -129,6 +137,8 @@ type positionSavedMsg struct {
 	err error
 }
 
+type movementTickMsg struct{}
+
 func newGameModel(
 	characters repository.CharacterRepository,
 	worldManager *world.Manager,
@@ -153,7 +163,7 @@ func newGameModel(
 	return &gameModel{
 		characters: characters, world: worldManager, log: log, identity: identity,
 		phase: currentPhase, input: input, character: char,
-		width: 80, height: 24,
+		width: 80, height: 24, heldDirections: make(map[string]bool),
 	}
 }
 
@@ -169,6 +179,9 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		return m, nil
+	case tea.KeyboardEnhancementsMsg:
+		m.enhancedKeyboard = msg.SupportsEventTypes()
+		return m, nil
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
@@ -177,11 +190,15 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateOnboarding(msg)
 		}
 		if m.phase == phasePlaying {
-			dx, dy := movement(msg.String())
-			if dx != 0 || dy != 0 {
-				return m, m.movePlayer(dx, dy)
-			}
+			return m, m.handleMovementPress(msg.String())
 		}
+	case tea.KeyReleaseMsg:
+		if m.phase == phasePlaying && m.enhancedKeyboard {
+			delete(m.heldDirections, directionKey(msg.String()))
+		}
+		return m, nil
+	case movementTickMsg:
+		return m, m.handleMovementTick()
 	case characterCreatedMsg:
 		m.creating = false
 		if msg.err != nil {
@@ -209,14 +226,33 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		m.snapshot = msg.snapshot
+		for _, player := range msg.snapshot.Players {
+			if player.ID != m.character.ID {
+				continue
+			}
+			locationChanged := m.character.AreaID != player.AreaID ||
+				m.character.X != player.X ||
+				m.character.Y != player.Y
+			m.character.AreaID = player.AreaID
+			m.character.X, m.character.Y = player.X, player.Y
+			if locationChanged {
+				return m, tea.Batch(
+					waitForSnapshot(m.worldSession.Updates),
+					m.savePosition(),
+				)
+			}
+			break
+		}
 		return m, waitForSnapshot(m.worldSession.Updates)
 	case worldKickedMsg:
 		m.message = "This character connected from another session."
 		return m, tea.Quit
 	case playerMovedMsg:
+		m.moveInFlight = false
 		if msg.player.ID == 0 {
 			return m, nil
 		}
+		m.character.AreaID = msg.player.AreaID
 		m.character.X, m.character.Y = msg.player.X, msg.player.Y
 		return m, m.savePosition()
 	case positionSavedMsg:
@@ -264,6 +300,7 @@ func (m *gameModel) View() tea.View {
 	view := tea.NewView(content)
 	view.AltScreen = true
 	view.WindowTitle = "SSH Realms"
+	view.KeyboardEnhancements.ReportEventTypes = true
 	return view
 }
 
@@ -323,7 +360,10 @@ func (m *gameModel) gameView() string {
 		}
 	}
 
-	self := world.Player{ID: m.character.ID, Name: m.character.Name, X: m.character.X, Y: m.character.Y}
+	self := world.Player{
+		ID: m.character.ID, Name: m.character.Name, AreaID: m.character.AreaID,
+		X: m.character.X, Y: m.character.Y,
+	}
 	for _, player := range m.snapshot.Players {
 		if player.ID == m.character.ID {
 			self = player
@@ -331,18 +371,52 @@ func (m *gameModel) gameView() string {
 		}
 	}
 	left, top := self.X-m.width/2, self.Y-mapHeight/2
+	if m.snapshot.Area != nil {
+		for screenY := 0; screenY < mapHeight; screenY++ {
+			for screenX := 0; screenX < m.width; screenX++ {
+				point := world.Point{X: left + screenX, Y: top + screenY}
+				if !m.snapshot.Area.InBounds(point) {
+					continue
+				}
+				tile := m.snapshot.Area.Tile(point)
+				grid[screenY][screenX] = renderTile(tile)
+				if _, ok := m.snapshot.Area.Waypoint(point); ok {
+					grid[screenY][screenX] = waypointStyle.Render("◇")
+				}
+			}
+		}
+	}
 	nearby := make([]string, 0, len(m.snapshot.Players))
+	visiblePlayers := make([]world.Player, 0, len(m.snapshot.Players))
 	for _, player := range m.snapshot.Players {
 		x, y := player.X-left, player.Y-top
 		if x < 0 || y < 0 || x >= m.width || y >= mapHeight {
 			continue
 		}
-		if player.ID == m.character.ID {
-			grid[y][x] = selfMarkerStyle.Render("@")
-		} else {
-			grid[y][x] = otherMarkerStyle.Render("●")
+		visiblePlayers = append(visiblePlayers, player)
+		if player.ID != m.character.ID {
 			nearby = append(nearby, player.Name)
 		}
+	}
+	sort.SliceStable(visiblePlayers, func(i, j int) bool {
+		return visiblePlayers[i].ID != m.character.ID &&
+			visiblePlayers[j].ID == m.character.ID
+	})
+	for _, player := range visiblePlayers {
+		style := otherPlayerStyle
+		marker := "○"
+		if player.ID == m.character.ID {
+			style = selfPlayerStyle
+			marker = "@"
+		}
+		drawPlayer(
+			grid,
+			player.X-left,
+			player.Y-top,
+			marker,
+			player.Name,
+			style,
+		)
 	}
 	sort.Strings(nearby)
 
@@ -351,8 +425,8 @@ func (m *gameModel) gameView() string {
 		rows[y] = strings.Join(row, "")
 	}
 	header := headerStyle.Render(fmt.Sprintf(
-		" %s  (%d, %d)  Players: %d",
-		self.Name, self.X, self.Y, len(m.snapshot.Players),
+		" %s • %s  (%d, %d)  Players here: %d",
+		self.Name, areaName(m.snapshot.Area), self.X, self.Y, len(m.snapshot.Players),
 	))
 	footer := " WASD/arrows: move • Ctrl+C: quit"
 	if len(nearby) > 0 {
@@ -380,7 +454,7 @@ func (m *gameModel) joinWorld() tea.Cmd {
 	return func() tea.Msg {
 		session := m.world.Join(world.Player{
 			ID: m.character.ID, Name: m.character.Name,
-			X: m.character.X, Y: m.character.Y,
+			AreaID: m.character.AreaID, X: m.character.X, Y: m.character.Y,
 		})
 		return worldJoinedMsg{session: session}
 	}
@@ -394,11 +468,112 @@ func (m *gameModel) movePlayer(dx, dy int) tea.Cmd {
 	}
 }
 
-func (m *gameModel) savePosition() tea.Cmd {
-	id, x, y := m.character.ID, m.character.X, m.character.Y
-	return func() tea.Msg {
-		return positionSavedMsg{err: m.characters.UpdatePosition(context.Background(), id, x, y)}
+func (m *gameModel) handleMovementPress(key string) tea.Cmd {
+	direction := directionKey(key)
+	if direction == "" {
+		return nil
 	}
+	if !m.enhancedKeyboard {
+		dx, dy := movement(key)
+		if m.moveInFlight {
+			return nil
+		}
+		m.moveInFlight = true
+		return m.movePlayer(dx, dy)
+	}
+
+	m.heldDirections[direction] = true
+	commands := make([]tea.Cmd, 0, 2)
+	if !m.moveInFlight {
+		dx, dy := heldMovement(m.heldDirections)
+		m.moveInFlight = true
+		commands = append(commands, m.movePlayer(dx, dy))
+	}
+	if !m.movementLoop {
+		m.movementLoop = true
+		commands = append(commands, movementTick())
+	}
+	return tea.Batch(commands...)
+}
+
+func (m *gameModel) handleMovementTick() tea.Cmd {
+	if !m.enhancedKeyboard || len(m.heldDirections) == 0 {
+		m.movementLoop = false
+		return nil
+	}
+	commands := []tea.Cmd{movementTick()}
+	if !m.moveInFlight {
+		dx, dy := heldMovement(m.heldDirections)
+		if dx != 0 || dy != 0 {
+			m.moveInFlight = true
+			commands = append(commands, m.movePlayer(dx, dy))
+		}
+	}
+	return tea.Batch(commands...)
+}
+
+func movementTick() tea.Cmd {
+	return tea.Tick(80*time.Millisecond, func(time.Time) tea.Msg {
+		return movementTickMsg{}
+	})
+}
+
+func (m *gameModel) savePosition() tea.Cmd {
+	id, areaID, x, y := m.character.ID, m.character.AreaID, m.character.X, m.character.Y
+	return func() tea.Msg {
+		return positionSavedMsg{err: m.characters.UpdateLocation(context.Background(), id, areaID, x, y)}
+	}
+}
+
+func areaName(area *world.Area) string {
+	if area == nil {
+		return "Unknown Area"
+	}
+	return area.Name
+}
+
+func renderTile(tile rune) string {
+	switch tile {
+	case '#':
+		return wallStyle.Render("█")
+	case '.':
+		return " "
+	default:
+		return string(tile)
+	}
+}
+
+func drawPlayer(grid [][]string, x, baseY int, marker, name string, style lipgloss.Style) {
+	drawCentered(grid, x, baseY-3, terminalCellRunes(marker+" "+name), style)
+	drawCentered(grid, x, baseY-2, []rune("O"), style)
+	drawCentered(grid, x, baseY-1, []rune("/|\\"), style)
+	drawCentered(grid, x, baseY, []rune("/ \\"), style)
+}
+
+func drawCentered(grid [][]string, centerX, y int, content []rune, style lipgloss.Style) {
+	if y < 0 || y >= len(grid) {
+		return
+	}
+	startX := centerX - len(content)/2
+	for offset, cell := range content {
+		x := startX + offset
+		if x < 0 || x >= len(grid[y]) || cell == ' ' {
+			continue
+		}
+		grid[y][x] = style.Render(string(cell))
+	}
+}
+
+func terminalCellRunes(value string) []rune {
+	cells := make([]rune, 0, len(value))
+	for _, cell := range value {
+		if lipgloss.Width(string(cell)) == 1 {
+			cells = append(cells, cell)
+		} else {
+			cells = append(cells, '?')
+		}
+	}
+	return cells
 }
 
 func waitForSnapshot(updates <-chan world.Snapshot) tea.Cmd {
@@ -437,6 +612,38 @@ func movement(key string) (int, int) {
 	}
 }
 
+func directionKey(key string) string {
+	switch strings.ToLower(key) {
+	case "w", "up":
+		return "up"
+	case "s", "down":
+		return "down"
+	case "a", "left":
+		return "left"
+	case "d", "right":
+		return "right"
+	default:
+		return ""
+	}
+}
+
+func heldMovement(held map[string]bool) (int, int) {
+	var dx, dy int
+	if held["left"] {
+		dx--
+	}
+	if held["right"] {
+		dx++
+	}
+	if held["up"] {
+		dy--
+	}
+	if held["down"] {
+		dy++
+	}
+	return dx, dy
+}
+
 var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
@@ -456,9 +663,15 @@ var (
 	headerStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#E2E8F0"))
-	selfMarkerStyle = lipgloss.NewStyle().
+	selfPlayerStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#FBBF24"))
-	otherMarkerStyle = lipgloss.NewStyle().
+	otherPlayerStyle = lipgloss.NewStyle().
+				Bold(true).
 				Foreground(lipgloss.Color("#38BDF8"))
+	wallStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#334155"))
+	waypointStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#A78BFA"))
 )

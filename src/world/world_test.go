@@ -5,23 +5,45 @@ import (
 	"time"
 )
 
-func TestPlayersSeeMovementAndReconnectReplacesSession(t *testing.T) {
-	manager := New(10, 10)
+func TestPlayersOnlySeeOthersInTheirArea(t *testing.T) {
+	manager := New(testAreas(t))
 	defer manager.Close()
 
-	first := manager.Join(Player{ID: 1, Name: "Aria", X: 2, Y: 2})
-	second := manager.Join(Player{ID: 2, Name: "Rowan", X: 4, Y: 4})
+	first := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
+	second := manager.Join(Player{ID: 2, Name: "Rowan", AreaID: "meadow", X: 2, Y: 1})
 	receiveSnapshot(t, first.Updates)
-	receiveSnapshot(t, second.Updates)
+	snapshot := receiveSnapshot(t, second.Updates)
+	if len(snapshot.Players) != 2 {
+		t.Fatalf("players in meadow = %d, want 2", len(snapshot.Players))
+	}
 
 	moved := manager.Move(1, first.Token, 1, 0)
-	if moved.X != 3 || moved.Y != 2 {
-		t.Fatalf("unexpected position: %#v", moved)
+	if moved.AreaID != "cavern" || moved.X != 1 || moved.Y != 1 {
+		t.Fatalf("waypoint did not teleport player: %#v", moved)
 	}
-	snapshot := receiveSnapshot(t, second.Updates)
-	assertPlayer(t, snapshot, 1, 3, 2)
+	firstSnapshot := receiveSnapshot(t, first.Updates)
+	if firstSnapshot.Area.ID != "cavern" || len(firstSnapshot.Players) != 1 {
+		t.Fatalf("unexpected cavern snapshot: %#v", firstSnapshot)
+	}
+	secondSnapshot := receiveSnapshot(t, second.Updates)
+	if secondSnapshot.Area.ID != "meadow" || len(secondSnapshot.Players) != 1 {
+		t.Fatalf("unexpected meadow snapshot: %#v", secondSnapshot)
+	}
+}
 
-	replacement := manager.Join(Player{ID: 1, Name: "Aria", X: 3, Y: 2})
+func TestWallsBlockMovementAndReconnectReplacesSession(t *testing.T) {
+	manager := New(testAreas(t))
+	defer manager.Close()
+
+	first := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
+	receiveSnapshot(t, first.Updates)
+
+	blocked := manager.Move(1, first.Token, 0, -1)
+	if blocked.X != 1 || blocked.Y != 1 {
+		t.Fatalf("player walked through a wall: %#v", blocked)
+	}
+
+	replacement := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
 	select {
 	case <-first.Kicked:
 	case <-time.After(time.Second):
@@ -34,22 +56,37 @@ func TestPlayersSeeMovementAndReconnectReplacesSession(t *testing.T) {
 	}
 }
 
-func TestMovementIsClampedToWorld(t *testing.T) {
-	manager := New(3, 3)
+func TestUnknownOrBlockedSavedLocationUsesDefaultSpawn(t *testing.T) {
+	manager := New(testAreas(t))
 	defer manager.Close()
-	session := manager.Join(Player{ID: 1, Name: "Aria"})
-	receiveSnapshot(t, session.Updates)
 
-	player := manager.Move(1, session.Token, -1, -1)
-	if player.X != 0 || player.Y != 0 {
-		t.Fatalf("position escaped lower boundary: %#v", player)
+	session := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "missing", X: 99, Y: 99})
+	snapshot := receiveSnapshot(t, session.Updates)
+	assertPlayer(t, snapshot, 1, "meadow", 1, 1)
+}
+
+func testAreas(t *testing.T) *AreaSet {
+	t.Helper()
+	areas, err := NewAreaSet([]AreaDefinition{
+		{
+			ID: "meadow", Name: "Meadow",
+			Layout: []string{"####", "#..#", "####"},
+			Spawn:  Point{X: 1, Y: 1},
+			Waypoints: []Waypoint{{
+				X: 2, Y: 1, DestinationArea: "cavern",
+				DestinationX: 1, DestinationY: 1,
+			}},
+		},
+		{
+			ID: "cavern", Name: "Cavern",
+			Layout: []string{"####", "#..#", "####"},
+			Spawn:  Point{X: 1, Y: 1},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	for range 5 {
-		player = manager.Move(1, session.Token, 1, 1)
-	}
-	if player.X != 2 || player.Y != 2 {
-		t.Fatalf("position escaped upper boundary: %#v", player)
-	}
+	return areas
 }
 
 func receiveSnapshot(t *testing.T, updates <-chan Snapshot) Snapshot {
@@ -63,12 +100,12 @@ func receiveSnapshot(t *testing.T, updates <-chan Snapshot) Snapshot {
 	}
 }
 
-func assertPlayer(t *testing.T, snapshot Snapshot, id int64, x, y int) {
+func assertPlayer(t *testing.T, snapshot Snapshot, id int64, areaID string, x, y int) {
 	t.Helper()
 	for _, player := range snapshot.Players {
 		if player.ID == id {
-			if player.X != x || player.Y != y {
-				t.Fatalf("unexpected position: %#v", player)
+			if player.AreaID != areaID || player.X != x || player.Y != y {
+				t.Fatalf("unexpected location: %#v", player)
 			}
 			return
 		}

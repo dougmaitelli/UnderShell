@@ -31,7 +31,7 @@ type CreateCharacterParams struct {
 type CharacterRepository interface {
 	FindByFingerprint(context.Context, string) (*domain.Character, error)
 	Create(context.Context, CreateCharacterParams) (*domain.Character, error)
-	UpdatePosition(context.Context, int64, int, int) error
+	UpdateLocation(context.Context, int64, string, int, int) error
 }
 
 type BunCharacterRepository struct {
@@ -57,7 +57,18 @@ func (r *BunCharacterRepository) FindByFingerprint(
 	if err != nil {
 		return nil, fmt.Errorf("find character by fingerprint: %w", err)
 	}
-	return toDomain(record), nil
+
+	location := &entity.CharacterLocation{CharacterID: record.ID}
+	err = r.db.NewSelect().
+		Model(location).
+		WherePK().
+		Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		location = nil
+	} else if err != nil {
+		return nil, fmt.Errorf("find character location: %w", err)
+	}
+	return toDomain(record, location), nil
 }
 
 func (r *BunCharacterRepository) Create(
@@ -90,21 +101,44 @@ func (r *BunCharacterRepository) Create(
 			return nil, fmt.Errorf("create character: %w", err)
 		}
 	}
-	return toDomain(record), nil
+	return toDomain(record, nil), nil
 }
 
-func (r *BunCharacterRepository) UpdatePosition(
+func (r *BunCharacterRepository) UpdateLocation(
 	ctx context.Context,
 	id int64,
+	areaID string,
 	x, y int,
 ) error {
-	record := &entity.Character{
-		ID: id, X: x, Y: y,
-		LastSeenAt: time.Now().UTC().Format(time.RFC3339),
+	location := &entity.CharacterLocation{CharacterID: id}
+	err := r.db.NewSelect().
+		Model(location).
+		WherePK().
+		Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		location = &entity.CharacterLocation{
+			CharacterID: id,
+			AreaID:      areaID,
+			X:           x,
+			Y:           y,
+			UpdatedAt:   time.Now().UTC().Format(time.RFC3339),
+		}
+		if _, err := r.db.NewInsert().Model(location).Exec(ctx); err != nil {
+			return fmt.Errorf("create character location: %w", err)
+		}
+		return nil
 	}
+	if err != nil {
+		return fmt.Errorf("find character location for update: %w", err)
+	}
+
+	location.AreaID = areaID
+	location.X = x
+	location.Y = y
+	location.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	result, err := r.db.NewUpdate().
-		Model(record).
-		Column("x", "y", "last_seen_at").
+		Model(location).
+		Column("area_id", "x", "y", "updated_at").
 		WherePK().
 		Exec(ctx)
 	if err != nil {
@@ -120,8 +154,12 @@ func (r *BunCharacterRepository) UpdatePosition(
 	return nil
 }
 
-func toDomain(record *entity.Character) *domain.Character {
-	return &domain.Character{
-		ID: record.ID, Name: record.Name, X: record.X, Y: record.Y,
+func toDomain(record *entity.Character, location *entity.CharacterLocation) *domain.Character {
+	character := &domain.Character{ID: record.ID, Name: record.Name}
+	if location != nil {
+		character.AreaID = location.AreaID
+		character.X = location.X
+		character.Y = location.Y
 	}
+	return character
 }

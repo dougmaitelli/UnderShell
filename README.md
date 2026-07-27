@@ -35,28 +35,85 @@ Use a different SSH key to create another character.
 | Enter | Submit the character name |
 | Ctrl+C | Disconnect |
 
+Players are rendered as stick figures with identity markers and names overhead:
+`@ Aria` identifies your yellow character, while `○ Rowan` identifies another
+player in blue. `█` is a wall, and `◇` marks a waypoint to another area.
+
 ## Configuration
 
-Configuration is supplied through environment variables. Invalid or non-positive
-world dimensions fall back to their defaults.
+Configuration is supplied through environment variables.
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `SSH_LISTEN_ADDR` | `:2222` | Address and port used by the SSH server |
 | `SSH_HOST_KEY_PATH` | `./data/ssh_host_ed25519` | Persistent Ed25519 server host-key path |
 | `DATABASE_PATH` | `./data/game.db` | Persistent SQLite database path |
-| `WORLD_WIDTH` | `120` | World width in tiles |
-| `WORLD_HEIGHT` | `60` | World height in tiles |
+| `MAPS_PATH` | `./maps` | Directory containing JSON area definitions |
 
 Example:
 
 ```sh
 SSH_LISTEN_ADDR=:2022 \
 DATABASE_PATH=./data/development.db \
-WORLD_WIDTH=160 \
-WORLD_HEIGHT=80 \
+MAPS_PATH=./maps \
 make run
 ```
+
+## Areas and maps
+
+Each JSON file in `MAPS_PATH` defines one area. Layout rows must all have the
+same width. A `#` tile is a wall; every other printable character is walkable.
+
+```json
+{
+  "id": "meadow",
+  "name": "Green Meadow",
+  "layout": [
+    "##########",
+    "#........#",
+    "##########"
+  ],
+  "spawn": { "x": 1, "y": 1 },
+  "waypoints": [
+    {
+      "x": 6,
+      "y": 1,
+      "width": 3,
+      "height": 3,
+      "destination_area": "cavern",
+      "destination_x": 1,
+      "destination_y": 1
+    }
+  ]
+}
+```
+
+Walking onto any tile covered by a waypoint moves the character to its
+destination area and coordinate. `x` and `y` are the region's top-left corner;
+`width` and `height` default to 1. Area IDs must be unique, and every waypoint
+destination must refer to a loaded area and a walkable tile. The server validates
+all map files during startup.
+
+Large areas can use a compact generated layout instead of listing every row:
+
+```json
+{
+  "id": "meadow",
+  "name": "Green Meadow",
+  "width": 192,
+  "height": 64,
+  "default_tile": ".",
+  "border_tile": "#",
+  "features": [
+    { "x": 21, "y": 8, "width": 27, "height": 2, "tile": "#" }
+  ],
+  "spawn": { "x": 7, "y": 32 },
+  "waypoints": []
+}
+```
+
+Features are rectangular tile regions applied over the default tile. Generated
+layouts and explicit row layouts use the same spawn and waypoint validation.
 
 ## Persistent data
 

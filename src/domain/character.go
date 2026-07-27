@@ -13,10 +13,11 @@ var ErrInvalidCharacterName = errors.New("name must be 3-20 printable characters
 // Character is the game-facing representation of a character. Database
 // identity and ORM metadata intentionally do not belong in this model.
 type Character struct {
-	ID   int64
-	Name string
-	X    int
-	Y    int
+	ID     int64
+	Name   string
+	AreaID string
+	X      int
+	Y      int
 }
 
 func ValidateCharacterName(value string) (string, error) {

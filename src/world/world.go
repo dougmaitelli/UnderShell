@@ -7,13 +7,15 @@ import (
 )
 
 type Player struct {
-	ID   int64
-	Name string
-	X    int
-	Y    int
+	ID     int64
+	Name   string
+	AreaID string
+	X      int
+	Y      int
 }
 
 type Snapshot struct {
+	Area    *Area
 	Players []Player
 }
 
@@ -24,8 +26,7 @@ type Session struct {
 }
 
 type Manager struct {
-	width  int
-	height int
+	areas  *AreaSet
 	events chan any
 	done   chan struct{}
 }
@@ -53,8 +54,8 @@ type leaveRequest struct {
 	token string
 }
 
-func New(width, height int) *Manager {
-	m := &Manager{width: width, height: height, events: make(chan any), done: make(chan struct{})}
+func New(areas *AreaSet) *Manager {
+	m := &Manager{areas: areas, events: make(chan any), done: make(chan struct{})}
 	go m.run()
 	return m
 }
@@ -91,22 +92,20 @@ func (m *Manager) run() {
 					close(previous.kicked)
 					close(previous.updates)
 				}
-				e.player.X = clamp(e.player.X, 0, m.width-1)
-				e.player.Y = clamp(e.player.Y, 0, m.height-1)
+				m.placePlayer(&e.player)
 				p := &activePlayer{
 					Player: e.player, token: newToken(),
 					updates: make(chan Snapshot, 1), kicked: make(chan struct{}),
 				}
 				players[p.ID] = p
 				e.reply <- Session{Token: p.token, Updates: p.updates, Kicked: p.kicked}
-				broadcast(players)
+				m.broadcast(players)
 			case moveRequest:
 				p := players[e.id]
 				if p != nil && p.token == e.token {
-					p.X = clamp(p.X+e.dx, 0, m.width-1)
-					p.Y = clamp(p.Y+e.dy, 0, m.height-1)
+					m.move(p, e.dx, e.dy)
 					e.reply <- p.Player
-					broadcast(players)
+					m.broadcast(players)
 				} else {
 					e.reply <- Player{}
 				}
@@ -115,7 +114,7 @@ func (m *Manager) run() {
 					delete(players, e.id)
 					close(p.kicked)
 					close(p.updates)
-					broadcast(players)
+					m.broadcast(players)
 				}
 			}
 		case <-m.done:
@@ -128,31 +127,55 @@ func (m *Manager) run() {
 	}
 }
 
-func broadcast(players map[int64]*activePlayer) {
-	snapshot := Snapshot{Players: make([]Player, 0, len(players))}
-	for _, p := range players {
-		snapshot.Players = append(snapshot.Players, p.Player)
+func (m *Manager) placePlayer(player *Player) {
+	area, ok := m.areas.Area(player.AreaID)
+	if !ok {
+		area = m.areas.Default()
+		player.AreaID = area.ID
+		player.X, player.Y = area.Spawn.X, area.Spawn.Y
+		return
 	}
-	for _, p := range players {
-		select {
-		case <-p.updates:
-		default:
-		}
-		select {
-		case p.updates <- snapshot:
-		default:
-		}
+	if !area.Walkable(Point{X: player.X, Y: player.Y}) {
+		player.X, player.Y = area.Spawn.X, area.Spawn.Y
 	}
 }
 
-func clamp(value, min, max int) int {
-	if value < min {
-		return min
+func (m *Manager) move(player *activePlayer, dx, dy int) {
+	area, ok := m.areas.Area(player.AreaID)
+	if !ok {
+		m.placePlayer(&player.Player)
+		return
 	}
-	if value > max {
-		return max
+	target := Point{X: player.X + dx, Y: player.Y + dy}
+	if !area.Walkable(target) {
+		return
 	}
-	return value
+	player.X, player.Y = target.X, target.Y
+
+	if waypoint, ok := area.Waypoint(target); ok {
+		player.AreaID = waypoint.DestinationArea
+		player.X, player.Y = waypoint.DestinationX, waypoint.DestinationY
+	}
+}
+
+func (m *Manager) broadcast(players map[int64]*activePlayer) {
+	for _, recipient := range players {
+		area, _ := m.areas.Area(recipient.AreaID)
+		snapshot := Snapshot{Area: area, Players: make([]Player, 0, len(players))}
+		for _, player := range players {
+			if player.AreaID == recipient.AreaID {
+				snapshot.Players = append(snapshot.Players, player.Player)
+			}
+		}
+		select {
+		case <-recipient.updates:
+		default:
+		}
+		select {
+		case recipient.updates <- snapshot:
+		default:
+		}
+	}
 }
 
 func newToken() string {

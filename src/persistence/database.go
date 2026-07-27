@@ -57,12 +57,17 @@ func (d *Database) Close() error {
 }
 
 func (d *Database) createSchema(ctx context.Context) error {
-	_, err := d.orm.NewCreateTable().
+	if _, err := d.orm.NewCreateTable().
 		Model((*entity.Character)(nil)).
 		IfNotExists().
-		Exec(ctx)
-	if err != nil {
+		Exec(ctx); err != nil {
 		return fmt.Errorf("create character schema: %w", err)
+	}
+	if _, err := d.orm.NewCreateTable().
+		Model((*entity.CharacterLocation)(nil)).
+		IfNotExists().
+		Exec(ctx); err != nil {
+		return fmt.Errorf("create character location schema: %w", err)
 	}
 	return nil
 }

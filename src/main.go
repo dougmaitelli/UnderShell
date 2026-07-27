@@ -34,7 +34,12 @@ func main() {
 	defer database.Close()
 	characters := repository.NewCharacterRepository(database.ORM())
 
-	worldManager := world.New(cfg.WorldWidth, cfg.WorldHeight)
+	areas, err := world.LoadAreas(cfg.MapsPath)
+	if err != nil {
+		log.Error("load maps", "path", cfg.MapsPath, "error", err)
+		os.Exit(1)
+	}
+	worldManager := world.New(areas)
 	defer worldManager.Close()
 
 	runner := ui.New(characters, worldManager, log)

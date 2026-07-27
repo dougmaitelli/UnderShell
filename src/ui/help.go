@@ -1,6 +1,19 @@
 package ui
 
-import "charm.land/lipgloss/v2"
+import (
+	"strings"
+
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+)
+
+func (m *gameModel) updateHelpInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch strings.ToLower(msg.String()) {
+	case "f1", "esc":
+		m.mode = inputModeGame
+	}
+	return m, nil
+}
 
 type HelpRenderer struct{}
 

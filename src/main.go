@@ -75,7 +75,9 @@ func main() {
 	worldManager := world.New(areas, items, enemies)
 	defer worldManager.Close()
 
-	runner := ui.New(characters, inventories, worldManager, log)
+	runner := ui.New(ui.Repositories{
+		Characters: characters, Inventories: inventories,
+	}, worldManager, log)
 	server, err := sshserver.New(cfg.ListenAddr, cfg.HostKeyPath, runner, log)
 	if err != nil {
 		log.Error("configure SSH server", "error", err)

@@ -2,11 +2,21 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"sshrpg/src/domain"
 )
+
+func (m *gameModel) updateInventoryInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch strings.ToLower(msg.String()) {
+	case "i", "esc":
+		m.mode = inputModeGame
+	}
+	return m, nil
+}
 
 type InventoryRenderer struct{}
 

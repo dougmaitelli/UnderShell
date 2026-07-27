@@ -2,11 +2,42 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"sshrpg/src/domain"
 )
+
+type skillsState struct {
+	spendInFlight bool
+}
+
+func (s *skillsState) beginSpend() bool {
+	if s.spendInFlight {
+		return false
+	}
+	s.spendInFlight = true
+	return true
+}
+
+func (s *skillsState) finishSpend() {
+	s.spendInFlight = false
+}
+
+func (m *gameModel) updateSkillsInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	key := strings.ToLower(msg.String())
+	switch key {
+	case "k", "esc":
+		m.mode = inputModeGame
+	case "1", "2", "3":
+		if m.character.SkillPoints > 0 && m.skills.beginSpend() {
+			return m, m.spendSkill(key)
+		}
+	}
+	return m, nil
+}
 
 type SkillsRenderer struct{}
 

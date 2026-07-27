@@ -2,7 +2,10 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"sshrpg/src/world"
@@ -10,6 +13,49 @@ import (
 
 const chatMessageLimit = 10
 const chatTextWidth = 30
+
+type chatPanelState struct {
+	input    textinput.Model
+	messages []world.ChatMessage
+}
+
+func newChatPanelState() chatPanelState {
+	input := textinput.New()
+	input.Prompt = ""
+	input.Placeholder = "Message"
+	input.CharLimit = 200
+	input.SetWidth(28)
+	return chatPanelState{input: input}
+}
+
+func (s *chatPanelState) receive(message world.ChatMessage) {
+	s.messages = append(s.messages, message)
+	if len(s.messages) > chatMessageLimit {
+		s.messages = s.messages[len(s.messages)-chatMessageLimit:]
+	}
+}
+
+func (m *gameModel) updateChatInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "enter":
+		message := strings.TrimSpace(m.chat.input.Value())
+		m.chat.input.SetValue("")
+		m.chat.input.Blur()
+		m.mode = inputModeGame
+		if message == "" {
+			return m, nil
+		}
+		return m, m.sendChat(message)
+	case "esc":
+		m.chat.input.SetValue("")
+		m.chat.input.Blur()
+		m.mode = inputModeGame
+		return m, nil
+	}
+	var command tea.Cmd
+	m.chat.input, command = m.chat.input.Update(msg)
+	return m, command
+}
 
 type ChatRenderer struct{}
 

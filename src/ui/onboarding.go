@@ -1,6 +1,35 @@
 package ui
 
-import "charm.land/lipgloss/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+
+	"sshrpg/src/domain"
+)
+
+func (m *gameModel) updateOnboardingInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if msg.String() == "enter" {
+		if m.creating {
+			return m, nil
+		}
+		name, err := domain.ValidateCharacterName(m.input.Value())
+		if err != nil {
+			m.message = err.Error()
+			return m, nil
+		}
+		m.message = ""
+		m.creating = true
+		return m, m.createCharacter(name)
+	}
+	var cmd tea.Cmd
+	m.input, cmd = m.input.Update(msg)
+	if m.input.Err != nil {
+		m.message = m.input.Err.Error()
+	} else {
+		m.message = ""
+	}
+	return m, cmd
+}
 
 type WelcomeRenderer struct{}
 

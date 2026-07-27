@@ -2,7 +2,9 @@ package ui
 
 import (
 	"strings"
+	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"sshrpg/src/world"
@@ -14,6 +16,52 @@ const eventTextWidth = 28
 type EventView struct {
 	Kind    world.EventKind
 	Message string
+}
+
+type eventFeed struct {
+	events []timedEvent
+	nextID uint64
+}
+
+type timedEvent struct {
+	id uint64
+	EventView
+}
+
+const eventLifetime = 6 * time.Second
+
+func (f *eventFeed) add(event EventView) tea.Cmd {
+	f.nextID++
+	id := f.nextID
+	f.events = append(f.events, timedEvent{id: id, EventView: event})
+	return tea.Tick(eventLifetime, func(time.Time) tea.Msg {
+		return eventExpiredMsg{id: id}
+	})
+}
+
+func (f *eventFeed) expire(id uint64) {
+	for index, event := range f.events {
+		if event.id == id {
+			f.events = append(f.events[:index], f.events[index+1:]...)
+			return
+		}
+	}
+}
+
+func (f *eventFeed) views() []EventView {
+	events := make([]EventView, len(f.events))
+	for index, event := range f.events {
+		events[index] = event.EventView
+	}
+	return events
+}
+
+func (m *gameModel) addEvent(event EventView) tea.Cmd {
+	return m.eventFeed.add(event)
+}
+
+func (m *gameModel) eventViews() []EventView {
+	return m.eventFeed.views()
 }
 
 type EventRenderer struct{}

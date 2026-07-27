@@ -33,12 +33,12 @@ func TestEventOverlayShowsOnlyLastTenLines(t *testing.T) {
 }
 
 func TestEventsExpireIndependently(t *testing.T) {
-	model := newGameModel(nil, nil, nil, nil, Identity{}, nil, nil)
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, nil, nil)
 	model.addEvent(EventView{Kind: world.EventPickup, Message: "first"})
 	model.addEvent(EventView{Kind: world.EventProgression, Message: "second"})
 	_, _ = model.Update(eventExpiredMsg{id: 1})
-	if len(model.events) != 1 || model.events[0].Message != "second" {
-		t.Fatalf("events after first expiry: %#v", model.events)
+	if len(model.eventFeed.events) != 1 || model.eventFeed.events[0].Message != "second" {
+		t.Fatalf("events after first expiry: %#v", model.eventFeed.events)
 	}
 }
 

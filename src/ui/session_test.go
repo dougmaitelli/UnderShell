@@ -27,34 +27,34 @@ func TestMovementKeys(t *testing.T) {
 }
 
 func TestEnhancedMovementKeepsEarlierDirectionHeld(t *testing.T) {
-	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{ID: 1}, nil)
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{ID: 1}, nil)
 	model.phase = phasePlaying
-	model.enhancedKeyboard = true
+	model.movement.enhanced = true
 
 	model.handleMovementPress("a")
-	model.moveInFlight = false
+	model.movement.inFlight = false
 	model.handleMovementPress("s")
-	if dx, dy := heldMovement(model.heldDirections); dx != -1 || dy != 1 {
+	if dx, dy := heldMovement(model.movement.held); dx != -1 || dy != 1 {
 		t.Fatalf("held movement = (%d,%d), want (-1,1)", dx, dy)
 	}
 
 	_, _ = model.Update(tea.KeyReleaseMsg(tea.Key{Text: "s", Code: 's'}))
-	if dx, dy := heldMovement(model.heldDirections); dx != -1 || dy != 0 {
+	if dx, dy := heldMovement(model.movement.held); dx != -1 || dy != 0 {
 		t.Fatalf("movement after releasing S = (%d,%d), want (-1,0)", dx, dy)
 	}
 }
 
 func TestInventoryCanBeOpenedAndClosed(t *testing.T) {
-	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{ID: 1, Name: "Aria"}, nil)
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{ID: 1, Name: "Aria"}, nil)
 	model.phase = phasePlaying
 	model.width, model.height = 80, 24
-	model.heldDirections["left"] = true
+	model.movement.held["left"] = true
 
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "i", Code: 'i'}))
-	if !model.inventoryOpen {
+	if model.mode != inputModeInventory {
 		t.Fatal("inventory did not open")
 	}
-	if len(model.heldDirections) != 0 {
+	if len(model.movement.held) != 0 {
 		t.Fatal("opening inventory did not clear held movement")
 	}
 	output := ansi.Strip(model.View().Content)
@@ -63,28 +63,27 @@ func TestInventoryCanBeOpenedAndClosed(t *testing.T) {
 	}
 
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
-	if model.inventoryOpen {
+	if model.mode == inputModeInventory {
 		t.Fatal("inventory did not close with Escape")
 	}
 
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "i", Code: 'i'}))
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "i", Code: 'i'}))
-	if model.inventoryOpen {
+	if model.mode == inputModeInventory {
 		t.Fatal("inventory did not close with I")
 	}
 }
 
 func TestSkillsAndInventoryMenusAreMutuallyExclusive(t *testing.T) {
-	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{
 		ID: 1, Name: "Aria", Level: 2, SkillPoints: 2, Attack: 1,
 	}, nil)
 	model.phase = phasePlaying
 	model.width, model.height = 80, 24
 
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "k", Code: 'k'}))
-	if !model.skillsOpen || model.inventoryOpen {
-		t.Fatalf("skills did not open exclusively: skills %v, inventory %v",
-			model.skillsOpen, model.inventoryOpen)
+	if model.mode != inputModeSkills {
+		t.Fatalf("skills did not open exclusively: mode %v", model.mode)
 	}
 	plain := ansi.Strip(model.View().Content)
 	if !strings.Contains(plain, "SKILLS") ||
@@ -93,65 +92,65 @@ func TestSkillsAndInventoryMenusAreMutuallyExclusive(t *testing.T) {
 		t.Fatalf("skills menu not rendered: %q", plain)
 	}
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "i", Code: 'i'}))
-	if !model.skillsOpen || model.inventoryOpen {
+	if model.mode != inputModeSkills {
 		t.Fatal("inventory opened over skills")
 	}
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "i", Code: 'i'}))
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "k", Code: 'k'}))
-	if !model.inventoryOpen || model.skillsOpen {
+	if model.mode != inputModeInventory {
 		t.Fatal("skills opened over inventory")
 	}
 }
 
 func TestChatFocusCapturesTypingUntilEnter(t *testing.T) {
-	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{
 		ID: 1, Name: "Aria", Level: 1,
 	}, nil)
 	model.phase = phasePlaying
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "t", Code: 't'}))
-	if !model.chatFocused {
+	if model.mode != inputModeChat {
 		t.Fatal("T did not focus chat")
 	}
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "i", Code: 'i'}))
-	if model.inventoryOpen || model.chatInput.Value() != "i" {
+	if model.mode == inputModeInventory || model.chat.input.Value() != "i" {
 		t.Fatalf("chat did not capture gameplay key: inventory %v, input %q",
-			model.inventoryOpen, model.chatInput.Value())
+			model.mode == inputModeInventory, model.chat.input.Value())
 	}
 	_, command := model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
-	if model.chatFocused || command == nil {
+	if model.mode == inputModeChat || command == nil {
 		t.Fatalf("Enter did not send and return focus: focused %v, command %v",
-			model.chatFocused, command != nil)
+			model.mode == inputModeChat, command != nil)
 	}
 }
 
 func TestAttackKeyStartsSlashAnimation(t *testing.T) {
-	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{
 		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
 	}, nil)
 	model.phase = phasePlaying
 	_, command := model.Update(tea.KeyPressMsg(tea.Key{Text: "x", Code: 'x'}))
-	if command == nil || !model.attackInFlight || model.attackFrame != 1 {
+	if command == nil || !model.actions.attackInFlight || model.actions.attackFrame != 1 {
 		t.Fatalf(
 			"attack state = in-flight %v, frame %d, command %v",
-			model.attackInFlight, model.attackFrame, command != nil,
+			model.actions.attackInFlight, model.actions.attackFrame, command != nil,
 		)
 	}
 }
 
 func TestPickupKeyRequestsNearbyDrop(t *testing.T) {
-	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{
 		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
 	}, nil)
 	model.phase = phasePlaying
 	_, command := model.Update(tea.KeyPressMsg(tea.Key{Text: "e", Code: 'e'}))
-	if command == nil || !model.pickupInFlight {
-		t.Fatalf("pickup state = in-flight %v, command %v", model.pickupInFlight, command != nil)
+	if command == nil || !model.actions.pickupInFlight {
+		t.Fatalf("pickup state = in-flight %v, command %v", model.actions.pickupInFlight, command != nil)
 	}
 }
 
 func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
-	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{
 		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
 	}, nil)
 	areas, err := world.NewAreas([]world.AreaDefinition{{
@@ -165,7 +164,7 @@ func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
 	area, _ := areas.Area("meadow")
 	model.phase = phasePlaying
 	model.width, model.height = 50, 15
-	model.snapshot = world.Snapshot{Area: area, Players: []world.Player{
+	model.connection.snapshot = world.Snapshot{Area: area, Players: []world.Player{
 		{
 			ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
 			Level: 2, Experience: 25, SkillPoints: 1, Health: 8, MaxHealth: 10,
@@ -196,13 +195,13 @@ func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
 }
 
 func TestHelpWindowListsCommandsAndBlocksGameplayInput(t *testing.T) {
-	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{
 		ID: 1, Name: "Aria", Level: 1,
 	}, nil)
 	model.phase = phasePlaying
 	model.width, model.height = 80, 24
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyF1}))
-	if !model.helpOpen {
+	if model.mode != inputModeHelp {
 		t.Fatal("F1 did not open help")
 	}
 	plain := ansi.Strip(model.View().Content)
@@ -215,22 +214,22 @@ func TestHelpWindowListsCommandsAndBlocksGameplayInput(t *testing.T) {
 		}
 	}
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "i", Code: 'i'}))
-	if model.inventoryOpen {
+	if model.mode == inputModeInventory {
 		t.Fatal("gameplay shortcut opened inventory over help")
 	}
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
-	if model.helpOpen {
+	if model.mode == inputModeHelp {
 		t.Fatal("Escape did not close help")
 	}
 }
 
 func TestGroundItemsUseOneGenericMarker(t *testing.T) {
-	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{
 		ID: 1, Name: "Aria", AreaID: "meadow", X: 10, Y: 5,
 	}, nil)
 	model.phase = phasePlaying
 	model.width, model.height = 40, 14
-	model.snapshot = world.Snapshot{
+	model.connection.snapshot = world.Snapshot{
 		Players: []world.Player{{ID: 1, Name: "Aria", AreaID: "meadow", X: 10, Y: 5}},
 		Drops: []world.GroundItem{
 			{ID: 1, ItemID: "slime_gel", Name: "Slime Gel", AreaID: "meadow", X: 3, Y: 5},
@@ -312,7 +311,7 @@ func TestWelcomeBorderRowsHaveEqualWidth(t *testing.T) {
 }
 
 func TestWelcomeViewUsesTerminalDimensions(t *testing.T) {
-	model := newGameModel(nil, nil, nil, nil, Identity{}, nil, nil)
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, nil, nil)
 	model.width, model.height = 80, 24
 	output := model.renderer.welcome.Render(model.viewState())
 	if width, height := lipgloss.Size(output); width != 80 || height != 24 {

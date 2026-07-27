@@ -12,11 +12,13 @@ import (
 )
 
 type Player struct {
-	ID     int64
-	Name   string
-	AreaID string
-	X      int
-	Y      int
+	ID        int64
+	Name      string
+	AreaID    string
+	X         int
+	Y         int
+	Health    int
+	MaxHealth int
 }
 
 type Snapshot struct {
@@ -33,10 +35,12 @@ type Enemy struct {
 	Visual       []string
 	Health       int
 	MaxHealth    int
+	Damage       int
 	AreaID       string
 	X            int
 	Y            int
 	spawnIndex   int
+	nextAttack   time.Time
 }
 
 type GroundItem struct {
@@ -106,6 +110,9 @@ type AttackResult struct {
 
 const attackRange = 2
 const pickupRange = 2
+const enemyAggroRange = 8
+const playerMaxHealth = 10
+const enemyAttackInterval = 1500 * time.Millisecond
 
 type PickupResult struct {
 	Item  GroundItem
@@ -302,7 +309,7 @@ func (m *Manager) run() {
 				}
 			}
 		case now := <-ticker.C:
-			changed := m.moveEnemies(liveEnemies)
+			changed := m.updateEnemies(players, liveEnemies, now)
 			for key, state := range spawns {
 				area := m.areas.areas[key.areaID]
 				spawn := area.EnemySpawns[key.index]
@@ -333,11 +340,15 @@ func (m *Manager) run() {
 }
 
 func (m *Manager) placePlayer(player *Player) {
+	if player.MaxHealth < 1 {
+		player.Health = playerMaxHealth
+		player.MaxHealth = playerMaxHealth
+	}
 	area, ok := m.areas.Area(player.AreaID)
 	if !ok {
-		area = m.areas.Default()
+		area, spawn := m.areas.DefaultSpawn()
 		player.AreaID = area.ID
-		player.X, player.Y = area.Spawn.X, area.Spawn.Y
+		player.X, player.Y = spawn.X, spawn.Y
 		return
 	}
 	if !area.Walkable(Point{X: player.X, Y: player.Y}) {
@@ -414,6 +425,7 @@ func (m *Manager) spawnEnemy(live map[uint64]*Enemy, area *Area, spawnIndex int,
 		ID: id, DefinitionID: definition.ID, Name: definition.Name,
 		Visual: append([]string(nil), definition.Visual...),
 		Health: definition.Health, MaxHealth: definition.Health,
+		Damage: definition.Damage,
 		AreaID: area.ID, X: point.X, Y: point.Y, spawnIndex: spawnIndex,
 	}
 }
@@ -451,25 +463,117 @@ func (m *Manager) removeEnemy(
 	}
 }
 
-func (m *Manager) moveEnemies(live map[uint64]*Enemy) bool {
+func (m *Manager) updateEnemies(
+	players map[int64]*activePlayer,
+	live map[uint64]*Enemy,
+	now time.Time,
+) bool {
 	changed := false
+	respawned := make(map[int64]bool)
 	directions := [...]Point{{}, {X: 1}, {X: -1}, {Y: 1}, {Y: -1}}
 	for _, current := range live {
 		area := m.areas.areas[current.AreaID]
 		spawn := area.EnemySpawns[current.spawnIndex]
-		direction := directions[mathrand.IntN(len(directions))]
-		target := Point{X: current.X + direction.X, Y: current.Y + direction.Y}
-		if target.X < spawn.X || target.X >= spawn.X+spawn.Width ||
-			target.Y < spawn.Y || target.Y >= spawn.Y+spawn.Height ||
-			!area.Walkable(target) {
+		var targetPlayer *activePlayer
+		distance := enemyAggroRange + 1
+		if current.Damage > 0 {
+			targetPlayer, distance = nearestPlayer(current, players, respawned)
+		}
+		if targetPlayer != nil && distance <= 1 {
+			if now.Before(current.nextAttack) {
+				continue
+			}
+			targetPlayer.Health = max(targetPlayer.Health-current.Damage, 0)
+			current.nextAttack = now.Add(enemyAttackInterval)
+			if targetPlayer.Health == 0 {
+				m.respawnPlayer(&targetPlayer.Player)
+				respawned[targetPlayer.ID] = true
+			}
+			changed = true
 			continue
 		}
-		if target.X != current.X || target.Y != current.Y {
-			current.X, current.Y = target.X, target.Y
-			changed = true
+
+		direction := directions[mathrand.IntN(len(directions))]
+		if targetPlayer != nil {
+			direction = chaseDirection(current.X, current.Y, targetPlayer.X, targetPlayer.Y)
 		}
+		target := Point{X: current.X + direction.X, Y: current.Y + direction.Y}
+		if !enemyCanMoveTo(area, spawn, target) {
+			if targetPlayer == nil {
+				continue
+			}
+			direction = chaseFallbackDirection(current.X, current.Y, targetPlayer.X, targetPlayer.Y)
+			target = Point{X: current.X + direction.X, Y: current.Y + direction.Y}
+			if !enemyCanMoveTo(area, spawn, target) {
+				continue
+			}
+		}
+		if target.X == current.X && target.Y == current.Y {
+			continue
+		}
+		current.X, current.Y = target.X, target.Y
+		changed = true
 	}
 	return changed
+}
+
+func (m *Manager) respawnPlayer(player *Player) {
+	spawnArea, spawn := m.areas.DefaultSpawn()
+	player.AreaID = spawnArea.ID
+	player.X, player.Y = spawn.X, spawn.Y
+	player.Health, player.MaxHealth = playerMaxHealth, playerMaxHealth
+}
+
+func nearestPlayer(
+	current *Enemy,
+	players map[int64]*activePlayer,
+	excluded map[int64]bool,
+) (*activePlayer, int) {
+	var nearest *activePlayer
+	nearestDistance := enemyAggroRange + 1
+	for _, player := range players {
+		if excluded[player.ID] || player.AreaID != current.AreaID || player.Health <= 0 {
+			continue
+		}
+		distance := max(abs(player.X-current.X), abs(player.Y-current.Y))
+		if distance <= enemyAggroRange && distance < nearestDistance {
+			nearest, nearestDistance = player, distance
+		}
+	}
+	return nearest, nearestDistance
+}
+
+func chaseDirection(fromX, fromY, toX, toY int) Point {
+	dx, dy := toX-fromX, toY-fromY
+	if abs(dx) >= abs(dy) && dx != 0 {
+		return Point{X: sign(dx)}
+	}
+	return Point{Y: sign(dy)}
+}
+
+func chaseFallbackDirection(fromX, fromY, toX, toY int) Point {
+	dx, dy := toX-fromX, toY-fromY
+	if abs(dx) >= abs(dy) {
+		return Point{Y: sign(dy)}
+	}
+	return Point{X: sign(dx)}
+}
+
+func enemyCanMoveTo(area *Area, spawn EnemySpawn, target Point) bool {
+	return target.X >= spawn.X && target.X < spawn.X+spawn.Width &&
+		target.Y >= spawn.Y && target.Y < spawn.Y+spawn.Height &&
+		area.Walkable(target)
+}
+
+func sign(value int) int {
+	switch {
+	case value < 0:
+		return -1
+	case value > 0:
+		return 1
+	default:
+		return 0
+	}
 }
 
 func walkableSpawnPoints(area *Area, spawn EnemySpawn) []Point {

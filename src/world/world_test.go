@@ -60,12 +60,20 @@ func TestWallsBlockMovementAndReconnectReplacesSession(t *testing.T) {
 }
 
 func TestUnknownOrBlockedSavedLocationUsesDefaultSpawn(t *testing.T) {
-	manager := New(testAreas(t), nil, nil)
+	areas := testAreas(t)
+	if err := areas.SetDefaultSpawn("cavern", Point{X: 1, Y: 1}); err != nil {
+		t.Fatal(err)
+	}
+	manager := New(areas, nil, nil)
 	defer manager.Close()
 
 	session := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "missing", X: 99, Y: 99})
 	snapshot := receiveSnapshot(t, session.Updates)
-	assertPlayer(t, snapshot, 1, "meadow", 1, 1)
+	assertPlayer(t, snapshot, 1, "cavern", 1, 1)
+	if snapshot.Players[0].Health != playerMaxHealth ||
+		snapshot.Players[0].MaxHealth != playerMaxHealth {
+		t.Fatalf("new player health = %d/%d", snapshot.Players[0].Health, snapshot.Players[0].MaxHealth)
+	}
 }
 
 func TestEnemiesSpawnToCapAndRespawnInsideTheirArea(t *testing.T) {
@@ -183,6 +191,92 @@ func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
 	snapshot = receiveSnapshot(t, session.Updates)
 	if len(snapshot.Drops) != 0 {
 		t.Fatalf("picked-up drop remains in snapshot: %#v", snapshot.Drops)
+	}
+}
+
+func TestEnemyPursuesAndAttacksNearestPlayer(t *testing.T) {
+	areas, err := NewAreas([]AreaDefinition{{
+		ID: "meadow", Name: "Meadow",
+		Layout: []string{"#######", "#.....#", "#######"},
+		Spawn:  Point{X: 1, Y: 1},
+		EnemySpawns: []EnemySpawn{{
+			EnemyID: "slime", X: 1, Y: 1, Width: 5, Height: 1,
+			MaxEnemies: 1, RespawnSeconds: 10,
+		}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := areas.SetDefaultSpawn("meadow", Point{X: 4, Y: 1}); err != nil {
+		t.Fatal(err)
+	}
+	manager := &Manager{areas: areas}
+	player := &activePlayer{Player: Player{
+		ID: 1, AreaID: "meadow", X: 1, Y: 1, Health: 10, MaxHealth: 10,
+	}}
+	players := map[int64]*activePlayer{1: player}
+	live := map[uint64]*Enemy{1: {
+		ID: 1, AreaID: "meadow", X: 5, Y: 1, Damage: 2, spawnIndex: 0,
+	}}
+	now := time.Now()
+
+	for expectedX := 4; expectedX >= 2; expectedX-- {
+		if !manager.updateEnemies(players, live, now) {
+			t.Fatal("enemy pursuit did not change world state")
+		}
+		if live[1].X != expectedX || player.Health != 10 {
+			t.Fatalf("pursuit state = enemy x %d, player health %d", live[1].X, player.Health)
+		}
+	}
+	manager.updateEnemies(players, live, now)
+	if player.Health != 8 {
+		t.Fatalf("first enemy attack left player health at %d, want 8", player.Health)
+	}
+	manager.updateEnemies(players, live, now.Add(time.Second))
+	if player.Health != 8 {
+		t.Fatalf("enemy ignored attack cooldown; health = %d", player.Health)
+	}
+	manager.updateEnemies(players, live, now.Add(enemyAttackInterval))
+	if player.Health != 6 {
+		t.Fatalf("second enemy attack left player health at %d, want 6", player.Health)
+	}
+	player.Health = 1
+	player.X = 3
+	manager.updateEnemies(players, live, now.Add(2*enemyAttackInterval))
+	if player.Health != playerMaxHealth || player.MaxHealth != playerMaxHealth ||
+		player.AreaID != "meadow" || player.X != 4 || player.Y != 1 {
+		t.Fatalf("dead player did not respawn at full health: %#v", player.Player)
+	}
+}
+
+func TestPeacefulEnemyDoesNotAggroOrAttackPlayer(t *testing.T) {
+	areas, err := NewAreas([]AreaDefinition{{
+		ID: "meadow", Name: "Meadow",
+		Layout: []string{"#######", "#.....#", "#######"},
+		Spawn:  Point{X: 1, Y: 1},
+		EnemySpawns: []EnemySpawn{{
+			EnemyID: "deer", X: 1, Y: 1, Width: 5, Height: 1,
+			MaxEnemies: 1, RespawnSeconds: 10,
+		}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := &Manager{areas: areas}
+	player := &activePlayer{Player: Player{
+		ID: 1, AreaID: "meadow", X: 1, Y: 1, Health: 10, MaxHealth: 10,
+	}}
+	live := map[uint64]*Enemy{1: {
+		ID: 1, AreaID: "meadow", X: 2, Y: 1, Damage: 0, spawnIndex: 0,
+	}}
+	for tick := 0; tick < 20; tick++ {
+		manager.updateEnemies(
+			map[int64]*activePlayer{1: player}, live,
+			time.Now().Add(time.Duration(tick)*enemyAttackInterval),
+		)
+	}
+	if player.Health != 10 {
+		t.Fatalf("peaceful enemy damaged player; health = %d", player.Health)
 	}
 }
 

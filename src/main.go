@@ -42,6 +42,18 @@ func main() {
 		log.Error("load maps", "path", cfg.MapsPath, "error", err)
 		os.Exit(1)
 	}
+	game, err := config.LoadGame(cfg.GamePath)
+	if err != nil {
+		log.Error("load game config", "path", cfg.GamePath, "error", err)
+		os.Exit(1)
+	}
+	if err := areas.SetDefaultSpawn(
+		game.DefaultSpawn.AreaID,
+		world.Point{X: game.DefaultSpawn.X, Y: game.DefaultSpawn.Y},
+	); err != nil {
+		log.Error("validate default spawn", "error", err)
+		os.Exit(1)
+	}
 	items, err := item.LoadItems(cfg.ItemsPath)
 	if err != nil {
 		log.Error("load items", "path", cfg.ItemsPath, "error", err)

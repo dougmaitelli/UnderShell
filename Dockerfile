@@ -12,9 +12,11 @@ COPY --from=build /sshrpg /usr/local/bin/sshrpg
 COPY --from=build /src/maps /app/maps
 COPY --from=build /src/items /app/items
 COPY --from=build /src/enemies /app/enemies
+COPY --from=build /src/config /app/config
 RUN mkdir /app/data && chown game:game /app/data
 USER game
 ENV SSH_LISTEN_ADDR=:2222
+ENV GAME_CONFIG_PATH=/app/config/game.json
 ENV SSH_HOST_KEY_PATH=/app/data/ssh_host_ed25519
 ENV DATABASE_PATH=/app/data/game.db
 ENV MAPS_PATH=/app/maps

@@ -46,3 +46,16 @@ func TestLoadEnemiesRejectsInvalidVisualAndUnknownFields(t *testing.T) {
 		t.Fatal("expected unknown field to fail")
 	}
 }
+
+func TestEnemiesAllowPeacefulButRejectNegativeDamage(t *testing.T) {
+	if _, err := NewEnemies([]Definition{{
+		ID: "deer", Name: "Deer", Health: 2, Damage: 0, Visual: []string{"d"},
+	}}); err != nil {
+		t.Fatalf("peaceful enemy was rejected: %v", err)
+	}
+	if _, err := NewEnemies([]Definition{{
+		ID: "broken", Name: "Broken", Health: 2, Damage: -1, Visual: []string{"b"},
+	}}); err == nil {
+		t.Fatal("expected negative damage to fail")
+	}
+}

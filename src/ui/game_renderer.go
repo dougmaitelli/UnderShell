@@ -115,8 +115,8 @@ func (GameRenderer) Render(state ViewState) string {
 		rows[y] = strings.Join(row, "")
 	}
 	header := headerStyle.Render(fmt.Sprintf(
-		" %s • %s  (%d, %d)  Players here: %d • Enemies: %d",
-		self.Name, areaName(state.Snapshot.Area), self.X, self.Y,
+		" %s • HP %d/%d • %s  (%d, %d)  Players here: %d • Enemies: %d",
+		self.Name, self.Health, self.MaxHealth, areaName(state.Snapshot.Area), self.X, self.Y,
 		len(state.Snapshot.Players), len(state.Snapshot.Enemies),
 	))
 	footer := " WASD/arrows: move • X: attack • E: pick up • I: inventory • Ctrl+C: quit"

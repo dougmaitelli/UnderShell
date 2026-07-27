@@ -71,8 +71,9 @@ type Area struct {
 }
 
 type Areas struct {
-	areas     map[string]*Area
-	defaultID string
+	areas        map[string]*Area
+	defaultID    string
+	defaultPoint Point
 }
 
 func LoadAreas(directory string) (*Areas, error) {
@@ -116,8 +117,9 @@ func NewAreas(definitions []AreaDefinition) (*Areas, error) {
 			return nil, fmt.Errorf("duplicate area ID %q", area.ID)
 		}
 		set.areas[area.ID] = area
-		if set.defaultID == "" || area.ID == "meadow" {
+		if set.defaultID == "" {
 			set.defaultID = area.ID
+			set.defaultPoint = area.Spawn
 		}
 	}
 
@@ -147,8 +149,23 @@ func (s *Areas) Area(id string) (*Area, bool) {
 	return area, ok
 }
 
-func (s *Areas) Default() *Area {
-	return s.areas[s.defaultID]
+func (s *Areas) SetDefaultSpawn(areaID string, point Point) error {
+	area, ok := s.areas[areaID]
+	if !ok {
+		return fmt.Errorf("default spawn references unknown area %q", areaID)
+	}
+	if !area.Walkable(point) {
+		return fmt.Errorf(
+			"default spawn (%d,%d) in area %q must be on a walkable tile",
+			point.X, point.Y, areaID,
+		)
+	}
+	s.defaultID, s.defaultPoint = areaID, point
+	return nil
+}
+
+func (s *Areas) DefaultSpawn() (*Area, Point) {
+	return s.areas[s.defaultID], s.defaultPoint
 }
 
 func (s *Areas) ValidateEnemySpawns(enemies *enemy.Enemies) error {

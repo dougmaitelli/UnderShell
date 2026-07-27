@@ -50,6 +50,7 @@ Configuration is supplied through environment variables.
 | Variable | Default | Purpose |
 |---|---|---|
 | `SSH_LISTEN_ADDR` | `:2222` | Address and port used by the SSH server |
+| `GAME_CONFIG_PATH` | `./config/game.json` | JSON file containing global game settings |
 | `SSH_HOST_KEY_PATH` | `./data/ssh_host_ed25519` | Persistent Ed25519 server host-key path |
 | `DATABASE_PATH` | `./data/game.db` | Persistent SQLite database path |
 | `MAPS_PATH` | `./maps` | Directory containing JSON area definitions |
@@ -60,12 +61,31 @@ Example:
 
 ```sh
 SSH_LISTEN_ADDR=:2022 \
+GAME_CONFIG_PATH=./config/game.json \
 DATABASE_PATH=./data/development.db \
 MAPS_PATH=./maps \
 ITEMS_PATH=./items/items.json \
 ENEMIES_PATH=./enemies/enemies.json \
 make run
 ```
+
+## Game configuration
+
+The default spawn used by both new and defeated players is defined globally in
+`GAME_CONFIG_PATH`:
+
+```json
+{
+  "default_spawn": {
+    "area_id": "meadow",
+    "x": 7,
+    "y": 32
+  }
+}
+```
+
+The area must exist and the coordinate must be a walkable tile. Invalid game
+configuration prevents the server from starting.
 
 ## Areas and maps
 
@@ -176,6 +196,7 @@ row. Leading and trailing spaces are preserved for shaping the art.
       "name": "Slime",
       "description": "A wobbling blob that roams the meadow.",
       "health": 3,
+      "damage": 1,
       "drops": [
         { "item_id": "slime_gel", "chance": 0.75 }
       ],
@@ -193,6 +214,14 @@ and roam within their configured area. Each definition's `health` controls how
 many attacks it survives. Pressing `X` plays a directional slash and damages
 enemies within melee range; enemies at zero health die and enter their spawn's
 respawn cycle.
+
+Hostile enemies notice nearby living players, pursue the nearest one without
+leaving their configured spawn area, and attack when adjacent. Enemy `damage`
+is defined alongside `health`; setting it to `0` creates a peaceful enemy that
+roams without pursuing or attacking players. Player health is shown in the HUD.
+At zero health, the player immediately returns to the default area's starting
+point with full health. This default spawn currently serves as the global new
+player and death-respawn location.
 
 Each drop entry references an item from `ITEMS_PATH`. `chance` is greater than
 zero and at most one, where `1` always drops and `0.25` is a 25% chance. Dropped

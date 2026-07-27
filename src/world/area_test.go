@@ -99,6 +99,29 @@ func TestEnemySpawnValidation(t *testing.T) {
 	}
 }
 
+func TestDefaultSpawnMustBeWalkableInKnownArea(t *testing.T) {
+	areas, err := NewAreas([]AreaDefinition{{
+		ID: "one", Name: "One", Layout: []string{"###", "#.#", "###"},
+		Spawn: Point{X: 1, Y: 1},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := areas.SetDefaultSpawn("missing", Point{X: 1, Y: 1}); err == nil {
+		t.Fatal("expected unknown default spawn area to fail")
+	}
+	if err := areas.SetDefaultSpawn("one", Point{X: 0, Y: 0}); err == nil {
+		t.Fatal("expected blocked default spawn point to fail")
+	}
+	if err := areas.SetDefaultSpawn("one", Point{X: 1, Y: 1}); err != nil {
+		t.Fatal(err)
+	}
+	area, point := areas.DefaultSpawn()
+	if area.ID != "one" || point != (Point{X: 1, Y: 1}) {
+		t.Fatalf("unexpected default spawn: %s %#v", area.ID, point)
+	}
+}
+
 func writeArea(t *testing.T, directory, name, contents string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(directory, name), []byte(contents), 0600); err != nil {

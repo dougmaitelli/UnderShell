@@ -1,0 +1,102 @@
+package world
+
+import "time"
+
+type Player struct {
+	ID          int64
+	Name        string
+	AreaID      string
+	X           int
+	Y           int
+	Health      int
+	MaxHealth   int
+	Level       int
+	Experience  int64
+	SkillPoints int
+	Attack      int
+	Defense     int
+	Vitality    int
+}
+
+type Snapshot struct {
+	Area    *Area
+	Players []Player
+	Enemies []Enemy
+	Drops   []GroundItem
+}
+
+type Enemy struct {
+	ID           uint64
+	DefinitionID string
+	Name         string
+	Visual       []string
+	Health       int
+	MaxHealth    int
+	Damage       int
+	Experience   int64
+	AreaID       string
+	X            int
+	Y            int
+	spawnIndex   int
+	nextAttack   time.Time
+}
+
+type GroundItem struct {
+	ID     uint64
+	ItemID string
+	Name   string
+	AreaID string
+	X      int
+	Y      int
+}
+
+type Session struct {
+	Token   string
+	Updates <-chan Snapshot
+	Events  <-chan Event
+	Chats   <-chan ChatMessage
+	Kicked  <-chan struct{}
+}
+
+type ChatMessage struct {
+	PlayerID   int64
+	PlayerName string
+	Message    string
+}
+
+type EventKind string
+
+const (
+	EventPickup      EventKind = "pickup"
+	EventProgression EventKind = "progression"
+	EventCombat      EventKind = "combat"
+	EventDamage      EventKind = "damage"
+	EventDeath       EventKind = "death"
+	EventRespawn     EventKind = "respawn"
+)
+
+type Event struct {
+	Kind    EventKind
+	Message string
+}
+
+type AttackResult struct {
+	HitIDs      []uint64
+	DefeatedIDs []uint64
+}
+
+type PickupResult struct {
+	Item  GroundItem
+	Found bool
+}
+
+const (
+	attackRange           = 2
+	pickupRange           = 2
+	enemyAggroRange       = 8
+	playerMaxHealth       = 10
+	enemyAttackInterval   = 1500 * time.Millisecond
+	vitalityHealthPerRank = 5
+	chatHistoryLimit      = 10
+	chatMessageLimit      = 200
+)

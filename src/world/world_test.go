@@ -142,7 +142,7 @@ func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
 		t.Fatal(err)
 	}
 	enemies, err := enemy.NewEnemies([]enemy.Definition{{
-		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 2, Experience: 25,
+		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 3, Experience: 25,
 		Drops: []enemy.Drop{{ItemID: "slime_gel", Chance: 1}},
 	}})
 	if err != nil {
@@ -156,7 +156,9 @@ func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
 	}
 	manager := New(areas, items, enemies)
 	defer manager.Close()
-	session := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
+	session := manager.Join(Player{
+		ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1, Attack: 1,
+	})
 	snapshot := receiveSnapshot(t, session.Updates)
 	enemyID := snapshot.Enemies[0].ID
 
@@ -215,6 +217,36 @@ func TestExperienceCurveSupportsMultipleLevels(t *testing.T) {
 	}
 }
 
+func TestSkillPointsUpgradePlayerAttributes(t *testing.T) {
+	manager := New(testAreas(t), nil, nil)
+	defer manager.Close()
+	session := manager.Join(Player{
+		ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1,
+		Level: 4, SkillPoints: 3,
+	})
+	receiveSnapshot(t, session.Updates)
+
+	if invalid := manager.SpendSkillPoint(1, session.Token, "unknown"); invalid.ID != 0 {
+		t.Fatalf("unknown skill was accepted: %#v", invalid)
+	}
+	attack := manager.SpendSkillPoint(1, session.Token, "attack")
+	if attack.Attack != 1 || attack.SkillPoints != 2 {
+		t.Fatalf("attack upgrade = %#v", attack)
+	}
+	defense := manager.SpendSkillPoint(1, session.Token, "defense")
+	if defense.Defense != 1 || defense.SkillPoints != 1 {
+		t.Fatalf("defense upgrade = %#v", defense)
+	}
+	vitality := manager.SpendSkillPoint(1, session.Token, "vitality")
+	if vitality.Vitality != 1 || vitality.SkillPoints != 0 ||
+		vitality.Health != 15 || vitality.MaxHealth != 15 {
+		t.Fatalf("vitality upgrade = %#v", vitality)
+	}
+	if exhausted := manager.SpendSkillPoint(1, session.Token, "attack"); exhausted.ID != 0 {
+		t.Fatalf("upgrade without points was accepted: %#v", exhausted)
+	}
+}
+
 func TestEnemyPursuesAndAttacksNearestPlayer(t *testing.T) {
 	areas, err := NewAreas([]AreaDefinition{{
 		ID: "meadow", Name: "Meadow",
@@ -233,7 +265,8 @@ func TestEnemyPursuesAndAttacksNearestPlayer(t *testing.T) {
 	}
 	manager := &Manager{areas: areas}
 	player := &activePlayer{Player: Player{
-		ID: 1, AreaID: "meadow", X: 1, Y: 1, Health: 10, MaxHealth: 10,
+		ID: 1, AreaID: "meadow", X: 1, Y: 1,
+		Health: 10, MaxHealth: 10, Defense: 1,
 	}}
 	players := map[int64]*activePlayer{1: player}
 	live := map[uint64]*Enemy{1: {
@@ -250,16 +283,16 @@ func TestEnemyPursuesAndAttacksNearestPlayer(t *testing.T) {
 		}
 	}
 	manager.updateEnemies(players, live, now)
-	if player.Health != 8 {
-		t.Fatalf("first enemy attack left player health at %d, want 8", player.Health)
+	if player.Health != 9 {
+		t.Fatalf("first enemy attack left player health at %d, want 9", player.Health)
 	}
 	manager.updateEnemies(players, live, now.Add(time.Second))
-	if player.Health != 8 {
+	if player.Health != 9 {
 		t.Fatalf("enemy ignored attack cooldown; health = %d", player.Health)
 	}
 	manager.updateEnemies(players, live, now.Add(enemyAttackInterval))
-	if player.Health != 6 {
-		t.Fatalf("second enemy attack left player health at %d, want 6", player.Health)
+	if player.Health != 8 {
+		t.Fatalf("second enemy attack left player health at %d, want 8", player.Health)
 	}
 	player.Health = 1
 	player.X = 3

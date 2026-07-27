@@ -36,7 +36,7 @@ func TestCharacterIdentityAndPersistence(t *testing.T) {
 	if err := characters.UpdateLocation(ctx, created.ID, "cavern", 7, 9); err != nil {
 		t.Fatal(err)
 	}
-	if err := characters.UpdateProgress(ctx, created.ID, 3, 50, 2); err != nil {
+	if err := characters.UpdateProgress(ctx, created.ID, 3, 50, 2, 4, 3, 2); err != nil {
 		t.Fatal(err)
 	}
 
@@ -46,7 +46,8 @@ func TestCharacterIdentityAndPersistence(t *testing.T) {
 	}
 	if found == nil || found.Name != "Aria" || found.AreaID != "cavern" ||
 		found.X != 7 || found.Y != 9 ||
-		found.Level != 3 || found.Experience != 50 || found.SkillPoints != 2 {
+		found.Level != 3 || found.Experience != 50 || found.SkillPoints != 2 ||
+		found.Attack != 4 || found.Defense != 3 || found.Vitality != 2 {
 		t.Fatalf("unexpected character: %#v", found)
 	}
 

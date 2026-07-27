@@ -32,7 +32,7 @@ type CharacterRepository interface {
 	FindByFingerprint(context.Context, string) (*domain.Character, error)
 	Create(context.Context, CreateCharacterParams) (*domain.Character, error)
 	UpdateLocation(context.Context, int64, string, int, int) error
-	UpdateProgress(context.Context, int64, int, int64, int) error
+	UpdateProgress(context.Context, int64, int, int64, int, int, int, int) error
 }
 
 type BunCharacterRepository struct {
@@ -168,13 +168,18 @@ func (r *BunCharacterRepository) UpdateProgress(
 	level int,
 	experience int64,
 	skillPoints int,
+	attack int,
+	defense int,
+	vitality int,
 ) error {
-	if level < 1 || experience < 0 || skillPoints < 0 {
+	if level < 1 || experience < 0 || skillPoints < 0 ||
+		attack < 0 || defense < 0 || vitality < 0 {
 		return errors.New("invalid character progress")
 	}
 	progress := &entity.CharacterProgress{
 		CharacterID: id,
 		Level:       level, Experience: experience, SkillPoints: skillPoints,
+		Attack: attack, Defense: defense, Vitality: vitality,
 	}
 	if _, err := r.db.NewInsert().
 		Model(progress).
@@ -182,6 +187,9 @@ func (r *BunCharacterRepository) UpdateProgress(
 		Set("level = EXCLUDED.level").
 		Set("experience = EXCLUDED.experience").
 		Set("skill_points = EXCLUDED.skill_points").
+		Set("attack = EXCLUDED.attack").
+		Set("defense = EXCLUDED.defense").
+		Set("vitality = EXCLUDED.vitality").
 		Exec(ctx); err != nil {
 		return fmt.Errorf("update character progress: %w", err)
 	}
@@ -203,6 +211,9 @@ func toDomain(
 		character.Level = progress.Level
 		character.Experience = progress.Experience
 		character.SkillPoints = progress.SkillPoints
+		character.Attack = progress.Attack
+		character.Defense = progress.Defense
+		character.Vitality = progress.Vitality
 	}
 	return character
 }

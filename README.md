@@ -35,6 +35,7 @@ Use a different SSH key to create another character.
 | X | Attack nearby enemies |
 | E | Pick up nearby item drops |
 | I | Open or close inventory |
+| K | Open or close skills |
 | Esc | Close inventory |
 | Enter | Submit the character name |
 | Ctrl+C | Disconnect |
@@ -239,6 +240,18 @@ The requirement follows `100 × level²`, requiring 32,835,000 cumulative XP to
 reach level 100. There is no configured maximum level. Level, experience toward
 the next level, and unspent skill points are persisted with the character and
 displayed in the HUD.
+
+Press `K` to open the skills menu and spend points with keys `1–3`:
+
+| Attribute | Effect per rank |
+|---|---|
+| Attack | +1 damage dealt |
+| Defense | −1 damage received, down to zero |
+| Vitality | +5 maximum and current health |
+
+Attribute ranks are persistent. The skills and inventory menus are mutually
+exclusive; close the open menu with its shortcut or Escape before opening the
+other one.
 
 Each drop entry references an item from `ITEMS_PATH`. `chance` is greater than
 zero and at most one, where `1` always drops and `0.25` is a 25% chance. Dropped

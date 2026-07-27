@@ -75,6 +75,11 @@ func (d *Database) createSchema(ctx context.Context) error {
 		Exec(ctx); err != nil {
 		return fmt.Errorf("create character progress schema: %w", err)
 	}
+	for _, column := range []string{"attack", "defense", "vitality"} {
+		if err := d.ensureProgressColumn(ctx, column); err != nil {
+			return err
+		}
+	}
 	if _, err := d.orm.NewCreateTable().
 		Model((*entity.Inventory)(nil)).
 		IfNotExists().
@@ -86,6 +91,25 @@ func (d *Database) createSchema(ctx context.Context) error {
 		IfNotExists().
 		Exec(ctx); err != nil {
 		return fmt.Errorf("create inventory item schema: %w", err)
+	}
+	return nil
+}
+
+func (d *Database) ensureProgressColumn(ctx context.Context, column string) error {
+	var count int
+	if err := d.orm.NewRaw(
+		"SELECT COUNT(*) FROM pragma_table_info('character_progress') WHERE name = ?",
+		column,
+	).Scan(ctx, &count); err != nil {
+		return fmt.Errorf("inspect character progress column %s: %w", column, err)
+	}
+	if count > 0 {
+		return nil
+	}
+	if _, err := d.orm.NewRaw(
+		"ALTER TABLE character_progress ADD COLUMN " + column + " INTEGER NOT NULL DEFAULT 0",
+	).Exec(ctx); err != nil {
+		return fmt.Errorf("add character progress column %s: %w", column, err)
 	}
 	return nil
 }

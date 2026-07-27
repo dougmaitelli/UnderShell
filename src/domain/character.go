@@ -21,6 +21,9 @@ type Character struct {
 	Level       int
 	Experience  int64
 	SkillPoints int
+	Attack      int
+	Defense     int
+	Vitality    int
 }
 
 func ValidateCharacterName(value string) (string, error) {

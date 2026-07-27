@@ -74,6 +74,36 @@ func TestInventoryCanBeOpenedAndClosed(t *testing.T) {
 	}
 }
 
+func TestSkillsAndInventoryMenusAreMutuallyExclusive(t *testing.T) {
+	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
+		ID: 1, Name: "Aria", Level: 2, SkillPoints: 2, Attack: 1,
+	}, nil)
+	model.phase = phasePlaying
+	model.width, model.height = 80, 24
+
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "k", Code: 'k'}))
+	if !model.skillsOpen || model.inventoryOpen {
+		t.Fatalf("skills did not open exclusively: skills %v, inventory %v",
+			model.skillsOpen, model.inventoryOpen)
+	}
+	plain := ansi.Strip(model.View().Content)
+	if !strings.Contains(plain, "SKILLS") ||
+		!strings.Contains(plain, "Unspent points: 2") ||
+		!strings.Contains(plain, "[1] Attack   1") {
+		t.Fatalf("skills menu not rendered: %q", plain)
+	}
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "i", Code: 'i'}))
+	if !model.skillsOpen || model.inventoryOpen {
+		t.Fatal("inventory opened over skills")
+	}
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "i", Code: 'i'}))
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "k", Code: 'k'}))
+	if !model.inventoryOpen || model.skillsOpen {
+		t.Fatal("skills opened over inventory")
+	}
+}
+
 func TestAttackKeyStartsSlashAnimation(t *testing.T) {
 	model := newGameModel(nil, nil, nil, nil, Identity{}, &domain.Character{
 		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
@@ -141,6 +171,9 @@ func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
 	}
 	if !strings.Contains(output, "E: pick up") {
 		t.Fatalf("pickup control not rendered: %q", output)
+	}
+	if !strings.Contains(output, "K: skills") {
+		t.Fatalf("skills control not rendered: %q", output)
 	}
 	if !strings.Contains(plain, "Lv 2 • XP 25/400 • SP 1 • HP 8/10") {
 		t.Fatalf("player progression not rendered: %q", plain)

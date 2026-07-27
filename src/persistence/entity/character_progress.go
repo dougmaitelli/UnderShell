@@ -10,4 +10,7 @@ type CharacterProgress struct {
 	Level       int   `bun:"level,notnull"`
 	Experience  int64 `bun:"experience,notnull"`
 	SkillPoints int   `bun:"skill_points,notnull"`
+	Attack      int   `bun:"attack,notnull,default:0"`
+	Defense     int   `bun:"defense,notnull,default:0"`
+	Vitality    int   `bun:"vitality,notnull,default:0"`
 }

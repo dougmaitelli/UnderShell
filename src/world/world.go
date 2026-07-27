@@ -22,6 +22,9 @@ type Player struct {
 	Level       int
 	Experience  int64
 	SkillPoints int
+	Attack      int
+	Defense     int
+	Vitality    int
 }
 
 type Snapshot struct {
@@ -106,6 +109,12 @@ type pickupRequest struct {
 	token string
 	reply chan PickupResult
 }
+type spendSkillRequest struct {
+	id    int64
+	token string
+	skill string
+	reply chan Player
+}
 
 type AttackResult struct {
 	HitIDs      []uint64
@@ -117,6 +126,7 @@ const pickupRange = 2
 const enemyAggroRange = 8
 const playerMaxHealth = 10
 const enemyAttackInterval = 1500 * time.Millisecond
+const vitalityHealthPerRank = 5
 
 type PickupResult struct {
 	Item  GroundItem
@@ -169,6 +179,16 @@ func (m *Manager) Pickup(id int64, token string) PickupResult {
 		return <-reply
 	case <-m.done:
 		return PickupResult{}
+	}
+}
+
+func (m *Manager) SpendSkillPoint(id int64, token, skill string) Player {
+	reply := make(chan Player)
+	select {
+	case m.events <- spendSkillRequest{id: id, token: token, skill: skill, reply: reply}:
+		return <-reply
+	case <-m.done:
+		return Player{}
 	}
 }
 
@@ -277,7 +297,7 @@ func (m *Manager) run() {
 						abs(target.Y-player.Y) > attackRange {
 						continue
 					}
-					target.Health--
+					target.Health -= 1 + player.Attack
 					result.HitIDs = append(result.HitIDs, target.ID)
 					if target.Health <= 0 {
 						result.DefeatedIDs = append(result.DefeatedIDs, target.ID)
@@ -312,6 +332,32 @@ func (m *Manager) run() {
 				if result.Found {
 					m.broadcastState(players, liveEnemies, groundItems)
 				}
+			case spendSkillRequest:
+				player := players[e.id]
+				if player == nil || player.token != e.token || player.SkillPoints < 1 {
+					e.reply <- Player{}
+					break
+				}
+				valid := true
+				switch e.skill {
+				case "attack":
+					player.Attack++
+				case "defense":
+					player.Defense++
+				case "vitality":
+					player.Vitality++
+					player.MaxHealth += vitalityHealthPerRank
+					player.Health += vitalityHealthPerRank
+				default:
+					valid = false
+				}
+				if !valid {
+					e.reply <- Player{}
+					break
+				}
+				player.SkillPoints--
+				e.reply <- player.Player
+				m.broadcastState(players, liveEnemies, groundItems)
 			}
 		case now := <-ticker.C:
 			changed := m.updateEnemies(players, liveEnemies, now)
@@ -345,9 +391,10 @@ func (m *Manager) run() {
 }
 
 func (m *Manager) placePlayer(player *Player) {
+	expectedMaxHealth := playerMaxHealth + player.Vitality*vitalityHealthPerRank
 	if player.MaxHealth < 1 {
-		player.Health = playerMaxHealth
-		player.MaxHealth = playerMaxHealth
+		player.Health = expectedMaxHealth
+		player.MaxHealth = expectedMaxHealth
 	}
 	if player.Level < 1 {
 		player.Level = 1
@@ -491,7 +538,8 @@ func (m *Manager) updateEnemies(
 			if now.Before(current.nextAttack) {
 				continue
 			}
-			targetPlayer.Health = max(targetPlayer.Health-current.Damage, 0)
+			damage := max(current.Damage-targetPlayer.Defense, 0)
+			targetPlayer.Health = max(targetPlayer.Health-damage, 0)
 			current.nextAttack = now.Add(enemyAttackInterval)
 			if targetPlayer.Health == 0 {
 				m.respawnPlayer(&targetPlayer.Player)
@@ -529,7 +577,8 @@ func (m *Manager) respawnPlayer(player *Player) {
 	spawnArea, spawn := m.areas.DefaultSpawn()
 	player.AreaID = spawnArea.ID
 	player.X, player.Y = spawn.X, spawn.Y
-	player.Health, player.MaxHealth = playerMaxHealth, playerMaxHealth
+	player.MaxHealth = playerMaxHealth + player.Vitality*vitalityHealthPerRank
+	player.Health = player.MaxHealth
 }
 
 func nearestPlayer(

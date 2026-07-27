@@ -18,6 +18,7 @@ type ViewState struct {
 	Snapshot      world.Snapshot
 	InventoryOpen bool
 	Inventory     *domain.Inventory
+	SkillsOpen    bool
 	AttackFrame   int
 	FacingX       int
 	FacingY       int
@@ -27,6 +28,7 @@ type Renderer struct {
 	welcome   WelcomeRenderer
 	game      GameRenderer
 	inventory InventoryRenderer
+	skills    SkillsRenderer
 }
 
 func NewRenderer() Renderer {
@@ -34,6 +36,7 @@ func NewRenderer() Renderer {
 		welcome:   WelcomeRenderer{},
 		game:      GameRenderer{},
 		inventory: InventoryRenderer{},
+		skills:    SkillsRenderer{},
 	}
 }
 
@@ -53,6 +56,9 @@ func (r Renderer) Render(state ViewState) string {
 		game := r.game.Render(state)
 		if state.InventoryOpen {
 			return r.inventory.RenderOver(game, state.Width, state.Height, state.Inventory)
+		}
+		if state.SkillsOpen {
+			return r.skills.RenderOver(game, state.Width, state.Height, state.Character)
 		}
 		return game
 	default:

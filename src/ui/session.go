@@ -125,17 +125,19 @@ type gameModel struct {
 	width        int
 	height       int
 
-	enhancedKeyboard bool
-	heldDirections   map[string]bool
-	movementLoop     bool
-	moveInFlight     bool
-	attackInFlight   bool
-	pickupInFlight   bool
-	attackFrame      int
-	facingX          int
-	facingY          int
-	inventoryOpen    bool
-	renderer         Renderer
+	enhancedKeyboard   bool
+	heldDirections     map[string]bool
+	movementLoop       bool
+	moveInFlight       bool
+	attackInFlight     bool
+	pickupInFlight     bool
+	attackFrame        int
+	facingX            int
+	facingY            int
+	inventoryOpen      bool
+	skillsOpen         bool
+	skillSpendInFlight bool
+	renderer           Renderer
 }
 
 type characterCreatedMsg struct {
@@ -174,6 +176,7 @@ type itemStoredMsg struct {
 	itemName  string
 	err       error
 }
+type skillSpentMsg struct{ player world.Player }
 
 func newGameModel(
 	characters repository.CharacterRepository,
@@ -233,7 +236,18 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		if m.phase == phasePlaying {
 			switch strings.ToLower(msg.String()) {
 			case "i":
+				if m.skillsOpen {
+					return m, nil
+				}
 				m.inventoryOpen = !m.inventoryOpen
+				clear(m.heldDirections)
+				m.movementLoop = false
+				return m, nil
+			case "k":
+				if m.inventoryOpen {
+					return m, nil
+				}
+				m.skillsOpen = !m.skillsOpen
 				clear(m.heldDirections)
 				m.movementLoop = false
 				return m, nil
@@ -242,21 +256,31 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 					m.inventoryOpen = false
 					return m, nil
 				}
+				if m.skillsOpen {
+					m.skillsOpen = false
+					return m, nil
+				}
 			case "x":
-				if !m.inventoryOpen && !m.attackInFlight {
+				if !m.inventoryOpen && !m.skillsOpen && !m.attackInFlight {
 					m.attackInFlight = true
 					m.attackFrame = 1
 					return m, tea.Batch(m.attack(), attackAnimationTick(2))
 				}
 				return m, nil
 			case "e":
-				if !m.inventoryOpen && !m.pickupInFlight {
+				if !m.inventoryOpen && !m.skillsOpen && !m.pickupInFlight {
 					m.pickupInFlight = true
 					return m, m.pickup()
 				}
 				return m, nil
+			case "1", "2", "3":
+				if m.skillsOpen && !m.skillSpendInFlight && m.character.SkillPoints > 0 {
+					m.skillSpendInFlight = true
+					return m, m.spendSkill(msg.String())
+				}
+				return m, nil
 			}
-			if m.inventoryOpen {
+			if m.inventoryOpen || m.skillsOpen {
 				return m, nil
 			}
 			return m, m.handleMovementPress(msg.String())
@@ -267,7 +291,7 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case movementTickMsg:
-		if m.inventoryOpen {
+		if m.inventoryOpen || m.skillsOpen {
 			m.movementLoop = false
 			return m, nil
 		}
@@ -298,6 +322,16 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.inventory = msg.inventory
 		m.message = "Picked up " + msg.itemName + "."
 		return m, nil
+	case skillSpentMsg:
+		m.skillSpendInFlight = false
+		if msg.player.ID == 0 {
+			return m, nil
+		}
+		m.character.SkillPoints = msg.player.SkillPoints
+		m.character.Attack = msg.player.Attack
+		m.character.Defense = msg.player.Defense
+		m.character.Vitality = msg.player.Vitality
+		return m, m.saveProgress()
 	case characterCreatedMsg:
 		m.creating = false
 		if msg.err != nil {
@@ -342,12 +376,18 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				m.character.Y != player.Y
 			progressChanged := m.character.Level != player.Level ||
 				m.character.Experience != player.Experience ||
-				m.character.SkillPoints != player.SkillPoints
+				m.character.SkillPoints != player.SkillPoints ||
+				m.character.Attack != player.Attack ||
+				m.character.Defense != player.Defense ||
+				m.character.Vitality != player.Vitality
 			m.character.AreaID = player.AreaID
 			m.character.X, m.character.Y = player.X, player.Y
 			m.character.Level = player.Level
 			m.character.Experience = player.Experience
 			m.character.SkillPoints = player.SkillPoints
+			m.character.Attack = player.Attack
+			m.character.Defense = player.Defense
+			m.character.Vitality = player.Vitality
 			if locationChanged {
 				commands = append(commands, m.savePosition())
 			}
@@ -424,6 +464,7 @@ func (m *gameModel) viewState() ViewState {
 		Snapshot:      m.snapshot,
 		InventoryOpen: m.inventoryOpen,
 		Inventory:     m.inventory,
+		SkillsOpen:    m.skillsOpen,
 		AttackFrame:   m.attackFrame,
 		FacingX:       m.facingX,
 		FacingY:       m.facingY,
@@ -456,6 +497,7 @@ func (m *gameModel) joinWorld() tea.Cmd {
 			AreaID: m.character.AreaID, X: m.character.X, Y: m.character.Y,
 			Level: m.character.Level, Experience: m.character.Experience,
 			SkillPoints: m.character.SkillPoints,
+			Attack:      m.character.Attack, Defense: m.character.Defense, Vitality: m.character.Vitality,
 		})
 		return worldJoinedMsg{session: session}
 	}
@@ -478,6 +520,16 @@ func (m *gameModel) attack() tea.Cmd {
 func (m *gameModel) pickup() tea.Cmd {
 	return func() tea.Msg {
 		return pickupResultMsg{result: m.world.Pickup(m.character.ID, m.worldSession.Token)}
+	}
+}
+
+func (m *gameModel) spendSkill(key string) tea.Cmd {
+	skills := map[string]string{"1": "attack", "2": "defense", "3": "vitality"}
+	skill := skills[key]
+	return func() tea.Msg {
+		return skillSpentMsg{player: m.world.SpendSkillPoint(
+			m.character.ID, m.worldSession.Token, skill,
+		)}
 	}
 }
 
@@ -567,9 +619,11 @@ func (m *gameModel) savePosition() tea.Cmd {
 func (m *gameModel) saveProgress() tea.Cmd {
 	id := m.character.ID
 	level, experience, skillPoints := m.character.Level, m.character.Experience, m.character.SkillPoints
+	attack, defense, vitality := m.character.Attack, m.character.Defense, m.character.Vitality
 	return func() tea.Msg {
 		return progressSavedMsg{err: m.characters.UpdateProgress(
 			context.Background(), id, level, experience, skillPoints,
+			attack, defense, vitality,
 		)}
 	}
 }

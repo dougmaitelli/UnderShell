@@ -39,6 +39,7 @@ type gameModel struct {
 	actions    actionState
 	skills     skillsState
 	shop       shopState
+	quests     questState
 	chat       chatPanelState
 	eventFeed  eventFeed
 	mode       inputMode
@@ -117,6 +118,10 @@ func newGameModel(
 	if char != nil {
 		currentPhase = phaseJoining
 	}
+	questState := newQuestState(nil)
+	if worldManager != nil {
+		questState = newQuestState(worldManager.Quests())
+	}
 	return &gameModel{
 		repositories: repositories,
 		world:        worldManager, log: log, identity: identity,
@@ -125,6 +130,7 @@ func newGameModel(
 		width: 80, height: 24,
 		movement: newMovementState(),
 		chat:     newChatPanelState(),
+		quests:   questState,
 		renderer: NewRenderer(),
 	}
 }
@@ -233,6 +239,8 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case shopTradeMsg:
 		return m.updateShopTrade(msg)
+	case questInteractionMsg:
+		return m.updateQuestInteraction(msg)
 	case eventExpiredMsg:
 		m.eventFeed.expire(msg.id)
 		return m, nil
@@ -271,27 +279,31 @@ func (m *gameModel) View() tea.View {
 
 func (m *gameModel) viewState() ViewState {
 	return ViewState{
-		Phase:         m.phase,
-		Width:         m.width,
-		Height:        m.height,
-		Input:         m.input.View(),
-		Message:       m.message,
-		Creating:      m.creating,
-		Character:     m.character,
-		Snapshot:      m.connection.snapshot,
-		InventoryOpen: m.mode == inputModeInventory,
-		Inventory:     m.inventory,
-		SkillsOpen:    m.mode == inputModeSkills,
-		Events:        m.eventFeed.views(),
-		ChatMessages:  append([]world.ChatMessage(nil), m.chat.messages...),
-		ChatFocused:   m.mode == inputModeChat,
-		ChatInput:     m.chat.input.View(),
-		HelpOpen:      m.mode == inputModeHelp,
-		ShopOpen:      m.mode == inputModeShop,
-		Shop:          m.shop.view(m.character, m.inventory),
-		AttackFrame:   m.actions.attackFrame,
-		WalkFrame:     m.movement.walkFrame,
-		FacingX:       m.movement.facingX,
-		FacingY:       m.movement.facingY,
+		Phase:             m.phase,
+		Width:             m.width,
+		Height:            m.height,
+		Input:             m.input.View(),
+		Message:           m.message,
+		Creating:          m.creating,
+		Character:         m.character,
+		Snapshot:          m.connection.snapshot,
+		InventoryOpen:     m.mode == inputModeInventory,
+		Inventory:         m.inventory,
+		SkillsOpen:        m.mode == inputModeSkills,
+		Events:            m.eventFeed.views(),
+		ChatMessages:      append([]world.ChatMessage(nil), m.chat.messages...),
+		ChatFocused:       m.mode == inputModeChat,
+		ChatInput:         m.chat.input.View(),
+		HelpOpen:          m.mode == inputModeHelp,
+		ShopOpen:          m.mode == inputModeShop,
+		Shop:              m.shop.view(m.character, m.inventory),
+		JournalOpen:       m.mode == inputModeJournal,
+		Journal:           m.quests.journalView(m.inventory, m.questGiver),
+		QuestDialogueOpen: m.mode == inputModeQuestDialogue,
+		QuestDialogue:     m.quests.dialogueView(),
+		AttackFrame:       m.actions.attackFrame,
+		WalkFrame:         m.movement.walkFrame,
+		FacingX:           m.movement.facingX,
+		FacingY:           m.movement.facingY,
 	}
 }

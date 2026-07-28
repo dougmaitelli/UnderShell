@@ -1,0 +1,40 @@
+{
+  "quests": [
+    {
+      "id": "slime_supplies",
+      "name": "Slime Supplies",
+      "description": "Collect slime gel from the slimes roaming the meadow.",
+      "objective": {
+        "item_id": "slime_gel",
+        "quantity": 5
+      },
+      "reward": {
+        "gold": 30
+      },
+      "dialogue": {
+        "offer": "The meadow slimes are fouling my mixtures. Bring me five portions of Slime Gel and I will pay you.",
+        "in_progress": "I still need five portions of Slime Gel. The meadow slimes should have what we need.",
+        "ready": "That is enough Slime Gel. Hand it over and I will reward your work.",
+        "completed": "Your Slime Gel was exactly what I needed. Thank you again."
+      }
+    },
+    {
+      "id": "bat_wing_samples",
+      "name": "Wing Samples",
+      "description": "Retrieve intact wings from cave bats in the cavern.",
+      "objective": {
+        "item_id": "bat_wing",
+        "quantity": 3
+      },
+      "reward": {
+        "gold": 45
+      },
+      "dialogue": {
+        "offer": "I am studying the cave bats, but I need three intact Bat Wings. Venture into the cavern and retrieve them for me.",
+        "in_progress": "The cavern bats are elusive. Keep searching until you have three intact Bat Wings.",
+        "ready": "Those wings are excellent specimens. Let me take them off your hands.",
+        "completed": "The wing samples have already taught me a great deal. You have my thanks."
+      }
+    }
+  ]
+}

@@ -12,6 +12,7 @@ COPY --from=build /sshrpg /usr/local/bin/sshrpg
 COPY --from=build /src/maps /app/maps
 COPY --from=build /src/items /app/items
 COPY --from=build /src/enemies /app/enemies
+COPY --from=build /src/quests /app/quests
 COPY --from=build /src/config /app/config
 RUN mkdir /app/data && chown game:game /app/data
 USER game
@@ -22,6 +23,7 @@ ENV DATABASE_PATH=/app/data/game.db
 ENV MAPS_PATH=/app/maps
 ENV ITEMS_PATH=/app/items/items.json
 ENV ENEMIES_PATH=/app/enemies/enemies.json
+ENV QUESTS_PATH=/app/quests/quests.json
 EXPOSE 2222
 VOLUME ["/app/data"]
 ENTRYPOINT ["/usr/local/bin/sshrpg"]

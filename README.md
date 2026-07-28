@@ -36,6 +36,7 @@ Use a different SSH key to create another character.
 | E | Interact with a nearby NPC or pick up an item drop |
 | I | Open or close inventory |
 | K | Open or close skills |
+| J | Open or close the quest journal |
 | T | Focus chat |
 | F1 | Open or close help |
 | Esc | Close the active menu |
@@ -62,6 +63,7 @@ Configuration is supplied through environment variables.
 | `MAPS_PATH` | `./maps` | Directory containing JSON area definitions |
 | `ITEMS_PATH` | `./items/items.json` | JSON file containing available game items |
 | `ENEMIES_PATH` | `./enemies/enemies.json` | JSON file containing available enemy types |
+| `QUESTS_PATH` | `./quests/quests.json` | JSON file containing available quests |
 
 Example:
 
@@ -72,6 +74,7 @@ DATABASE_PATH=./data/development.db \
 MAPS_PATH=./maps \
 ITEMS_PATH=./items/items.json \
 ENEMIES_PATH=./enemies/enemies.json \
+QUESTS_PATH=./quests/quests.json \
 make run
 ```
 
@@ -118,6 +121,14 @@ same width. A `#` tile is a wall; every other printable character is walkable.
       "stock": [
         { "item_id": "health_potion", "buy_price": 10, "sell_price": 5 }
       ]
+    },
+    {
+      "id": "alchemist",
+      "name": "Orin",
+      "type": "quest_giver",
+      "x": 5,
+      "y": 1,
+      "quests": ["slime_supplies"]
     }
   ],
   "enemy_spawns": [
@@ -179,10 +190,16 @@ spawn creates one replacement every `respawn_seconds` until it reaches its cap.
 Enemies choose walkable steps and cannot leave their owning spawn rectangle.
 
 Area-owned NPCs are placed on walkable tiles and block player and enemy
-movement. Shop NPC stock references item definitions and assigns the price a
-player pays (`buy_price`) and receives (`sell_price`). Prices must be positive,
-and a shop cannot pay more than it charges for the same item. Invalid item
-references prevent startup.
+movement. NPC IDs must be unique across every area so persistent systems can
+refer to an NPC and resolve its current name and owning area from configuration.
+Shop NPC stock references item definitions and assigns the price a player pays
+(`buy_price`) and receives (`sell_price`). Prices must be positive, and a shop
+cannot pay more than it charges for the same item. Invalid item references
+prevent startup.
+
+Quest giver NPCs reference IDs from `QUESTS_PATH`. Each quest can be accepted
+and completed once per character. Objective items must be present in at least
+one enemy's drop table.
 
 ## Items
 
@@ -316,11 +333,53 @@ Purchases and sales update gold and inventory in one database transaction.
 Shops buy only items listed in their configured stock, using that entry's
 `sell_price`.
 
+## Quests
+
+Quests are defined in `QUESTS_PATH`. The current quest type asks the player to
+retrieve a configured quantity of one item:
+
+```json
+{
+  "quests": [
+    {
+      "id": "slime_supplies",
+      "name": "Slime Supplies",
+      "description": "Collect slime gel from the slimes roaming the meadow.",
+      "objective": {
+        "item_id": "slime_gel",
+        "quantity": 5
+      },
+      "reward": {
+        "gold": 30
+      },
+      "dialogue": {
+        "offer": "The meadow slimes are fouling my mixtures. Bring me five portions of Slime Gel and I will pay you.",
+        "in_progress": "I still need five portions of Slime Gel.",
+        "ready": "That is enough Slime Gel. Hand it over and I will reward your work.",
+        "completed": "Your Slime Gel was exactly what I needed. Thank you again."
+      }
+    }
+  ]
+}
+```
+
+Press `E` near a quest giver to begin a conversation. Quest dialogue is
+contextual to whether the quest is being offered, still in progress, ready to
+turn in, or already completed. Press `E` or Space in the dialogue to accept,
+continue, or hand over the requested items; Escape closes it.
+
+The `J` journal lists active quests in its left pane; use W/S or the arrow keys
+to select one. The right pane shows its description, objective progress, return
+NPC, readiness, and reward. Progress is derived from the persistent inventory.
+Once the required items are held, return to the original NPC and speak to them
+again. Completion consumes the items, marks the quest complete, and grants the
+configured gold reward in one database transaction.
+
 ## Persistent data
 
 Runtime state is written to `./data` with the default configuration:
 
-- `game.db` stores characters and their positions.
+- `game.db` stores characters, positions, inventories, gold, and quest progress.
 - `ssh_host_ed25519` identifies the SSH server to clients.
 
 Back up both files. If the host key changes, returning SSH clients will receive a

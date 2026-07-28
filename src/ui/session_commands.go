@@ -82,14 +82,18 @@ func (m *gameModel) sendChat(message string) tea.Cmd {
 
 func (m *gameModel) storePickup(drop world.GroundItem) tea.Cmd {
 	return func() tea.Msg {
-		definition, ok := m.world.Items().Item(drop.ItemID)
-		if !ok {
-			return itemStoredMsg{itemName: drop.Name, err: errors.New("unknown picked up item")}
+		if drop.Item == nil {
+			return itemStoredMsg{
+				itemName: "",
+				err:      errors.New("unknown picked up item"),
+			}
 		}
 		inventory, err := m.repositories.Inventories.AddItem(
-			context.Background(), m.character.ID, definition.ID, definition.MaxStack,
+			context.Background(), m.character.ID, drop.Item.ID, drop.Item.MaxStack,
 		)
-		return itemStoredMsg{inventory: inventory, itemName: definition.Name, err: err}
+		return itemStoredMsg{
+			inventory: inventory, itemName: drop.Item.Name, err: err,
+		}
 	}
 }
 

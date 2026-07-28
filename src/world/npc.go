@@ -5,11 +5,15 @@ import (
 
 	"sshrpg/src/item"
 	"sshrpg/src/npc"
+	"sshrpg/src/quest"
 )
 
-func (s *Areas) ValidateNPCs(items *item.Items) error {
+func (s *Areas) ValidateNPCs(items *item.Items, quests *quest.Quests) error {
 	for _, area := range s.areas {
 		if err := npc.ResolveItems(area.NPCs, items); err != nil {
+			return fmt.Errorf("area %q: %w", area.ID, err)
+		}
+		if err := npc.ResolveQuests(area.NPCs, quests); err != nil {
 			return fmt.Errorf("area %q: %w", area.ID, err)
 		}
 	}

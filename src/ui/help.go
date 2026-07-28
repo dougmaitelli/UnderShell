@@ -28,6 +28,7 @@ func (HelpRenderer) RenderOver(game string, width, height int) string {
 		"Space           Trade selected shop item",
 		"I               Open inventory",
 		"K               Open skills",
+		"J               Open quest journal",
 		"T               Focus chat",
 		"Enter           Send focused chat message",
 		"Esc             Close menu or cancel chat",

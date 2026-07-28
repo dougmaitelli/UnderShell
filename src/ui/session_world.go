@@ -3,6 +3,7 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 
+	"sshrpg/src/npc"
 	"sshrpg/src/world"
 )
 
@@ -76,9 +77,18 @@ func (m *gameModel) updateWorldSnapshot(msg worldSnapshotMsg) (tea.Model, tea.Cm
 		break
 	}
 	if m.mode == inputModeShop {
-		nearby := m.nearbyShop()
-		if nearby == nil || m.shop.npc == nil || nearby.ID != m.shop.npc.ID {
+		nearby := m.nearbyNPC()
+		if nearby == nil || nearby.Type != npc.TypeShop ||
+			m.shop.npc == nil || nearby.ID != m.shop.npc.ID {
 			m.shop.close()
+			m.mode = inputModeGame
+		}
+	}
+	if m.mode == inputModeQuestDialogue {
+		nearby := m.nearbyNPC()
+		if nearby == nil || nearby.Type != npc.TypeQuestGiver ||
+			nearby.ID != m.quests.dialogue.giverID {
+			m.quests.closeDialogue()
 			m.mode = inputModeGame
 		}
 	}

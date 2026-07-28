@@ -10,7 +10,7 @@ import (
 )
 
 func TestPlayersOnlySeeOthersInTheirArea(t *testing.T) {
-	manager := New(testAreas(t), nil, nil)
+	manager := New(testAreas(t), nil, nil, nil)
 	defer manager.Close()
 
 	first := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
@@ -36,7 +36,7 @@ func TestPlayersOnlySeeOthersInTheirArea(t *testing.T) {
 }
 
 func TestWallsBlockMovementAndReconnectReplacesSession(t *testing.T) {
-	manager := New(testAreas(t), nil, nil)
+	manager := New(testAreas(t), nil, nil, nil)
 	defer manager.Close()
 
 	first := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
@@ -65,7 +65,7 @@ func TestUnknownOrBlockedSavedLocationUsesDefaultSpawn(t *testing.T) {
 	if err := areas.SetDefaultSpawn("cavern", Point{X: 1, Y: 1}); err != nil {
 		t.Fatal(err)
 	}
-	manager := New(areas, nil, nil)
+	manager := New(areas, nil, nil, nil)
 	defer manager.Close()
 
 	session := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "missing", X: 99, Y: 99})
@@ -96,7 +96,7 @@ func TestEnemiesSpawnToCapAndRespawnInsideTheirArea(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	manager := New(areas, nil, enemies)
+	manager := New(areas, nil, enemies, nil)
 	defer manager.Close()
 
 	session := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
@@ -155,7 +155,7 @@ func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	manager := New(areas, items, enemies)
+	manager := New(areas, items, enemies, nil)
 	defer manager.Close()
 	session := manager.Join(Player{
 		ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1, Attack: 1,
@@ -212,7 +212,9 @@ func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
 		t.Fatalf("unauthenticated pickup succeeded: %#v", result)
 	}
 	pickedUp := manager.Pickup(1, session.Token)
-	if !pickedUp.Found || pickedUp.Item.ID != dropID || pickedUp.Item.ItemID != "slime_gel" {
+	canonicalItem, _ := items.Item("slime_gel")
+	if !pickedUp.Found || pickedUp.Item.ID != dropID ||
+		pickedUp.Item.Item != canonicalItem {
 		t.Fatalf("pickup = %#v", pickedUp)
 	}
 	snapshot = receiveSnapshot(t, session.Updates)
@@ -237,7 +239,7 @@ func TestExperienceCurveSupportsMultipleLevels(t *testing.T) {
 }
 
 func TestSkillPointsUpgradePlayerAttributes(t *testing.T) {
-	manager := New(testAreas(t), nil, nil)
+	manager := New(testAreas(t), nil, nil, nil)
 	defer manager.Close()
 	session := manager.Join(Player{
 		ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1,
@@ -272,7 +274,7 @@ func TestSkillPointsUpgradePlayerAttributes(t *testing.T) {
 }
 
 func TestGlobalChatBroadcastsAndPreloadsLatestTenMessages(t *testing.T) {
-	manager := New(testAreas(t), nil, nil)
+	manager := New(testAreas(t), nil, nil, nil)
 	defer manager.Close()
 	first := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
 	second := manager.Join(Player{ID: 2, Name: "Rowan", AreaID: "cavern", X: 1, Y: 1})

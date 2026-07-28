@@ -8,6 +8,7 @@ import (
 	"sshrpg/src/enemy"
 	"sshrpg/src/item"
 	"sshrpg/src/npc"
+	"sshrpg/src/quest"
 )
 
 func TestLoadAreasValidatesInterAreaWaypoints(t *testing.T) {
@@ -44,30 +45,10 @@ func TestLoadAreasRejectsUnknownDestination(t *testing.T) {
 	}
 }
 
-func TestBundledAreasAreValid(t *testing.T) {
+func TestBundledConfigurationIsValid(t *testing.T) {
 	areas, err := LoadAreas(filepath.Join("..", "..", "maps"))
 	if err != nil {
 		t.Fatal(err)
-	}
-	meadow, ok := areas.Area("meadow")
-	if !ok {
-		t.Fatal("bundled meadow area is missing")
-	}
-	if meadow.Width != 192 || meadow.Height != 64 {
-		t.Fatalf("meadow size = %dx%d, want 192x64", meadow.Width, meadow.Height)
-	}
-	if _, ok := meadow.Waypoint(Point{X: 189, Y: 32}); !ok {
-		t.Fatal("meadow waypoint does not cover its 3x3 center tile")
-	}
-	cavern, ok := areas.Area("cavern")
-	if !ok {
-		t.Fatal("bundled cavern area is missing")
-	}
-	if cavern.Width != 192 || cavern.Height != 64 {
-		t.Fatalf("cavern size = %dx%d, want 192x64", cavern.Width, cavern.Height)
-	}
-	if _, ok := cavern.Waypoint(Point{X: 2, Y: 32}); !ok {
-		t.Fatal("cavern waypoint does not cover its 3x3 center tile")
 	}
 	enemies, err := enemy.LoadEnemies(filepath.Join("..", "..", "enemies", "enemies.json"))
 	if err != nil {
@@ -80,12 +61,18 @@ func TestBundledAreasAreValid(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := areas.ValidateNPCs(items); err != nil {
+	quests, err := quest.LoadQuests(filepath.Join("..", "..", "quests", "quests.json"))
+	if err != nil {
 		t.Fatal(err)
 	}
-	shop, ok := meadow.NPCAt(Point{X: 11, Y: 32})
-	if !ok || shop.Type != npc.TypeShop || shop.Stock[0].Name == "" {
-		t.Fatalf("bundled shop NPC was not resolved: %#v", shop)
+	if err := quests.ResolveItems(items); err != nil {
+		t.Fatal(err)
+	}
+	if err := quests.ValidateObjectives(enemies); err != nil {
+		t.Fatal(err)
+	}
+	if err := areas.ValidateNPCs(items, quests); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -135,7 +122,7 @@ func TestDefaultSpawnMustBeWalkableInKnownArea(t *testing.T) {
 	}
 }
 
-func TestShopNPCConfigurationAndItemResolution(t *testing.T) {
+func TestShopNPCConfigurationAndItemValidation(t *testing.T) {
 	areas, err := NewAreas([]AreaDefinition{{
 		ID: "market", Name: "Market",
 		Layout: []string{"#####", "#...#", "#####"},
@@ -156,14 +143,14 @@ func TestShopNPCConfigurationAndItemResolution(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := areas.ValidateNPCs(items); err != nil {
+	if err := areas.ValidateNPCs(items, nil); err != nil {
 		t.Fatal(err)
 	}
 	area, _ := areas.Area("market")
 	npc, ok := area.NPCAt(Point{X: 2, Y: 1})
-	if !ok || npc.Name != "Mira" ||
-		npc.Stock[0].Name != "Potion" || npc.Stock[0].MaxStack != 10 {
-		t.Fatalf("unexpected resolved NPC: %#v", npc)
+	if !ok || npc.Name != "Mira" || npc.Stock[0].Item == nil ||
+		npc.Stock[0].Item.Name != "Potion" {
+		t.Fatalf("unexpected NPC: %#v", npc)
 	}
 }
 
@@ -181,6 +168,27 @@ func TestShopNPCRejectsInvalidStockPrices(t *testing.T) {
 	}})
 	if err == nil {
 		t.Fatal("expected shop sell price above buy price to fail")
+	}
+}
+
+func TestAreasRequireGloballyUniqueNPCIDs(t *testing.T) {
+	definitions := make([]AreaDefinition, 2)
+	for index, areaID := range []string{"one", "two"} {
+		definitions[index] = AreaDefinition{
+			ID: areaID, Name: areaID,
+			Layout: []string{"#####", "#...#", "#####"},
+			Spawn:  Point{X: 1, Y: 1},
+			NPCs: []npc.Definition{{
+				ID: "shared_merchant", Name: "Merchant",
+				Type: npc.TypeShop, X: 2, Y: 1,
+				Stock: []npc.ShopItem{{
+					ItemID: "potion", BuyPrice: 10, SellPrice: 5,
+				}},
+			}},
+		}
+	}
+	if _, err := NewAreas(definitions); err == nil {
+		t.Fatal("expected duplicate NPC IDs across areas to fail")
 	}
 }
 

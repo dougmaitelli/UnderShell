@@ -2,6 +2,8 @@ package ui
 
 import (
 	tea "charm.land/bubbletea/v2"
+
+	"sshrpg/src/npc"
 )
 
 type actionState struct {
@@ -48,8 +50,13 @@ func (m *gameModel) updateActionInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 			return m, tea.Batch(m.attack(), attackAnimationTick(2))
 		}
 	case "e":
-		if shop := m.nearbyShop(); shop != nil {
-			return m.openShop(shop)
+		if definition := m.nearbyNPC(); definition != nil {
+			switch definition.Type {
+			case npc.TypeShop:
+				return m.openShop(definition)
+			case npc.TypeQuestGiver:
+				return m.interactQuestGiver(definition)
+			}
 		}
 		if m.actions.beginPickup() {
 			return m, m.pickup()

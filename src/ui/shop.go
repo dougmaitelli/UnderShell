@@ -14,8 +14,6 @@ import (
 	"sshrpg/src/repository"
 )
 
-const shopInteractionRange = 2
-
 type shopTab uint8
 
 const (
@@ -37,12 +35,17 @@ type shopSellEntry struct {
 	SellPrice int
 }
 
+type shopBuyEntry struct {
+	Name     string
+	BuyPrice int
+}
+
 type ShopView struct {
 	NPCName  string
 	Tab      shopTab
 	Selected int
 	Gold     int
-	Stock    []npcconfig.ShopItem
+	Stock    []shopBuyEntry
 	Sell     []shopSellEntry
 	Message  string
 	InFlight bool
@@ -81,9 +84,9 @@ func (s *shopState) sellEntries(inventory *domain.Inventory) []shopSellEntry {
 		if !ok {
 			continue
 		}
-		name := stock.Name
-		if name == "" {
-			name = inventoryItem.ItemKey
+		name := inventoryItem.ItemKey
+		if stock.Item != nil {
+			name = stock.Item.Name
 		}
 		entries = append(entries, shopSellEntry{
 			Item: inventoryItem, Name: name, SellPrice: stock.SellPrice,
@@ -92,7 +95,10 @@ func (s *shopState) sellEntries(inventory *domain.Inventory) []shopSellEntry {
 	return entries
 }
 
-func (s *shopState) view(character *domain.Character, inventory *domain.Inventory) ShopView {
+func (s *shopState) view(
+	character *domain.Character,
+	inventory *domain.Inventory,
+) ShopView {
 	if s.npc == nil {
 		return ShopView{}
 	}
@@ -100,37 +106,21 @@ func (s *shopState) view(character *domain.Character, inventory *domain.Inventor
 	if character != nil {
 		gold = character.Gold
 	}
+	stock := make([]shopBuyEntry, 0, len(s.npc.Stock))
+	for _, configured := range s.npc.Stock {
+		name := configured.ItemID
+		if configured.Item != nil {
+			name = configured.Item.Name
+		}
+		stock = append(stock, shopBuyEntry{
+			Name: name, BuyPrice: configured.BuyPrice,
+		})
+	}
 	return ShopView{
 		NPCName: s.npc.Name, Tab: s.tab, Selected: s.selected, Gold: gold,
-		Stock: append([]npcconfig.ShopItem(nil), s.npc.Stock...),
-		Sell:  s.sellEntries(inventory), Message: s.message, InFlight: s.inFlight,
+		Stock: stock, Sell: s.sellEntries(inventory),
+		Message: s.message, InFlight: s.inFlight,
 	}
-}
-
-func (m *gameModel) nearbyShop() *npcconfig.Definition {
-	if m.character == nil || m.connection.snapshot.Area == nil {
-		return nil
-	}
-	area := m.connection.snapshot.Area
-	if area.ID != m.character.AreaID {
-		return nil
-	}
-	for index := range area.NPCs {
-		npc := &area.NPCs[index]
-		if npc.Type == npcconfig.TypeShop &&
-			absolute(npc.X-m.character.X) <= shopInteractionRange &&
-			absolute(npc.Y-m.character.Y) <= shopInteractionRange {
-			return npc
-		}
-	}
-	return nil
-}
-
-func absolute(value int) int {
-	if value < 0 {
-		return -value
-	}
-	return value
 }
 
 func (m *gameModel) openShop(npc *npcconfig.Definition) (tea.Model, tea.Cmd) {
@@ -182,18 +172,29 @@ func (m *gameModel) updateShopInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if m.shop.tab == shopTabBuy {
 			return m, m.buyShopItem(m.shop.npc.Stock[m.shop.selected])
 		}
-		return m, m.sellShopItem(m.shop.sellEntries(m.inventory)[m.shop.selected])
+		return m, m.sellShopItem(
+			m.shop.sellEntries(m.inventory)[m.shop.selected],
+		)
 	}
 	return m, nil
 }
 
 func (m *gameModel) buyShopItem(stock npcconfig.ShopItem) tea.Cmd {
 	return func() tea.Msg {
+		if stock.Item == nil {
+			return shopTradeMsg{
+				itemName: stock.ItemID,
+				buying:   true,
+				err:      errors.New("unknown shop item"),
+			}
+		}
 		result, err := m.repositories.Shops.BuyItem(
 			context.Background(), m.character.ID,
-			stock.ItemID, stock.MaxStack, stock.BuyPrice,
+			stock.Item.ID, stock.Item.MaxStack, stock.BuyPrice,
 		)
-		return shopTradeMsg{result: result, itemName: stock.Name, buying: true, err: err}
+		return shopTradeMsg{
+			result: result, itemName: stock.Item.Name, buying: true, err: err,
+		}
 	}
 }
 
@@ -254,11 +255,9 @@ func (ShopRenderer) RenderOver(game string, width, height int, view ShopView) st
 		}
 	} else {
 		for index, stock := range view.Stock {
-			name := stock.Name
-			if name == "" {
-				name = stock.ItemID
-			}
-			rows = append(rows, shopRow(index == view.Selected, name, stock.BuyPrice))
+			rows = append(rows, shopRow(
+				index == view.Selected, stock.Name, stock.BuyPrice,
+			))
 		}
 	}
 	if len(rows) == 0 {

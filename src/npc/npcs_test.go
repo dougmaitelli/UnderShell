@@ -4,9 +4,10 @@ import (
 	"testing"
 
 	"sshrpg/src/item"
+	"sshrpg/src/quest"
 )
 
-func TestShopDefinitionValidationAndItemResolution(t *testing.T) {
+func TestShopDefinitionValidatesItemReferences(t *testing.T) {
 	definitions := []Definition{{
 		ID: "merchant", Name: "Mira", Type: TypeShop, X: 2, Y: 3,
 		Stock: []ShopItem{{
@@ -25,9 +26,9 @@ func TestShopDefinitionValidationAndItemResolution(t *testing.T) {
 	if err := ResolveItems(definitions, items); err != nil {
 		t.Fatal(err)
 	}
-	if definitions[0].Stock[0].Name != "Potion" ||
-		definitions[0].Stock[0].MaxStack != 10 {
-		t.Fatalf("unresolved stock: %#v", definitions[0].Stock[0])
+	canonical, _ := items.Item("potion")
+	if definitions[0].Stock[0].Item != canonical {
+		t.Fatalf("unexpected stock: %#v", definitions[0].Stock[0])
 	}
 }
 
@@ -40,6 +41,30 @@ func TestShopDefinitionRejectsInvalidEconomy(t *testing.T) {
 	}}
 	if err := Validate(definitions); err == nil {
 		t.Fatal("expected sell price above buy price to fail")
+	}
+}
+
+func TestQuestGiverResolvesConfiguredQuests(t *testing.T) {
+	definitions := []Definition{{
+		ID: "orin", Name: "Orin", Type: TypeQuestGiver,
+		QuestIDs: []string{"slime_supplies"},
+	}}
+	if err := Validate(definitions); err != nil {
+		t.Fatal(err)
+	}
+	quests, err := quest.NewQuests([]quest.Definition{{
+		ID: "slime_supplies", Name: "Slime Supplies",
+		Objective: quest.Objective{ItemID: "slime_gel", Quantity: 5},
+		Dialogue: quest.Dialogue{
+			Offer: "Please help.", InProgress: "Keep looking.",
+			Ready: "You found them.", Completed: "Thank you.",
+		},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ResolveQuests(definitions, quests); err != nil {
+		t.Fatal(err)
 	}
 }
 

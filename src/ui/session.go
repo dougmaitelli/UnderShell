@@ -25,6 +25,7 @@ type Repositories struct {
 	Characters  repository.CharacterRepository
 	Inventories repository.InventoryRepository
 	Shops       repository.ShopRepository
+	Quests      repository.QuestRepository
 }
 
 type Runner struct {
@@ -60,6 +61,7 @@ func (r *Runner) Run(session ssh.Session, identity Identity) {
 		return
 	}
 	var inventory *domain.Inventory
+	var quests []domain.CharacterQuest
 	if char != nil {
 		inventory, err = r.repositories.Inventories.FindOrCreate(session.Context(), char.ID)
 		if err != nil {
@@ -67,9 +69,16 @@ func (r *Runner) Run(session ssh.Session, identity Identity) {
 			_, _ = io.WriteString(session, "The game could not load your inventory. Please try again.\n")
 			return
 		}
+		quests, err = r.repositories.Quests.FindByCharacter(session.Context(), char.ID)
+		if err != nil {
+			r.log.Error("load quests", "character_id", char.ID, "error", err)
+			_, _ = io.WriteString(session, "The game could not load your quests. Please try again.\n")
+			return
+		}
 	}
 
 	model := newGameModel(r.repositories, r.world, r.log, identity, char, inventory)
+	model.quests.setProgress(quests)
 	program := tea.NewProgram(
 		model,
 		tea.WithContext(session.Context()),

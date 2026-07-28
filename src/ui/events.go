@@ -146,6 +146,8 @@ func eventStyle(kind world.EventKind) lipgloss.Style {
 		return damageEventStyle
 	case world.EventCombat:
 		return combatEventStyle
+	case world.EventQuest:
+		return questEventStyle
 	default:
 		return respawnEventStyle
 	}
@@ -164,5 +166,6 @@ var (
 	progressionEventStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#C084FC"))
 	damageEventStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#FB7185"))
 	combatEventStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#FBBF24"))
+	questEventStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#FDE047"))
 	respawnEventStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#94A3B8"))
 )

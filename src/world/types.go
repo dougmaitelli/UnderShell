@@ -1,6 +1,10 @@
 package world
 
-import "time"
+import (
+	"time"
+
+	"sshrpg/src/item"
+)
 
 type Player struct {
 	ID          int64
@@ -43,8 +47,7 @@ type Enemy struct {
 
 type GroundItem struct {
 	ID     uint64
-	ItemID string
-	Name   string
+	Item   *item.Definition
 	AreaID string
 	X      int
 	Y      int
@@ -73,6 +76,7 @@ const (
 	EventDamage      EventKind = "damage"
 	EventDeath       EventKind = "death"
 	EventRespawn     EventKind = "respawn"
+	EventQuest       EventKind = "quest"
 )
 
 type Event struct {

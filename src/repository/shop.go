@@ -50,7 +50,7 @@ func (r *BunShopRepository) BuyItem(
 		return TradeResult{}, fmt.Errorf("begin shop purchase: %w", err)
 	}
 	defer tx.Rollback()
-	if err := ensureTradeProgress(ctx, tx, characterID); err != nil {
+	if err := ensureCharacterProgress(ctx, tx, characterID); err != nil {
 		return TradeResult{}, err
 	}
 	result, err := tx.NewUpdate().
@@ -75,7 +75,7 @@ func (r *BunShopRepository) BuyItem(
 	if err != nil {
 		return TradeResult{}, err
 	}
-	gold, err := tradeGold(ctx, tx, characterID)
+	gold, err := characterGold(ctx, tx, characterID)
 	if err != nil {
 		return TradeResult{}, err
 	}
@@ -127,7 +127,7 @@ func (r *BunShopRepository) SellItem(
 			return TradeResult{}, fmt.Errorf("remove sold inventory item: %w", err)
 		}
 	}
-	if err := ensureTradeProgress(ctx, tx, characterID); err != nil {
+	if err := ensureCharacterProgress(ctx, tx, characterID); err != nil {
 		return TradeResult{}, err
 	}
 	if _, err := tx.NewUpdate().
@@ -141,7 +141,7 @@ func (r *BunShopRepository) SellItem(
 	if err != nil {
 		return TradeResult{}, err
 	}
-	gold, err := tradeGold(ctx, tx, characterID)
+	gold, err := characterGold(ctx, tx, characterID)
 	if err != nil {
 		return TradeResult{}, err
 	}
@@ -151,26 +151,26 @@ func (r *BunShopRepository) SellItem(
 	return TradeResult{Inventory: inventory, Gold: gold}, nil
 }
 
-func ensureTradeProgress(ctx context.Context, db bun.IDB, characterID int64) error {
+func ensureCharacterProgress(ctx context.Context, db bun.IDB, characterID int64) error {
 	progress := &entity.CharacterProgress{
 		CharacterID: characterID,
 		Level:       1,
 		Gold:        domain.DefaultStartingGold,
 	}
 	if _, err := db.NewInsert().Model(progress).Ignore().Exec(ctx); err != nil {
-		return fmt.Errorf("initialize trade progress: %w", err)
+		return fmt.Errorf("initialize character progress: %w", err)
 	}
 	return nil
 }
 
-func tradeGold(ctx context.Context, db bun.IDB, characterID int64) (int, error) {
+func characterGold(ctx context.Context, db bun.IDB, characterID int64) (int, error) {
 	var gold int
 	if err := db.NewSelect().
 		Model((*entity.CharacterProgress)(nil)).
 		Column("gold").
 		Where("character_id = ?", characterID).
 		Scan(ctx, &gold); err != nil {
-		return 0, fmt.Errorf("load trade gold: %w", err)
+		return 0, fmt.Errorf("load character gold: %w", err)
 	}
 	return gold, nil
 }

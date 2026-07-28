@@ -14,6 +14,7 @@ import (
 	"sshrpg/src/enemy"
 	"sshrpg/src/item"
 	"sshrpg/src/persistence"
+	"sshrpg/src/quest"
 	"sshrpg/src/repository"
 	"sshrpg/src/sshserver"
 	"sshrpg/src/ui"
@@ -37,6 +38,7 @@ func main() {
 	characters := repository.NewCharacterRepository(database.ORM())
 	inventories := repository.NewInventoryRepository(database.ORM())
 	shops := repository.NewShopRepository(database.ORM())
+	questProgress := repository.NewQuestRepository(database.ORM())
 
 	areas, err := world.LoadAreas(cfg.MapsPath)
 	if err != nil {
@@ -73,15 +75,29 @@ func main() {
 		log.Error("validate enemy drops", "error", err)
 		os.Exit(1)
 	}
-	if err := areas.ValidateNPCs(items); err != nil {
+	quests, err := quest.LoadQuests(cfg.QuestsPath)
+	if err != nil {
+		log.Error("load quests", "path", cfg.QuestsPath, "error", err)
+		os.Exit(1)
+	}
+	if err := quests.ResolveItems(items); err != nil {
+		log.Error("validate quest objectives", "error", err)
+		os.Exit(1)
+	}
+	if err := quests.ValidateObjectives(enemies); err != nil {
+		log.Error("validate quest enemy drops", "error", err)
+		os.Exit(1)
+	}
+	if err := areas.ValidateNPCs(items, quests); err != nil {
 		log.Error("validate NPCs", "error", err)
 		os.Exit(1)
 	}
-	worldManager := world.New(areas, items, enemies)
+	worldManager := world.New(areas, items, enemies, quests)
 	defer worldManager.Close()
 
 	runner := ui.New(ui.Repositories{
 		Characters: characters, Inventories: inventories, Shops: shops,
+		Quests: questProgress,
 	}, worldManager, log)
 	server, err := sshserver.New(cfg.ListenAddr, cfg.HostKeyPath, runner, log)
 	if err != nil {

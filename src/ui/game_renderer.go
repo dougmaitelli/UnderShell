@@ -153,12 +153,17 @@ func (GameRenderer) Render(state ViewState) string {
 
 func drawNPC(grid [][]string, x, baseY int, definition npc.Definition) {
 	label := definition.Name
+	body := "/|\\"
 	if definition.Type == npc.TypeShop {
 		label += " [Shop]"
+		body = "/$\\"
+	} else if definition.Type == npc.TypeQuestGiver {
+		label += " [Quest]"
+		body = "/?\\"
 	}
 	drawCentered(grid, x, baseY-2, terminalCellRunes(label), npcStyle)
 	drawCentered(grid, x, baseY-1, []rune("O"), npcStyle)
-	drawCentered(grid, x, baseY, []rune("/$\\"), npcStyle)
+	drawCentered(grid, x, baseY, []rune(body), npcStyle)
 }
 
 func areaName(area *world.Area) string {

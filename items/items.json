@@ -17,6 +17,12 @@
       "name": "Slime Gel",
       "description": "A sticky material left behind by slimes.",
       "max_stack": 50
+    },
+    {
+      "id": "bat_wing",
+      "name": "Bat Wing",
+      "description": "A delicate wing recovered from a cave bat.",
+      "max_stack": 50
     }
   ]
 }

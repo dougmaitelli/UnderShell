@@ -24,6 +24,10 @@ func TestLoadItems(t *testing.T) {
 	if !ok || definition.Name != "Health Potion" || definition.MaxStack != 10 {
 		t.Fatalf("unexpected item definition: %#v", definition)
 	}
+	again, _ := items.Item("health_potion")
+	if definition != again {
+		t.Fatal("item lookup did not return the stable canonical definition")
+	}
 }
 
 func TestItemsRejectDuplicateIDs(t *testing.T) {

@@ -7,6 +7,8 @@ import (
 
 	"sshrpg/src/enemy"
 	"sshrpg/src/item"
+	"sshrpg/src/npc"
+	"sshrpg/src/quest"
 )
 
 // Manager is the public facade for the serialized world runtime.
@@ -14,13 +16,19 @@ type Manager struct {
 	areas   *Areas
 	items   *item.Items
 	enemies *enemy.Enemies
+	quests  *quest.Quests
 	events  chan any
 	done    chan struct{}
 }
 
-func New(areas *Areas, items *item.Items, enemies *enemy.Enemies) *Manager {
+func New(
+	areas *Areas,
+	items *item.Items,
+	enemies *enemy.Enemies,
+	quests *quest.Quests,
+) *Manager {
 	m := &Manager{
-		areas: areas, items: items, enemies: enemies,
+		areas: areas, items: items, enemies: enemies, quests: quests,
 		events: make(chan any), done: make(chan struct{}),
 	}
 	go m.run()
@@ -30,6 +38,12 @@ func New(areas *Areas, items *item.Items, enemies *enemy.Enemies) *Manager {
 func (m *Manager) Items() *item.Items { return m.items }
 
 func (m *Manager) Enemies() *enemy.Enemies { return m.enemies }
+
+func (m *Manager) Quests() *quest.Quests { return m.quests }
+
+func (m *Manager) NPC(id string) (*npc.Definition, *Area, bool) {
+	return m.areas.NPC(id)
+}
 
 func (m *Manager) Close() { close(m.done) }
 

@@ -8,51 +8,59 @@ import (
 )
 
 type ViewState struct {
-	Phase         phase
-	Width         int
-	Height        int
-	Input         string
-	Message       string
-	Creating      bool
-	Character     *domain.Character
-	Snapshot      world.Snapshot
-	InventoryOpen bool
-	Inventory     *domain.Inventory
-	SkillsOpen    bool
-	Events        []EventView
-	ChatMessages  []world.ChatMessage
-	ChatFocused   bool
-	ChatInput     string
-	HelpOpen      bool
-	ShopOpen      bool
-	Shop          ShopView
-	AttackFrame   int
-	WalkFrame     int
-	FacingX       int
-	FacingY       int
+	Phase             phase
+	Width             int
+	Height            int
+	Input             string
+	Message           string
+	Creating          bool
+	Character         *domain.Character
+	Snapshot          world.Snapshot
+	InventoryOpen     bool
+	Inventory         *domain.Inventory
+	SkillsOpen        bool
+	Events            []EventView
+	ChatMessages      []world.ChatMessage
+	ChatFocused       bool
+	ChatInput         string
+	HelpOpen          bool
+	ShopOpen          bool
+	Shop              ShopView
+	JournalOpen       bool
+	Journal           JournalView
+	QuestDialogueOpen bool
+	QuestDialogue     QuestDialogueView
+	AttackFrame       int
+	WalkFrame         int
+	FacingX           int
+	FacingY           int
 }
 
 type Renderer struct {
-	welcome   WelcomeRenderer
-	game      GameRenderer
-	inventory InventoryRenderer
-	skills    SkillsRenderer
-	events    EventRenderer
-	chat      ChatRenderer
-	help      HelpRenderer
-	shop      ShopRenderer
+	welcome       WelcomeRenderer
+	game          GameRenderer
+	inventory     InventoryRenderer
+	skills        SkillsRenderer
+	events        EventRenderer
+	chat          ChatRenderer
+	help          HelpRenderer
+	shop          ShopRenderer
+	journal       JournalRenderer
+	questDialogue QuestDialogueRenderer
 }
 
 func NewRenderer() Renderer {
 	return Renderer{
-		welcome:   WelcomeRenderer{},
-		game:      GameRenderer{},
-		inventory: InventoryRenderer{},
-		skills:    SkillsRenderer{},
-		events:    EventRenderer{},
-		chat:      ChatRenderer{},
-		help:      HelpRenderer{},
-		shop:      ShopRenderer{},
+		welcome:       WelcomeRenderer{},
+		game:          GameRenderer{},
+		inventory:     InventoryRenderer{},
+		skills:        SkillsRenderer{},
+		events:        EventRenderer{},
+		chat:          ChatRenderer{},
+		help:          HelpRenderer{},
+		shop:          ShopRenderer{},
+		journal:       JournalRenderer{},
+		questDialogue: QuestDialogueRenderer{},
 	}
 }
 
@@ -79,11 +87,19 @@ func (r Renderer) Render(state ViewState) string {
 		if state.ShopOpen {
 			game = r.shop.RenderOver(game, state.Width, state.Height, state.Shop)
 		}
+		if state.JournalOpen {
+			game = r.journal.RenderOver(game, state.Width, state.Height, state.Journal)
+		}
 		game = r.chat.RenderOver(
 			game, state.Width, state.Height,
 			state.ChatMessages, state.ChatFocused, state.ChatInput,
 		)
 		game = r.events.RenderOver(game, state.Width, state.Height, state.Events)
+		if state.QuestDialogueOpen {
+			game = r.questDialogue.RenderOver(
+				game, state.Width, state.Height, state.QuestDialogue,
+			)
+		}
 		if state.HelpOpen {
 			game = r.help.RenderOver(game, state.Width, state.Height)
 		}

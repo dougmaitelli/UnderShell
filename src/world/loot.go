@@ -32,7 +32,7 @@ func (s *lootSystem) rollDrops(target *Enemy, definition enemy.Definition) {
 		}
 		s.nextID++
 		s.live[s.nextID] = &GroundItem{
-			ID: s.nextID, ItemID: itemDefinition.ID, Name: itemDefinition.Name,
+			ID: s.nextID, Item: itemDefinition,
 			AreaID: target.AreaID, X: target.X, Y: target.Y,
 		}
 	}

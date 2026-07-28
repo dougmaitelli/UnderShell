@@ -8,33 +8,38 @@ import (
 	"unicode"
 
 	"sshrpg/src/item"
+	"sshrpg/src/quest"
 )
 
 type Type string
 
-const TypeShop Type = "shop"
+const (
+	TypeShop       Type = "shop"
+	TypeQuestGiver Type = "quest_giver"
+)
 
 type Definition struct {
-	ID    string     `json:"id"`
-	Name  string     `json:"name"`
-	Type  Type       `json:"type"`
-	X     int        `json:"x"`
-	Y     int        `json:"y"`
-	Stock []ShopItem `json:"stock"`
+	ID       string     `json:"id"`
+	Name     string     `json:"name"`
+	Type     Type       `json:"type"`
+	X        int        `json:"x"`
+	Y        int        `json:"y"`
+	Stock    []ShopItem `json:"stock"`
+	QuestIDs []string   `json:"quests"`
 }
 
 type ShopItem struct {
-	ItemID    string `json:"item_id"`
-	BuyPrice  int    `json:"buy_price"`
-	SellPrice int    `json:"sell_price"`
-	Name      string `json:"-"`
-	MaxStack  int    `json:"-"`
+	ItemID    string           `json:"item_id"`
+	BuyPrice  int              `json:"buy_price"`
+	SellPrice int              `json:"sell_price"`
+	Item      *item.Definition `json:"-"`
 }
 
 func Clone(definitions []Definition) []Definition {
 	clones := append([]Definition(nil), definitions...)
 	for index := range clones {
 		clones[index].Stock = append([]ShopItem(nil), definitions[index].Stock...)
+		clones[index].QuestIDs = append([]string(nil), definitions[index].QuestIDs...)
 	}
 	return clones
 }
@@ -64,11 +69,23 @@ func Validate(definitions []Definition) error {
 			return fmt.Errorf("duplicate NPC ID %q", definition.ID)
 		}
 		ids[definition.ID] = true
-		if definition.Type != TypeShop {
+		switch definition.Type {
+		case TypeShop:
+			if len(definition.QuestIDs) > 0 {
+				return fmt.Errorf("shop NPC %q cannot define quests", definition.ID)
+			}
+			if err := validateShop(definition); err != nil {
+				return err
+			}
+		case TypeQuestGiver:
+			if len(definition.Stock) > 0 {
+				return fmt.Errorf("quest giver NPC %q cannot define stock", definition.ID)
+			}
+			if err := validateQuestGiver(definition); err != nil {
+				return err
+			}
+		default:
 			return fmt.Errorf("NPC %q has unsupported type %q", definition.ID, definition.Type)
-		}
-		if err := validateShop(definition); err != nil {
-			return err
 		}
 	}
 	return nil
@@ -89,8 +106,24 @@ func ResolveItems(definitions []Definition, items *item.Items) error {
 					definition.ID, stockIndex, stock.ItemID,
 				)
 			}
-			stock.Name = itemDefinition.Name
-			stock.MaxStack = itemDefinition.MaxStack
+			stock.Item = itemDefinition
+		}
+	}
+	return nil
+}
+
+func ResolveQuests(definitions []Definition, quests *quest.Quests) error {
+	for _, definition := range definitions {
+		for index, questID := range definition.QuestIDs {
+			if quests == nil {
+				return errors.New("quests are required")
+			}
+			if _, ok := quests.Quest(questID); !ok {
+				return fmt.Errorf(
+					"NPC %q quest %d references unknown quest %q",
+					definition.ID, index, questID,
+				)
+			}
 		}
 	}
 	return nil
@@ -120,6 +153,25 @@ func validateShop(definition *Definition) error {
 				definition.ID, stock.ItemID,
 			)
 		}
+	}
+	return nil
+}
+
+func validateQuestGiver(definition *Definition) error {
+	if len(definition.QuestIDs) == 0 {
+		return fmt.Errorf("quest giver NPC %q requires quests", definition.ID)
+	}
+	ids := make(map[string]bool, len(definition.QuestIDs))
+	for index := range definition.QuestIDs {
+		questID := strings.TrimSpace(definition.QuestIDs[index])
+		if questID == "" {
+			return fmt.Errorf("NPC %q quest %d requires an ID", definition.ID, index)
+		}
+		if ids[questID] {
+			return fmt.Errorf("NPC %q has duplicate quest %q", definition.ID, questID)
+		}
+		definition.QuestIDs[index] = questID
+		ids[questID] = true
 	}
 	return nil
 }

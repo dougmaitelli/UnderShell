@@ -15,6 +15,8 @@ const (
 	inputModeChat
 	inputModeHelp
 	inputModeShop
+	inputModeJournal
+	inputModeQuestDialogue
 )
 
 func (m *gameModel) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -38,6 +40,10 @@ func (m *gameModel) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.updateHelpInput(msg)
 	case inputModeShop:
 		return m.updateShopInput(msg)
+	case inputModeJournal:
+		return m.updateJournalInput(msg)
+	case inputModeQuestDialogue:
+		return m.updateQuestDialogueInput(msg)
 	default:
 		return m.updateGameplayInput(msg)
 	}
@@ -49,6 +55,8 @@ func (m *gameModel) updateGameplayInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd
 		return m.openInputMode(inputModeInventory)
 	case "k":
 		return m.openInputMode(inputModeSkills)
+	case "j":
+		return m.openInputMode(inputModeJournal)
 	case "t":
 		m.mode = inputModeChat
 		m.movement.stop()

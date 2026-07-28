@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -9,7 +10,9 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"sshrpg/src/domain"
+	"sshrpg/src/item"
 	"sshrpg/src/npc"
+	"sshrpg/src/quest"
 	"sshrpg/src/world"
 )
 
@@ -237,8 +240,7 @@ func TestInteractOpensNearbyShopBeforePickup(t *testing.T) {
 		NPCs: []npc.Definition{{
 			ID: "merchant", Name: "Mira", Type: npc.TypeShop, X: 3, Y: 1,
 			Stock: []npc.ShopItem{{
-				ItemID: "potion", Name: "Potion", MaxStack: 10,
-				BuyPrice: 10, SellPrice: 5,
+				ItemID: "potion", BuyPrice: 10, SellPrice: 5,
 			}},
 		}},
 	}})
@@ -252,9 +254,20 @@ func TestInteractOpensNearbyShopBeforePickup(t *testing.T) {
 			ID: 1, Name: "Aria", AreaID: "market", X: 2, Y: 1,
 		}},
 		Drops: []world.GroundItem{{
-			ID: 1, ItemID: "potion", Name: "Potion", AreaID: "market", X: 2, Y: 1,
+			ID: 1, AreaID: "market", X: 2, Y: 1,
 		}},
 	}
+	items, err := item.NewItems([]item.Definition{{
+		ID: "potion", Name: "Potion", MaxStack: 10,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := npc.ResolveItems(area.NPCs, items); err != nil {
+		t.Fatal(err)
+	}
+	potion, _ := items.Item("potion")
+	model.connection.snapshot.Drops[0].Item = potion
 
 	_, command := model.Update(tea.KeyPressMsg(tea.Key{Text: "e", Code: 'e'}))
 	if command != nil || model.mode != inputModeShop || model.actions.pickupInFlight {
@@ -286,6 +299,301 @@ func TestInteractOpensNearbyShopBeforePickup(t *testing.T) {
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
 	if model.mode != inputModeGame || model.shop.npc != nil {
 		t.Fatal("Escape did not close the shop")
+	}
+}
+
+func TestQuestGiverInteractionAndJournal(t *testing.T) {
+	definitions, err := quest.NewQuests([]quest.Definition{{
+		ID: "slime_supplies", Name: "Slime Supplies",
+		Description: "Collect gel from meadow slimes.",
+		Objective: quest.Objective{
+			ItemID: "slime_gel", Quantity: 5,
+		},
+		Reward: quest.Reward{Gold: 30},
+		Dialogue: quest.Dialogue{
+			Offer:      "The meadow slimes are spoiling my mixtures.",
+			InProgress: "I still need more Slime Gel.",
+			Ready:      "That is enough Slime Gel.",
+			Completed:  "Thank you for your earlier help.",
+		},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := item.NewItems([]item.Definition{{
+		ID: "slime_gel", Name: "Slime Gel", MaxStack: 50,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := definitions.ResolveItems(items); err != nil {
+		t.Fatal(err)
+	}
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{
+		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
+	}, &domain.Inventory{
+		CharacterID: 1,
+		Items: []domain.InventoryItem{{
+			Slot: 1, ItemKey: "slime_gel", Quantity: 2,
+		}},
+	})
+	model.phase = phasePlaying
+	model.width, model.height = 80, 24
+	model.quests = newQuestState(definitions)
+	areas, err := world.NewAreas([]world.AreaDefinition{{
+		ID: "meadow", Name: "Meadow",
+		Layout: []string{"########", "#......#", "########"},
+		Spawn:  world.Point{X: 1, Y: 1},
+		NPCs: []npc.Definition{{
+			ID: "orin", Name: "Orin", Type: npc.TypeQuestGiver, X: 3, Y: 1,
+			QuestIDs: []string{"slime_supplies"},
+		}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	area, _ := areas.Area("meadow")
+	model.connection.snapshot = world.Snapshot{Area: area}
+
+	_, command := model.Update(tea.KeyPressMsg(tea.Key{Text: "e", Code: 'e'}))
+	if command != nil || model.mode != inputModeQuestDialogue ||
+		model.quests.inFlight || model.actions.pickupInFlight {
+		t.Fatal("E did not open quest dialogue before item pickup")
+	}
+	plain := ansi.Strip(model.View().Content)
+	if !strings.Contains(plain, "The meadow slimes are spoiling my mixtures.") ||
+		!strings.Contains(plain, "E/Space: accept quest") {
+		t.Fatalf("offer dialogue was not rendered: %q", plain)
+	}
+	offerRow := -1
+	for row, line := range strings.Split(plain, "\n") {
+		if strings.Contains(line, "The meadow slimes are spoiling my mixtures.") {
+			offerRow = row
+			break
+		}
+	}
+	if offerRow < model.height/2 {
+		t.Fatalf("quest dialogue was not anchored near the bottom: row %d", offerRow)
+	}
+	_, command = model.Update(tea.KeyPressMsg(tea.Key{Text: "e", Code: 'e'}))
+	if command == nil || !model.quests.inFlight || model.mode != inputModeGame {
+		t.Fatal("E did not accept the quest from its dialogue")
+	}
+
+	model.quests.inFlight = false
+	model.quests.progress["slime_supplies"] = domain.CharacterQuest{
+		QuestID: "slime_supplies", GiverID: "orin",
+		Status: domain.QuestActive,
+	}
+	_, command = model.Update(tea.KeyPressMsg(tea.Key{Text: "e", Code: 'e'}))
+	if command != nil || model.mode != inputModeQuestDialogue ||
+		model.quests.inFlight {
+		t.Fatal("incomplete quest did not open progress dialogue")
+	}
+	plain = ansi.Strip(model.View().Content)
+	if !strings.Contains(plain, "I still need more Slime Gel.") {
+		t.Fatalf("progress dialogue was not rendered: %q", plain)
+	}
+	if strings.Contains(plain, "Slime Gel: 2/5") ||
+		strings.Contains(plain, "Reward: 30 gold") {
+		t.Fatalf("quest metadata leaked into NPC dialogue: %q", plain)
+	}
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeySpace}))
+
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "j", Code: 'j'}))
+	if model.mode != inputModeJournal {
+		t.Fatal("J did not open the quest journal")
+	}
+	plain = ansi.Strip(model.View().Content)
+	for _, expected := range []string{
+		"QUEST JOURNAL", "> Slime Supplies", "Objective: Slime Gel",
+		"In progress — 2 of 5",
+		"Return to: Orin — Meadow", "Reward: 30 gold",
+	} {
+		if !strings.Contains(plain, expected) {
+			t.Fatalf("journal is missing %q: %q", expected, plain)
+		}
+	}
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
+	if model.mode != inputModeGame {
+		t.Fatal("Escape did not close the quest journal")
+	}
+
+	model.inventory.Items[0].Quantity = 5
+	_, command = model.Update(tea.KeyPressMsg(tea.Key{Text: "e", Code: 'e'}))
+	if command != nil || model.mode != inputModeQuestDialogue {
+		t.Fatal("ready quest did not open turn-in dialogue")
+	}
+	plain = ansi.Strip(model.View().Content)
+	if !strings.Contains(plain, "That is enough Slime Gel.") ||
+		!strings.Contains(plain, "E/Space: hand over items") {
+		t.Fatalf("turn-in dialogue was not rendered: %q", plain)
+	}
+	_, command = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeySpace}))
+	if command == nil || !model.quests.inFlight || model.mode != inputModeGame {
+		t.Fatal("Space did not submit the quest from its dialogue")
+	}
+
+	model.quests.inFlight = false
+	progress := model.quests.progress["slime_supplies"]
+	progress.Status = domain.QuestCompleted
+	model.quests.progress["slime_supplies"] = progress
+	_, command = model.Update(tea.KeyPressMsg(tea.Key{Text: "e", Code: 'e'}))
+	if command != nil || model.mode != inputModeQuestDialogue {
+		t.Fatal("completed quest did not open follow-up dialogue")
+	}
+	plain = ansi.Strip(model.View().Content)
+	if !strings.Contains(plain, "Thank you for your earlier help.") {
+		t.Fatalf("completed dialogue was not rendered: %q", plain)
+	}
+}
+
+func TestJournalRendererUsesSelectedQuestForDetails(t *testing.T) {
+	background := strings.Repeat(strings.Repeat(" ", 80)+"\n", 23) +
+		strings.Repeat(" ", 80)
+	output := ansi.Strip((JournalRenderer{}).RenderOver(
+		background, 80, 24,
+		JournalView{
+			Selected: 1,
+			Quests: []QuestView{
+				{
+					Name: "First Quest", Description: "First description.",
+					ItemName: "First Item", Current: 1, Required: 2,
+					GiverName: "First NPC",
+				},
+				{
+					Name: "Second Quest",
+					Description: "A deliberately long description that should wrap safely " +
+						"inside the right pane continuation-marker.",
+					ItemName: "Second Item", Current: 3, Required: 3,
+					GiverName: "Second NPC", GiverArea: "Cavern", RewardGold: 20,
+				},
+			},
+		},
+	))
+	for _, expected := range []string{
+		"First Quest", "> Second Quest", "deliberately long description",
+		"continuation-marker",
+		"Objective: Second Item", "Ready to return",
+		"Return to: Second NPC — Cavern", "Reward: 20 gold",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("journal is missing %q: %q", expected, output)
+		}
+	}
+	if strings.Contains(output, "First description.") ||
+		strings.Contains(output, "Objective: First Item") {
+		t.Fatalf("journal showed details for an unselected quest: %q", output)
+	}
+	foundContinuation := false
+	for _, line := range strings.Split(output, "\n") {
+		if lipgloss.Width(line) > 80 {
+			t.Fatalf("journal line exceeded terminal width: %q", line)
+		}
+		if !strings.Contains(line, "continuation-marker") {
+			continue
+		}
+		foundContinuation = true
+		pipes := make([]int, 0, 3)
+		for index, character := range []rune(line) {
+			if character == '│' {
+				pipes = append(pipes, index)
+			}
+		}
+		textColumn := len([]rune(strings.Split(line, "continuation-marker")[0]))
+		if len(pipes) < 3 || textColumn <= pipes[1] {
+			t.Fatalf("right-pane continuation crossed the divider: %q", line)
+		}
+	}
+	if !foundContinuation {
+		t.Fatal("wrapped journal continuation was not rendered")
+	}
+}
+
+func TestJournalInputMovesAndWrapsSelection(t *testing.T) {
+	dialogue := quest.Dialogue{
+		Offer: "Offer.", InProgress: "Progress.",
+		Ready: "Ready.", Completed: "Complete.",
+	}
+	definitions, err := quest.NewQuests([]quest.Definition{
+		{
+			ID: "first", Name: "First",
+			Objective: quest.Objective{ItemID: "first_item", Quantity: 1},
+			Dialogue:  dialogue,
+		},
+		{
+			ID: "second", Name: "Second",
+			Objective: quest.Objective{ItemID: "second_item", Quantity: 1},
+			Dialogue:  dialogue,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model := newGameModel(
+		Repositories{}, nil, nil, Identity{},
+		&domain.Character{ID: 1}, &domain.Inventory{CharacterID: 1},
+	)
+	model.phase = phasePlaying
+	model.mode = inputModeJournal
+	model.quests = newQuestState(definitions)
+	model.quests.setProgress([]domain.CharacterQuest{
+		{QuestID: "first", Status: domain.QuestActive},
+		{QuestID: "second", Status: domain.QuestActive},
+	})
+
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyDown}))
+	if model.quests.journalSelected != 1 {
+		t.Fatalf("down selected %d, want 1", model.quests.journalSelected)
+	}
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "s", Code: 's'}))
+	if model.quests.journalSelected != 0 {
+		t.Fatalf("down wrap selected %d, want 0", model.quests.journalSelected)
+	}
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyUp}))
+	if model.quests.journalSelected != 1 {
+		t.Fatalf("up wrap selected %d, want 1", model.quests.journalSelected)
+	}
+}
+
+func TestJournalWrappedDetailsStayInRightPaneAtSupportedWidths(t *testing.T) {
+	for _, width := range []int{40, 50, 80} {
+		t.Run(fmt.Sprintf("width_%d", width), func(t *testing.T) {
+			background := strings.Repeat(strings.Repeat(" ", width)+"\n", 23) +
+				strings.Repeat(" ", width)
+			output := ansi.Strip((JournalRenderer{}).RenderOver(
+				background, width, 24,
+				JournalView{Quests: []QuestView{{
+					Name:        "Quest",
+					Description: "alpha beta gamma delta epsilon RIGHTMARKER",
+					ItemName:    "Item", Current: 1, Required: 2,
+					GiverName: "NPC", GiverArea: "Area",
+				}}},
+			))
+			foundMarker := false
+			for _, line := range strings.Split(output, "\n") {
+				if lipgloss.Width(line) > width {
+					t.Fatalf("line width exceeds %d: %q", width, line)
+				}
+				if !strings.Contains(line, "RIGHTMARKER") {
+					continue
+				}
+				foundMarker = true
+				pipes := make([]int, 0, 3)
+				for index, character := range []rune(line) {
+					if character == '│' {
+						pipes = append(pipes, index)
+					}
+				}
+				markerColumn := len([]rune(strings.Split(line, "RIGHTMARKER")[0]))
+				if len(pipes) < 3 || markerColumn <= pipes[1] {
+					t.Fatalf("wrapped detail crossed divider at width %d: %q", width, line)
+				}
+			}
+			if !foundMarker {
+				t.Fatalf("right-pane marker missing at width %d", width)
+			}
+		})
 	}
 }
 
@@ -372,8 +680,8 @@ func TestGroundItemsUseOneGenericMarker(t *testing.T) {
 	model.connection.snapshot = world.Snapshot{
 		Players: []world.Player{{ID: 1, Name: "Aria", AreaID: "meadow", X: 10, Y: 5}},
 		Drops: []world.GroundItem{
-			{ID: 1, ItemID: "slime_gel", Name: "Slime Gel", AreaID: "meadow", X: 3, Y: 5},
-			{ID: 2, ItemID: "health_potion", Name: "Health Potion", AreaID: "meadow", X: 17, Y: 5},
+			{ID: 1, AreaID: "meadow", X: 3, Y: 5},
+			{ID: 2, AreaID: "meadow", X: 17, Y: 5},
 		},
 	}
 	plain := ansi.Strip(model.renderer.game.Render(model.viewState()))

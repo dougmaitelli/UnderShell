@@ -126,6 +126,19 @@ func NewAreas(definitions []AreaDefinition) (*Areas, error) {
 		}
 	}
 
+	npcAreas := make(map[string]string)
+	for _, area := range set.areas {
+		for _, definition := range area.NPCs {
+			if existingArea, exists := npcAreas[definition.ID]; exists {
+				return nil, fmt.Errorf(
+					"duplicate NPC ID %q in areas %q and %q",
+					definition.ID, existingArea, area.ID,
+				)
+			}
+			npcAreas[definition.ID] = area.ID
+		}
+	}
+
 	for _, area := range set.areas {
 		for point, waypoint := range area.waypoints {
 			destination, ok := set.areas[waypoint.DestinationArea]
@@ -150,6 +163,18 @@ func NewAreas(definitions []AreaDefinition) (*Areas, error) {
 func (s *Areas) Area(id string) (*Area, bool) {
 	area, ok := s.areas[id]
 	return area, ok
+}
+
+func (s *Areas) NPC(id string) (*npc.Definition, *Area, bool) {
+	for _, area := range s.areas {
+		for index := range area.NPCs {
+			definition := &area.NPCs[index]
+			if definition.ID == id {
+				return definition, area, true
+			}
+		}
+	}
+	return nil, nil, false
 }
 
 func (s *Areas) SetDefaultSpawn(areaID string, point Point) error {

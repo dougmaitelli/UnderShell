@@ -23,7 +23,7 @@ type itemsFile struct {
 }
 
 type Items struct {
-	items map[string]Definition
+	items map[string]*Definition
 	order []string
 }
 
@@ -55,7 +55,7 @@ func NewItems(definitions []Definition) (*Items, error) {
 	}
 
 	items := &Items{
-		items: make(map[string]Definition, len(definitions)),
+		items: make(map[string]*Definition, len(definitions)),
 		order: make([]string, 0, len(definitions)),
 	}
 	for index, definition := range definitions {
@@ -68,13 +68,13 @@ func NewItems(definitions []Definition) (*Items, error) {
 		if _, exists := items.items[definition.ID]; exists {
 			return nil, fmt.Errorf("duplicate item ID %q", definition.ID)
 		}
-		items.items[definition.ID] = definition
+		items.items[definition.ID] = &definition
 		items.order = append(items.order, definition.ID)
 	}
 	return items, nil
 }
 
-func (i *Items) Item(id string) (Definition, bool) {
+func (i *Items) Item(id string) (*Definition, bool) {
 	definition, ok := i.items[id]
 	return definition, ok
 }
@@ -82,7 +82,7 @@ func (i *Items) Item(id string) (Definition, bool) {
 func (i *Items) All() []Definition {
 	definitions := make([]Definition, 0, len(i.order))
 	for _, id := range i.order {
-		definitions = append(definitions, i.items[id])
+		definitions = append(definitions, *i.items[id])
 	}
 	return definitions
 }

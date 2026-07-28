@@ -32,7 +32,7 @@ func (m *gameModel) createCharacter(name string) tea.Cmd {
 func (m *gameModel) joinWorld() tea.Cmd {
 	return func() tea.Msg {
 		session := m.world.Join(world.Player{
-			ID: m.character.ID, Name: m.character.Name,
+			ID: m.character.ID, Name: m.character.Name, Role: m.character.Role,
 			AreaID: m.character.AreaID, X: m.character.X, Y: m.character.Y,
 			Level: m.character.Level, Experience: m.character.Experience,
 			SkillPoints: m.character.SkillPoints,

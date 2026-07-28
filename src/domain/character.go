@@ -9,14 +9,32 @@ import (
 )
 
 var ErrInvalidCharacterName = errors.New("name must be 3-20 printable characters")
+var ErrInvalidCharacterRole = errors.New("role must be user or admin")
 
 const DefaultStartingGold = 100
+
+type CharacterRole string
+
+const (
+	CharacterRoleUser  CharacterRole = "user"
+	CharacterRoleAdmin CharacterRole = "admin"
+)
+
+func ValidateCharacterRole(role CharacterRole) error {
+	switch role {
+	case CharacterRoleUser, CharacterRoleAdmin:
+		return nil
+	default:
+		return ErrInvalidCharacterRole
+	}
+}
 
 // Character is the game-facing representation of a character. Database
 // identity and ORM metadata intentionally do not belong in this model.
 type Character struct {
 	ID          int64
 	Name        string
+	Role        CharacterRole
 	AreaID      string
 	X           int
 	Y           int

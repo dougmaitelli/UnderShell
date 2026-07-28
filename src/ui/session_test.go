@@ -712,13 +712,43 @@ func TestPlayerBaseIsAnchoredAtWorldCoordinate(t *testing.T) {
 			grid[y][x] = " "
 		}
 	}
-	drawPlayer(grid, 6, 6, "@", "Aria", 0, 1, 0, lipgloss.NewStyle())
+	drawPlayer(
+		grid, 6, 6, "@", "Aria", 0, 1, 0,
+		domain.CharacterRoleUser, 0,
+	)
 
-	if grid[6][5] != "/" || grid[6][6] != " " || grid[6][7] != "\\" {
+	if ansi.Strip(grid[6][5]) != "/" ||
+		grid[6][6] != " " ||
+		ansi.Strip(grid[6][7]) != "\\" {
 		t.Fatalf("feet are not centered on base coordinate: %#v", grid[6][4:9])
 	}
-	if strings.Join(grid[3], "") != "   @ Aria   " {
+	if ansi.Strip(strings.Join(grid[3], "")) != "   @ Aria   " {
 		t.Fatalf("name is not centered above the figure: %q", strings.Join(grid[3], ""))
+	}
+}
+
+func TestPlayerRoleColorOnlyAppliesToName(t *testing.T) {
+	grid := make([][]string, 8)
+	for y := range grid {
+		grid[y] = make([]string, 12)
+		for x := range grid[y] {
+			grid[y][x] = " "
+		}
+	}
+	adminName := playerNameStyle(domain.CharacterRoleAdmin, 0, 2)
+	drawPlayer(
+		grid, 6, 6, "@", "DougM", 0, 0, 0,
+		domain.CharacterRoleAdmin, 0,
+	)
+
+	if grid[3][5] != adminName.Render("D") {
+		t.Fatalf("admin name cell has the wrong style: %q", grid[3][5])
+	}
+	if grid[4][6] != playerBodyStyle.Render("O") {
+		t.Fatalf("player body does not use the neutral style: %q", grid[4][6])
+	}
+	if grid[4][6] == adminName.Render("O") {
+		t.Fatal("admin name color leaked into the player body")
 	}
 }
 
@@ -768,13 +798,115 @@ func TestSlashFramesAreDirectional(t *testing.T) {
 }
 
 func TestPlayerStylesEmitANSIColors(t *testing.T) {
-	local := selfPlayerStyle.Render("@ Aria")
-	remote := otherPlayerStyle.Render("○ Rowan")
-	if local == ansi.Strip(local) {
-		t.Fatal("local player style did not emit ANSI styling")
+	userLocal := playerNameStyle(
+		domain.CharacterRoleUser, 0, 0,
+	).Render("@ Aria")
+	userRemote := playerNameStyle(
+		domain.CharacterRoleUser, 4, 6,
+	).Render("○ Rowan")
+	admin := playerNameStyle(
+		domain.CharacterRoleAdmin, 0, 0,
+	).Render("@ DougM")
+	if userLocal == ansi.Strip(userLocal) {
+		t.Fatal("user player style did not emit ANSI styling")
 	}
-	if remote == ansi.Strip(remote) {
-		t.Fatal("remote player style did not emit ANSI styling")
+	if admin == ansi.Strip(admin) {
+		t.Fatal("admin player style did not emit ANSI styling")
+	}
+	userLocalCodes := strings.Replace(userLocal, "@ Aria", "", 1)
+	userRemoteCodes := strings.Replace(userRemote, "○ Rowan", "", 1)
+	adminCodes := strings.Replace(admin, "@ DougM", "", 1)
+	if userLocalCodes != userRemoteCodes {
+		t.Fatal("local and remote users received different colors")
+	}
+	if adminCodes == userLocalCodes {
+		t.Fatal("admin and user players received the same color")
+	}
+	userRed, userGreen, userBlue, _ :=
+		playerNameStyle(
+			domain.CharacterRoleUser, 0, 0,
+		).GetForeground().RGBA()
+	if userRed != 0x38*0x101 ||
+		userGreen != 0xBD*0x101 ||
+		userBlue != 0xF8*0x101 {
+		t.Fatalf(
+			"user color = (%x, %x, %x), want #38BDF8",
+			userRed, userGreen, userBlue,
+		)
+	}
+	adminColors := make(map[[3]uint32]bool)
+	for index := range adminPlayerNameStyles {
+		red, green, blue, _ := playerNameStyle(
+			domain.CharacterRoleAdmin, 0, index,
+		).GetForeground().RGBA()
+		if red <= green || red <= blue {
+			t.Fatalf(
+				"admin shimmer color is not red: (%x, %x, %x)",
+				red, green, blue,
+			)
+		}
+		if green > 0x44*0x101 || blue > 0x44*0x101 {
+			t.Fatalf(
+				"admin shimmer color is too pale: (%x, %x, %x)",
+				red, green, blue,
+			)
+		}
+		adminColors[[3]uint32{red, green, blue}] = true
+	}
+	if len(adminColors) < 3 {
+		t.Fatalf("admin shimmer has only %d distinct reds", len(adminColors))
+	}
+	firstRed, firstGreen, firstBlue, _ := playerNameStyle(
+		domain.CharacterRoleAdmin, 0, 4,
+	).GetForeground().RGBA()
+	nextRed, nextGreen, nextBlue, _ := playerNameStyle(
+		domain.CharacterRoleAdmin, 1, 4,
+	).GetForeground().RGBA()
+	if firstRed == nextRed &&
+		firstGreen == nextGreen &&
+		firstBlue == nextBlue {
+		t.Fatal("admin shimmer did not advance between frames")
+	}
+	crest := adminPlayerNameStyles[4].GetForeground()
+	if playerNameStyle(
+		domain.CharacterRoleAdmin, 0, 4,
+	).GetForeground() != crest ||
+		playerNameStyle(
+			domain.CharacterRoleAdmin, 1, 3,
+		).GetForeground() != crest {
+		t.Fatal("admin shimmer crest does not move from right to left")
+	}
+}
+
+func TestPlayerNameShimmerRunsOnlyWhileAdminNameIsShown(t *testing.T) {
+	state := playerNameShimmerState{}
+	if command := state.setNeeded([]world.Player{{
+		ID: 1, Role: domain.CharacterRoleUser,
+	}}, nil); command != nil || state.active {
+		t.Fatal("user-only snapshot started the admin shimmer")
+	}
+	command := state.setNeeded([]world.Player{{
+		ID: 2, Role: domain.CharacterRoleAdmin,
+	}}, nil)
+	if command == nil || !state.active {
+		t.Fatal("visible admin did not start the shimmer")
+	}
+	generation := state.generation
+	if command := state.advance(generation); command == nil || state.frame != 1 {
+		t.Fatal("active shimmer did not advance and reschedule")
+	}
+	if command := state.setNeeded([]world.Player{{
+		ID: 1, Role: domain.CharacterRoleUser,
+	}}, nil); command != nil || state.active || state.frame != 0 {
+		t.Fatal("shimmer did not stop when the admin disappeared")
+	}
+	if command := state.advance(generation); command != nil || state.frame != 0 {
+		t.Fatal("stale shimmer tick restarted the animation")
+	}
+	if command := state.setNeeded(nil, []world.ChatMessage{{
+		PlayerRole: domain.CharacterRoleAdmin,
+	}}); command == nil || !state.active {
+		t.Fatal("admin chat message did not start the shimmer")
 	}
 }
 

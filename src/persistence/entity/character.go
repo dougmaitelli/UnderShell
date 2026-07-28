@@ -13,6 +13,7 @@ type Character struct {
 	PublicKeyType  string `bun:"public_key_type,notnull"`
 	PublicKey      string `bun:"public_key,notnull"`
 	Name           string `bun:"name,notnull,unique,type:TEXT COLLATE NOCASE"`
+	Role           string `bun:"role,notnull,default:'user',type:TEXT CHECK (role = 'user' OR role = 'admin')"`
 	CreatedAt      string `bun:"created_at,notnull"`
 	LastSeenAt     string `bun:"last_seen_at,notnull"`
 }

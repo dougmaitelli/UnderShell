@@ -31,6 +31,9 @@ func TestCharacterIdentityAndPersistence(t *testing.T) {
 	if created.AreaID != "" {
 		t.Fatalf("new character should not have a persisted location yet: %#v", created)
 	}
+	if created.Role != domain.CharacterRoleUser {
+		t.Fatalf("new character role = %q, want user", created.Role)
+	}
 	if created.Level != 1 || created.Experience != 0 || created.SkillPoints != 0 ||
 		created.Gold != domain.DefaultStartingGold {
 		t.Fatalf("unexpected initial progression: %#v", created)
@@ -41,17 +44,34 @@ func TestCharacterIdentityAndPersistence(t *testing.T) {
 	if err := characters.UpdateProgress(ctx, created.ID, 3, 50, 2, 4, 3, 2); err != nil {
 		t.Fatal(err)
 	}
+	if err := characters.UpdateRole(
+		ctx, created.ID, domain.CharacterRoleAdmin,
+	); err != nil {
+		t.Fatal(err)
+	}
 
 	found, err := characters.FindByFingerprint(ctx, "SHA256:first")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if found == nil || found.Name != "Aria" || found.AreaID != "cavern" ||
+	if found == nil || found.Name != "Aria" ||
+		found.Role != domain.CharacterRoleAdmin ||
+		found.AreaID != "cavern" ||
 		found.X != 7 || found.Y != 9 ||
 		found.Level != 3 || found.Experience != 50 || found.SkillPoints != 2 ||
 		found.Attack != 4 || found.Defense != 3 || found.Vitality != 2 ||
 		found.Gold != domain.DefaultStartingGold {
 		t.Fatalf("unexpected character: %#v", found)
+	}
+	if err := characters.UpdateRole(ctx, created.ID, "moderator"); !errors.Is(
+		err, domain.ErrInvalidCharacterRole,
+	) {
+		t.Fatalf("invalid role update error = %v", err)
+	}
+	if err := characters.UpdateRole(
+		ctx, created.ID+999, domain.CharacterRoleUser,
+	); !errors.Is(err, ErrCharacterNotFound) {
+		t.Fatalf("missing character role update error = %v", err)
 	}
 
 	_, err = characters.Create(ctx, CreateCharacterParams{

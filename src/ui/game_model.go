@@ -43,6 +43,7 @@ type gameModel struct {
 	quests        questState
 	chat          chatPanelState
 	eventFeed     eventFeed
+	nameShimmer   playerNameShimmerState
 	mode          inputMode
 	width         int
 	height        int
@@ -172,6 +173,8 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m, attackAnimationTick(msg.frame + 1)
+	case playerNameShimmerMsg:
+		return m, m.nameShimmer.advance(msg.generation)
 	case attackResultMsg:
 		return m, nil
 	case pickupResultMsg:
@@ -312,5 +315,6 @@ func (m *gameModel) viewState() ViewState {
 		WalkFrame:         m.movement.walkFrame,
 		FacingX:           m.movement.facingX,
 		FacingY:           m.movement.facingY,
+		PlayerNameShimmer: m.nameShimmer.frame,
 	}
 }

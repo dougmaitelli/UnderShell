@@ -38,7 +38,12 @@ func (m *gameModel) updateChatMessage(msg chatMessageMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.chat.receive(msg.message)
-	return m, waitForChatMessage(m.connection.session.Chats)
+	return m, tea.Batch(
+		m.nameShimmer.setNeeded(
+			m.connection.snapshot.Players, m.chat.messages,
+		),
+		waitForChatMessage(m.connection.session.Chats),
+	)
 }
 
 func (m *gameModel) updateWorldSnapshot(msg worldSnapshotMsg) (tea.Model, tea.Cmd) {
@@ -47,6 +52,11 @@ func (m *gameModel) updateWorldSnapshot(msg worldSnapshotMsg) (tea.Model, tea.Cm
 	}
 	m.connection.snapshot = msg.snapshot
 	commands := []tea.Cmd{waitForSnapshot(m.connection.session.Updates)}
+	if shimmer := m.nameShimmer.setNeeded(
+		msg.snapshot.Players, m.chat.messages,
+	); shimmer != nil {
+		commands = append(commands, shimmer)
+	}
 	for _, player := range msg.snapshot.Players {
 		if player.ID != m.character.ID {
 			continue

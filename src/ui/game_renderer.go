@@ -7,6 +7,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
+	"sshrpg/src/domain"
 	"sshrpg/src/npc"
 	"sshrpg/src/world"
 )
@@ -109,16 +110,17 @@ func (GameRenderer) Render(state ViewState) string {
 	}
 	// Draw players last so the local character remains visible when entities overlap.
 	for _, player := range visiblePlayers {
-		style, marker := otherPlayerStyle, "○"
+		marker := "○"
 		walkFrame, facingX, facingY := 0, 0, 0
 		if player.ID == state.Character.ID {
-			style, marker = selfPlayerStyle, "@"
+			marker = "@"
 			walkFrame = state.WalkFrame
 			facingX, facingY = state.FacingX, state.FacingY
 		}
 		drawPlayer(
 			grid, player.X-left, player.Y-top,
-			marker, player.Name, walkFrame, facingX, facingY, style,
+			marker, player.Name, walkFrame, facingX, facingY,
+			player.Role, state.PlayerNameShimmer,
 		)
 	}
 	if state.AttackFrame > 0 {
@@ -192,12 +194,42 @@ func drawPlayer(
 	x, baseY int,
 	marker, name string,
 	walkFrame, facingX, facingY int,
-	style lipgloss.Style,
+	role domain.CharacterRole,
+	shimmerFrame int,
 ) {
-	drawCentered(grid, x, baseY-3, terminalCellRunes(marker+" "+name), style)
-	drawCentered(grid, x, baseY-2, []rune("O"), style)
-	drawCentered(grid, x, baseY-1, []rune("/|\\"), style)
-	drawCentered(grid, x, baseY, []rune(playerLegs(walkFrame, facingX, facingY)), style)
+	drawPlayerName(
+		grid, x, baseY-3,
+		terminalCellRunes(marker+" "+name),
+		role, shimmerFrame,
+	)
+	drawCentered(grid, x, baseY-2, []rune("O"), playerBodyStyle)
+	drawCentered(grid, x, baseY-1, []rune("/|\\"), playerBodyStyle)
+	drawCentered(
+		grid, x, baseY,
+		[]rune(playerLegs(walkFrame, facingX, facingY)),
+		playerBodyStyle,
+	)
+}
+
+func drawPlayerName(
+	grid [][]string,
+	centerX, y int,
+	content []rune,
+	role domain.CharacterRole,
+	shimmerFrame int,
+) {
+	if y < 0 || y >= len(grid) {
+		return
+	}
+	startX := centerX - len(content)/2
+	for offset, cell := range content {
+		x := startX + offset
+		if x < 0 || x >= len(grid[y]) || cell == ' ' {
+			continue
+		}
+		grid[y][x] = playerNameStyle(role, shimmerFrame, offset).
+			Render(string(cell))
+	}
 }
 
 func playerLegs(walkFrame, facingX, facingY int) string {
@@ -283,12 +315,9 @@ var (
 	headerStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#E2E8F0"))
-	selfPlayerStyle = lipgloss.NewStyle().
+	playerBodyStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#FBBF24"))
-	otherPlayerStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(lipgloss.Color("#38BDF8"))
+			Foreground(lipgloss.Color("#CBD5E1"))
 	enemyStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#FB7185"))

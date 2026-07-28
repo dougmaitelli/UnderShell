@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"sshrpg/src/domain"
 	"sshrpg/src/enemy"
 	"sshrpg/src/item"
 )
@@ -370,7 +371,10 @@ func TestSkillPointsUpgradePlayerAttributes(t *testing.T) {
 func TestGlobalChatBroadcastsAndPreloadsLatestTenMessages(t *testing.T) {
 	manager := New(testAreas(t), nil, nil, nil)
 	defer manager.Close()
-	first := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
+	first := manager.Join(Player{
+		ID: 1, Name: "Aria", Role: domain.CharacterRoleAdmin,
+		AreaID: "meadow", X: 1, Y: 1,
+	})
 	second := manager.Join(Player{ID: 2, Name: "Rowan", AreaID: "cavern", X: 1, Y: 1})
 	receiveSnapshot(t, first.Updates)
 	receiveSnapshot(t, second.Updates)
@@ -383,7 +387,9 @@ func TestGlobalChatBroadcastsAndPreloadsLatestTenMessages(t *testing.T) {
 	}
 	for _, session := range []Session{first, second} {
 		message := receiveChat(t, session.Chats)
-		if message.PlayerName != "Aria" || message.Message != "hello realm" {
+		if message.PlayerName != "Aria" ||
+			message.PlayerRole != domain.CharacterRoleAdmin ||
+			message.Message != "hello realm" {
 			t.Fatalf("broadcast chat = %#v", message)
 		}
 	}

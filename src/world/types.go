@@ -3,6 +3,7 @@ package world
 import (
 	"time"
 
+	"sshrpg/src/domain"
 	"sshrpg/src/enemy"
 	"sshrpg/src/item"
 )
@@ -10,6 +11,7 @@ import (
 type Player struct {
 	ID             int64
 	Name           string
+	Role           domain.CharacterRole
 	AreaID         string
 	X              int
 	Y              int
@@ -61,6 +63,7 @@ type Session struct {
 type ChatMessage struct {
 	PlayerID   int64
 	PlayerName string
+	PlayerRole domain.CharacterRole
 	Message    string
 }
 

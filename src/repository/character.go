@@ -17,6 +17,7 @@ import (
 var (
 	ErrCharacterNameTaken = errors.New("that name is already taken")
 	ErrCharacterKeyExists = errors.New("a character already exists for that SSH key")
+	ErrCharacterNotFound  = errors.New("character not found")
 )
 
 type CreateCharacterParams struct {
@@ -33,6 +34,7 @@ type CharacterRepository interface {
 	Create(context.Context, CreateCharacterParams) (*domain.Character, error)
 	UpdateLocation(context.Context, int64, string, int, int) error
 	UpdateProgress(context.Context, int64, int, int64, int, int, int, int) error
+	UpdateRole(context.Context, int64, domain.CharacterRole) error
 }
 
 type BunCharacterRepository struct {
@@ -94,6 +96,7 @@ func (r *BunCharacterRepository) Create(
 		PublicKeyType:  params.PublicKeyType,
 		PublicKey:      params.PublicKey,
 		Name:           name,
+		Role:           string(domain.CharacterRoleUser),
 		CreatedAt:      now,
 		LastSeenAt:     now,
 	}
@@ -110,6 +113,32 @@ func (r *BunCharacterRepository) Create(
 		}
 	}
 	return toDomain(record, nil, nil), nil
+}
+
+func (r *BunCharacterRepository) UpdateRole(
+	ctx context.Context,
+	id int64,
+	role domain.CharacterRole,
+) error {
+	if err := domain.ValidateCharacterRole(role); err != nil {
+		return err
+	}
+	result, err := r.db.NewUpdate().
+		Model((*entity.Character)(nil)).
+		Set("role = ?", role).
+		Where("id = ?", id).
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("update character role: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read updated character role count: %w", err)
+	}
+	if affected == 0 {
+		return ErrCharacterNotFound
+	}
+	return nil
 }
 
 func (r *BunCharacterRepository) UpdateLocation(
@@ -203,7 +232,12 @@ func toDomain(
 	progress *entity.CharacterProgress,
 ) *domain.Character {
 	character := &domain.Character{
-		ID: record.ID, Name: record.Name, Level: 1, Gold: domain.DefaultStartingGold,
+		ID: record.ID, Name: record.Name,
+		Role:  domain.CharacterRole(record.Role),
+		Level: 1, Gold: domain.DefaultStartingGold,
+	}
+	if domain.ValidateCharacterRole(character.Role) != nil {
+		character.Role = domain.CharacterRoleUser
 	}
 	if location != nil {
 		character.AreaID = location.AreaID

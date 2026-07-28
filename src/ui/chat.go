@@ -65,6 +65,7 @@ func (ChatRenderer) RenderOver(
 	messages []world.ChatMessage,
 	focused bool,
 	input string,
+	shimmerFrame ...int,
 ) string {
 	if len(messages) == 0 && !focused {
 		return game
@@ -74,9 +75,12 @@ func (ChatRenderer) RenderOver(
 	}
 	rows := make([]string, 0, len(messages)+3)
 	rows = append(rows, chatTitleStyle.Render("CHAT"))
+	frame := 0
+	if len(shimmerFrame) > 0 {
+		frame = shimmerFrame[0]
+	}
 	for _, message := range messages {
-		text := fmt.Sprintf("[%s] %s", message.PlayerName, message.Message)
-		rows = append(rows, chatMessageStyle.Render(truncateChatLine(text, chatTextWidth)))
+		rows = append(rows, renderChatMessage(message, frame))
 	}
 	if focused {
 		rows = append(rows, chatInputStyle.Render("> "+input))
@@ -89,6 +93,31 @@ func (ChatRenderer) RenderOver(
 		lipgloss.NewLayer(game).X(0).Y(0).Z(0),
 		lipgloss.NewLayer(window).X(x).Y(y).Z(1),
 	).Render()
+}
+
+func renderChatMessage(message world.ChatMessage, shimmerFrame int) string {
+	text := truncateChatLine(
+		fmt.Sprintf("[%s] %s", message.PlayerName, message.Message),
+		chatTextWidth,
+	)
+	runes := []rune(text)
+	if len(runes) < 2 {
+		return chatMessageStyle.Render(text)
+	}
+	nameLength := min(len([]rune(message.PlayerName)), len(runes)-1)
+	var rendered strings.Builder
+	rendered.WriteString(chatMessageStyle.Render(string(runes[:1])))
+	rendered.WriteString(renderPlayerName(
+		string(runes[1:1+nameLength]),
+		message.PlayerRole,
+		shimmerFrame,
+	))
+	if 1+nameLength < len(runes) {
+		rendered.WriteString(
+			chatMessageStyle.Render(string(runes[1+nameLength:])),
+		)
+	}
+	return rendered.String()
 }
 
 func truncateChatLine(value string, width int) string {

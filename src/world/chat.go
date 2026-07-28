@@ -24,7 +24,8 @@ func (s *chatSystem) send(
 		return false
 	}
 	chat := ChatMessage{
-		PlayerID: player.ID, PlayerName: player.Name, Message: message,
+		PlayerID: player.ID, PlayerName: player.Name,
+		PlayerRole: player.Role, Message: message,
 	}
 	s.history = append(s.history, chat)
 	if len(s.history) > chatHistoryLimit {

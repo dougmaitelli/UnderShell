@@ -36,6 +36,7 @@ type ViewState struct {
 	WalkFrame         int
 	FacingX           int
 	FacingY           int
+	PlayerNameShimmer int
 }
 
 type Renderer struct {
@@ -98,6 +99,7 @@ func (r Renderer) Render(state ViewState) string {
 		game = r.chat.RenderOver(
 			game, state.Width, state.Height,
 			state.ChatMessages, state.ChatFocused, state.ChatInput,
+			state.PlayerNameShimmer,
 		)
 		game = r.events.RenderOver(game, state.Width, state.Height, state.Events)
 		if state.QuestDialogueOpen {

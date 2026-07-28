@@ -207,11 +207,15 @@ func TestAttackKeyStartsSlashAnimation(t *testing.T) {
 		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
 	}, nil)
 	model.phase = phasePlaying
+	model.movement.setFacing(-1, 0)
+	model.movement.setFacing(0, -1)
 	_, command := model.Update(tea.KeyPressMsg(tea.Key{Text: "x", Code: 'x'}))
-	if command == nil || !model.actions.attackInFlight || model.actions.attackFrame != 1 {
+	if command == nil || !model.actions.attackInFlight ||
+		model.actions.attackFrame != 1 || model.actions.attackDirection != -1 {
 		t.Fatalf(
-			"attack state = in-flight %v, frame %d, command %v",
-			model.actions.attackInFlight, model.actions.attackFrame, command != nil,
+			"attack state = in-flight %v, frame %d, direction %d, command %v",
+			model.actions.attackInFlight, model.actions.attackFrame,
+			model.actions.attackDirection, command != nil,
 		)
 	}
 }
@@ -735,13 +739,25 @@ func TestSlashFramesAreDirectional(t *testing.T) {
 			grid[y][x] = " "
 		}
 	}
-	drawSlash(grid, 5, 5, 1, 0, 1)
-	if ansi.Strip(grid[4][7]) != "/" {
-		t.Fatalf("first right-facing slash frame = %q", grid[4][7])
+	drawSlash(grid, 5, 5, 1, 1)
+	if ansi.Strip(grid[3][7]) != "/" || ansi.Strip(grid[4][8]) != "/" {
+		t.Fatalf(
+			"first right-facing slash frame = %q, %q",
+			grid[3][7], grid[4][8],
+		)
 	}
-	drawSlash(grid, 5, 5, 1, 0, 2)
-	if ansi.Strip(grid[4][7]) != "─" {
-		t.Fatalf("second right-facing slash frame = %q", grid[4][7])
+	drawSlash(grid, 5, 5, 1, 2)
+	for _, x := range []int{6, 7, 8} {
+		if ansi.Strip(grid[4][x]) != "─" {
+			t.Fatalf("second right-facing slash frame at %d = %q", x, grid[4][x])
+		}
+	}
+	drawSlash(grid, 5, 5, -1, 1)
+	if ansi.Strip(grid[3][3]) != "\\" || ansi.Strip(grid[4][2]) != "\\" {
+		t.Fatalf(
+			"first left-facing slash frame = %q, %q",
+			grid[3][3], grid[4][2],
+		)
 	}
 }
 

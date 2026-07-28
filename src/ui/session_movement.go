@@ -8,19 +8,22 @@ import (
 )
 
 type movementState struct {
-	enhanced       bool
-	held           map[string]bool
-	looping        bool
-	inFlight       bool
-	facingX        int
-	facingY        int
-	walkFrame      int
-	walkSteps      uint64
-	walkGeneration uint64
+	enhanced         bool
+	held             map[string]bool
+	looping          bool
+	inFlight         bool
+	facingX          int
+	facingY          int
+	horizontalFacing int
+	walkFrame        int
+	walkSteps        uint64
+	walkGeneration   uint64
 }
 
 func newMovementState() movementState {
-	return movementState{held: make(map[string]bool), facingX: 1}
+	return movementState{
+		held: make(map[string]bool), facingX: 1, horizontalFacing: 1,
+	}
 }
 
 func (s *movementState) stop() {
@@ -33,6 +36,9 @@ func (s *movementState) stop() {
 func (s *movementState) setFacing(dx, dy int) {
 	if dx != 0 || dy != 0 {
 		s.facingX, s.facingY = dx, dy
+	}
+	if dx != 0 {
+		s.horizontalFacing = dx
 	}
 }
 

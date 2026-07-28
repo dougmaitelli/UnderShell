@@ -302,6 +302,7 @@ func (m *gameModel) viewState() ViewState {
 		QuestDialogueOpen: m.mode == inputModeQuestDialogue,
 		QuestDialogue:     m.quests.dialogueView(),
 		AttackFrame:       m.actions.attackFrame,
+		AttackDirection:   m.actions.attackDirection,
 		WalkFrame:         m.movement.walkFrame,
 		FacingX:           m.movement.facingX,
 		FacingY:           m.movement.facingY,

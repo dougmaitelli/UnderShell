@@ -124,7 +124,7 @@ func (GameRenderer) Render(state ViewState) string {
 	if state.AttackFrame > 0 {
 		drawSlash(
 			grid, self.X-left, self.Y-top,
-			state.FacingX, state.FacingY, state.AttackFrame,
+			state.AttackDirection, state.AttackFrame,
 		)
 	}
 	sort.Strings(nearby)
@@ -226,22 +226,31 @@ func drawEnemy(grid [][]string, x, baseY int, name string, visual []string, styl
 	}
 }
 
-func drawSlash(grid [][]string, x, baseY, dx, dy, frame int) {
-	if dx == 0 && dy == 0 {
-		dx = 1
+func drawSlash(grid [][]string, x, baseY, direction, frame int) {
+	if direction < 0 {
+		direction = -1
+	} else {
+		direction = 1
 	}
-	slashX, slashY := x+dx*2, baseY-1+dy*2
-	glyph := "/"
 	if frame == 2 {
-		if dx != 0 {
-			glyph = "─"
-		} else {
-			glyph = "│"
-		}
-	} else if dx < 0 || dy > 0 {
+		drawCentered(
+			grid, x+direction*2, baseY-1,
+			[]rune("───"), attackStyle,
+		)
+		return
+	}
+	glyph := "/"
+	if direction < 0 {
 		glyph = "\\"
 	}
-	drawCentered(grid, slashX, slashY, []rune(glyph), attackStyle)
+	drawCentered(
+		grid, x+direction*2, baseY-2,
+		[]rune(glyph), attackStyle,
+	)
+	drawCentered(
+		grid, x+direction*3, baseY-1,
+		[]rune(glyph), attackStyle,
+	)
 }
 
 func drawCentered(grid [][]string, centerX, y int, content []rune, style lipgloss.Style) {

@@ -7,14 +7,20 @@ import (
 )
 
 type actionState struct {
-	attackInFlight bool
-	pickupInFlight bool
-	attackFrame    int
+	attackInFlight  bool
+	pickupInFlight  bool
+	attackFrame     int
+	attackDirection int
 }
 
-func (s *actionState) beginAttack() bool {
+func (s *actionState) beginAttack(direction int) bool {
 	if s.attackInFlight {
 		return false
+	}
+	if direction < 0 {
+		s.attackDirection = -1
+	} else {
+		s.attackDirection = 1
 	}
 	s.attackInFlight = true
 	s.attackFrame = 1
@@ -46,7 +52,7 @@ func (s *actionState) finishPickup() {
 func (m *gameModel) updateActionInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "x":
-		if m.actions.beginAttack() {
+		if m.actions.beginAttack(m.movement.horizontalFacing) {
 			return m, tea.Batch(m.attack(), attackAnimationTick(2))
 		}
 	case "e":

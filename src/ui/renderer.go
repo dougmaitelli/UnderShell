@@ -31,6 +31,7 @@ type ViewState struct {
 	QuestDialogueOpen bool
 	QuestDialogue     QuestDialogueView
 	AttackFrame       int
+	AttackDirection   int
 	WalkFrame         int
 	FacingX           int
 	FacingY           int

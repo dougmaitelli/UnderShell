@@ -130,7 +130,8 @@ func TestDefaultSpawnMustBeWalkableInKnownArea(t *testing.T) {
 
 func TestShopNPCConfigurationAndItemValidation(t *testing.T) {
 	items, err := item.NewItems([]item.Definition{{
-		ID: "potion", Name: "Potion", Description: "Restores health.", MaxStack: 10,
+		ID: "potion", Name: "Potion", Description: "Restores health.",
+		Type: item.TypeConsumable, MaxStack: 10,
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -180,7 +181,8 @@ func TestShopNPCRejectsInvalidStockPrices(t *testing.T) {
 
 func TestAreasRequireGloballyUniqueNPCIDs(t *testing.T) {
 	items, err := item.NewItems([]item.Definition{{
-		ID: "potion", Name: "Potion", MaxStack: 10,
+		ID: "potion", Name: "Potion",
+		Type: item.TypeConsumable, MaxStack: 10,
 	}})
 	if err != nil {
 		t.Fatal(err)

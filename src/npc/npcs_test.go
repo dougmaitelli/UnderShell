@@ -15,7 +15,8 @@ func TestShopDefinitionValidatesItemReferences(t *testing.T) {
 		}},
 	}}
 	items, err := item.NewItems([]item.Definition{{
-		ID: "potion", Name: "Potion", Description: "Restores health.", MaxStack: 10,
+		ID: "potion", Name: "Potion", Description: "Restores health.",
+		Type: item.TypeConsumable, MaxStack: 10,
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -47,7 +48,10 @@ func TestQuestGiverResolvesConfiguredQuests(t *testing.T) {
 		ID: "orin", Name: "Orin", Type: TypeQuestGiver,
 		QuestIDs: []string{"slime_supplies"},
 	}}
-	itemDefinition := &item.Definition{ID: "slime_gel", Name: "Slime Gel", MaxStack: 50}
+	itemDefinition := &item.Definition{
+		ID: "slime_gel", Name: "Slime Gel",
+		Type: item.TypeMaterial, MaxStack: 50,
+	}
 	quests, err := quest.NewQuests([]quest.Definition{{
 		ID: "slime_supplies", Name: "Slime Supplies",
 		Objective: quest.Objective{Item: itemDefinition, Quantity: 5},

@@ -238,7 +238,8 @@ func TestInteractOpensNearbyShopBeforePickup(t *testing.T) {
 	model.phase = phasePlaying
 	model.width, model.height = 80, 24
 	items, err := item.NewItems([]item.Definition{{
-		ID: "potion", Name: "Potion", MaxStack: 10,
+		ID: "potion", Name: "Potion",
+		Type: item.TypeConsumable, MaxStack: 10,
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -305,7 +306,8 @@ func TestInteractOpensNearbyShopBeforePickup(t *testing.T) {
 
 func TestQuestGiverInteractionAndJournal(t *testing.T) {
 	items, err := item.NewItems([]item.Definition{{
-		ID: "slime_gel", Name: "Slime Gel", MaxStack: 50,
+		ID: "slime_gel", Name: "Slime Gel",
+		Type: item.TypeMaterial, MaxStack: 50,
 	}})
 	if err != nil {
 		t.Fatal(err)

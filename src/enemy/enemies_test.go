@@ -41,7 +41,7 @@ func TestLoadBundledEnemies(t *testing.T) {
 
 func TestLoadEnemiesRejectsInvalidVisualAndUnknownFields(t *testing.T) {
 	items, err := item.NewItems([]item.Definition{{
-		ID: "item", Name: "Item", MaxStack: 1,
+		ID: "item", Name: "Item", Type: item.TypeMaterial, MaxStack: 1,
 	}})
 	if err != nil {
 		t.Fatal(err)

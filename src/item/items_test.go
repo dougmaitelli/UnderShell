@@ -10,7 +10,7 @@ func TestLoadItems(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "items.json")
 	if err := os.WriteFile(path, []byte(`{
 		"items": [
-			{"id":"health_potion","name":"Health Potion","description":"Restores health.","max_stack":10}
+			{"id":"health_potion","name":"Health Potion","description":"Restores health.","type":"consumable","max_stack":10}
 		]
 	}`), 0600); err != nil {
 		t.Fatal(err)
@@ -21,7 +21,8 @@ func TestLoadItems(t *testing.T) {
 		t.Fatal(err)
 	}
 	definition, ok := items.Item("health_potion")
-	if !ok || definition.Name != "Health Potion" || definition.MaxStack != 10 {
+	if !ok || definition.Name != "Health Potion" ||
+		definition.Type != TypeConsumable || definition.MaxStack != 10 {
 		t.Fatalf("unexpected item definition: %#v", definition)
 	}
 	again, _ := items.Item("health_potion")
@@ -32,11 +33,50 @@ func TestLoadItems(t *testing.T) {
 
 func TestItemsRejectDuplicateIDs(t *testing.T) {
 	_, err := NewItems([]Definition{
-		{ID: "potion", Name: "Potion", MaxStack: 10},
-		{ID: "potion", Name: "Other Potion", MaxStack: 10},
+		{ID: "potion", Name: "Potion", Type: TypeConsumable, MaxStack: 10},
+		{ID: "potion", Name: "Other Potion", Type: TypeConsumable, MaxStack: 10},
 	})
 	if err == nil {
 		t.Fatal("expected duplicate item ID to fail validation")
+	}
+}
+
+func TestEquipmentRequiresSupportedSlotAndSingleStack(t *testing.T) {
+	for _, slot := range []EquipmentSlot{
+		SlotHelmet, SlotWeapon, SlotArmor,
+		SlotBoots, SlotGloves, SlotLegs,
+	} {
+		_, err := NewItems([]Definition{{
+			ID: "equipment", Name: "Equipment",
+			Type: TypeEquipment, EquipmentSlot: slot, MaxStack: 1,
+		}})
+		if err != nil {
+			t.Fatalf("slot %q was rejected: %v", slot, err)
+		}
+	}
+	for name, definition := range map[string]Definition{
+		"missing slot": {
+			ID: "equipment", Name: "Equipment",
+			Type: TypeEquipment, MaxStack: 1,
+		},
+		"unsupported slot": {
+			ID: "equipment", Name: "Equipment", Type: TypeEquipment,
+			EquipmentSlot: "cape", MaxStack: 1,
+		},
+		"stacked equipment": {
+			ID: "equipment", Name: "Equipment", Type: TypeEquipment,
+			EquipmentSlot: SlotArmor, MaxStack: 2,
+		},
+		"slot on consumable": {
+			ID: "potion", Name: "Potion", Type: TypeConsumable,
+			EquipmentSlot: SlotHelmet, MaxStack: 10,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := NewItems([]Definition{definition}); err == nil {
+				t.Fatal("expected invalid item definition to fail")
+			}
+		})
 	}
 }
 

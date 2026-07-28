@@ -205,7 +205,10 @@ one enemy's drop table.
 
 Available game items are defined in `ITEMS_PATH`. Item IDs must be unique and
 use lowercase letters, numbers, underscores, or hyphens. `max_stack` must be at
-least 1.
+least 1. Supported item types are `consumable`, `equipment`, and `material`.
+Equipment must use `max_stack: 1` and define an `equipment_slot` of `helmet`,
+`weapon`, `armor`, `boots`, `gloves`, or `legs`. Other item types cannot define
+an equipment slot.
 
 ```json
 {
@@ -214,6 +217,7 @@ least 1.
       "id": "health_potion",
       "name": "Health Potion",
       "description": "Restores a small amount of health.",
+      "type": "consumable",
       "max_stack": 10
     }
   ]

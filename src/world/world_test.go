@@ -138,7 +138,8 @@ func TestEnemiesSpawnToCapAndRespawnInsideTheirArea(t *testing.T) {
 
 func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
 	items, err := item.NewItems([]item.Definition{{
-		ID: "slime_gel", Name: "Slime Gel", MaxStack: 10,
+		ID: "slime_gel", Name: "Slime Gel",
+		Type: item.TypeMaterial, MaxStack: 10,
 	}})
 	if err != nil {
 		t.Fatal(err)

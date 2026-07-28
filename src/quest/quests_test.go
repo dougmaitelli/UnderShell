@@ -10,7 +10,8 @@ import (
 
 func TestQuestsResolveObjectiveItemReferences(t *testing.T) {
 	items, err := item.NewItems([]item.Definition{{
-		ID: "slime_gel", Name: "Slime Gel", MaxStack: 50,
+		ID: "slime_gel", Name: "Slime Gel",
+		Type: item.TypeMaterial, MaxStack: 50,
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -89,7 +90,9 @@ func TestQuestsRejectMissingObjectiveItemReference(t *testing.T) {
 }
 
 func testItem(id string) *item.Definition {
-	return &item.Definition{ID: id, Name: id, MaxStack: 50}
+	return &item.Definition{
+		ID: id, Name: id, Type: item.TypeMaterial, MaxStack: 50,
+	}
 }
 
 func validDialogue() Dialogue {

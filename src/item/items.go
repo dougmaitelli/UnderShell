@@ -11,11 +11,32 @@ import (
 	"unicode"
 )
 
+type Type string
+
+const (
+	TypeConsumable Type = "consumable"
+	TypeEquipment  Type = "equipment"
+	TypeMaterial   Type = "material"
+)
+
+type EquipmentSlot string
+
+const (
+	SlotHelmet EquipmentSlot = "helmet"
+	SlotWeapon EquipmentSlot = "weapon"
+	SlotArmor  EquipmentSlot = "armor"
+	SlotBoots  EquipmentSlot = "boots"
+	SlotGloves EquipmentSlot = "gloves"
+	SlotLegs   EquipmentSlot = "legs"
+)
+
 type Definition struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	MaxStack    int    `json:"max_stack"`
+	ID            string        `json:"id"`
+	Name          string        `json:"name"`
+	Description   string        `json:"description"`
+	Type          Type          `json:"type"`
+	EquipmentSlot EquipmentSlot `json:"equipment_slot"`
+	MaxStack      int           `json:"max_stack"`
 }
 
 type itemsFile struct {
@@ -111,6 +132,29 @@ func validateDefinition(definition Definition) error {
 	}
 	if definition.MaxStack < 1 {
 		return errors.New("max_stack must be at least 1")
+	}
+	switch definition.Type {
+	case TypeConsumable, TypeMaterial:
+		if definition.EquipmentSlot != "" {
+			return fmt.Errorf(
+				"%s items cannot define equipment_slot",
+				definition.Type,
+			)
+		}
+	case TypeEquipment:
+		switch definition.EquipmentSlot {
+		case SlotHelmet, SlotWeapon, SlotArmor,
+			SlotBoots, SlotGloves, SlotLegs:
+		default:
+			return errors.New(
+				"equipment items require a valid equipment_slot",
+			)
+		}
+		if definition.MaxStack != 1 {
+			return errors.New("equipment items must have max_stack 1")
+		}
+	default:
+		return fmt.Errorf("unsupported item type %q", definition.Type)
 	}
 	return nil
 }

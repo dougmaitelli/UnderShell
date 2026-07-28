@@ -34,7 +34,7 @@ type AcceptQuestParams struct {
 type QuestRepository interface {
 	FindByCharacter(context.Context, int64) ([]domain.CharacterQuest, error)
 	Accept(context.Context, AcceptQuestParams) (domain.CharacterQuest, error)
-	Complete(context.Context, int64, quest.Definition) (QuestCompletion, error)
+	Complete(context.Context, int64, *quest.Definition) (QuestCompletion, error)
 }
 
 type BunQuestRepository struct {
@@ -97,7 +97,7 @@ func (r *BunQuestRepository) Accept(
 func (r *BunQuestRepository) Complete(
 	ctx context.Context,
 	characterID int64,
-	definition quest.Definition,
+	definition *quest.Definition,
 ) (QuestCompletion, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -124,7 +124,7 @@ func (r *BunQuestRepository) Complete(
 	if err := tx.NewSelect().
 		Model(&stacks).
 		Where("character_id = ?", characterID).
-		Where("item_key = ?", definition.Objective.ItemID).
+		Where("item_key = ?", definition.Objective.Item.ID).
 		Order("slot ASC").
 		Scan(ctx); err != nil {
 		return QuestCompletion{}, fmt.Errorf("find quest items: %w", err)

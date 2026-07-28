@@ -9,33 +9,34 @@ import (
 )
 
 func TestQuestsResolveObjectiveItemReferences(t *testing.T) {
-	quests, err := NewQuests([]Definition{{
-		ID: "slime_supplies", Name: "Slime Supplies",
-		Objective: Objective{ItemID: "slime_gel", Quantity: 5},
-		Reward:    Reward{Gold: 30},
-		Dialogue:  validDialogue(),
-	}})
-	if err != nil {
-		t.Fatal(err)
-	}
 	items, err := item.NewItems([]item.Definition{{
 		ID: "slime_gel", Name: "Slime Gel", MaxStack: 50,
 	}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := quests.ResolveItems(items); err != nil {
+	canonical, _ := items.Item("slime_gel")
+	quests, err := NewQuests([]Definition{{
+		ID: "slime_supplies", Name: "Slime Supplies",
+		Objective: Objective{Item: canonical, Quantity: 5},
+		Reward:    Reward{Gold: 30},
+		Dialogue:  validDialogue(),
+	}})
+	if err != nil {
 		t.Fatal(err)
 	}
 	definition, _ := quests.Quest("slime_supplies")
-	canonical, _ := items.Item("slime_gel")
+	again, _ := quests.Quest("slime_supplies")
+	if definition != again {
+		t.Fatal("quest registry did not return a stable canonical reference")
+	}
 	if definition.Objective.Item != canonical {
 		t.Fatalf("unresolved objective: %#v", definition.Objective)
 	}
 	enemies, err := enemy.NewEnemies([]enemy.Definition{{
 		ID: "slime", Name: "Slime", Visual: []string{"(s)"},
 		Health: 1, Experience: 1,
-		Drops: []enemy.Drop{{ItemID: "slime_gel", Chance: 1}},
+		Drops: []enemy.Drop{{Item: canonical, Chance: 1}},
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +49,7 @@ func TestQuestsResolveObjectiveItemReferences(t *testing.T) {
 func TestQuestsRejectObjectiveWithoutEnemyDrop(t *testing.T) {
 	quests, err := NewQuests([]Definition{{
 		ID: "slime_supplies", Name: "Slime Supplies",
-		Objective: Objective{ItemID: "slime_gel", Quantity: 1},
+		Objective: Objective{Item: testItem("slime_gel"), Quantity: 1},
 		Dialogue:  validDialogue(),
 	}})
 	if err != nil {
@@ -69,31 +70,26 @@ func TestQuestsRejectObjectiveWithoutEnemyDrop(t *testing.T) {
 func TestQuestsRejectInvalidDefinitions(t *testing.T) {
 	_, err := NewQuests([]Definition{{
 		ID: "slime_supplies", Name: "Slime Supplies",
-		Objective: Objective{ItemID: "slime_gel"},
+		Objective: Objective{Item: testItem("slime_gel")},
 	}})
 	if err == nil || !strings.Contains(err.Error(), "quantity") {
 		t.Fatalf("expected invalid quantity, got %v", err)
 	}
 }
 
-func TestQuestsRejectUnknownObjectiveItem(t *testing.T) {
-	quests, err := NewQuests([]Definition{{
+func TestQuestsRejectMissingObjectiveItemReference(t *testing.T) {
+	_, err := NewQuests([]Definition{{
 		ID: "slime_supplies", Name: "Slime Supplies",
-		Objective: Objective{ItemID: "missing", Quantity: 1},
+		Objective: Objective{Quantity: 1},
 		Dialogue:  validDialogue(),
 	}})
-	if err != nil {
-		t.Fatal(err)
+	if err == nil {
+		t.Fatal("expected missing objective item to fail")
 	}
-	items, err := item.NewItems([]item.Definition{{
-		ID: "slime_gel", Name: "Slime Gel", MaxStack: 50,
-	}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := quests.ResolveItems(items); err == nil {
-		t.Fatal("expected unknown objective item to fail")
-	}
+}
+
+func testItem(id string) *item.Definition {
+	return &item.Definition{ID: id, Name: id, MaxStack: 50}
 }
 
 func validDialogue() Dialogue {

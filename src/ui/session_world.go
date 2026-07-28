@@ -87,7 +87,8 @@ func (m *gameModel) updateWorldSnapshot(msg worldSnapshotMsg) (tea.Model, tea.Cm
 	if m.mode == inputModeQuestDialogue {
 		nearby := m.nearbyNPC()
 		if nearby == nil || nearby.Type != npc.TypeQuestGiver ||
-			nearby.ID != m.quests.dialogue.giverID {
+			m.quests.dialogue.giver == nil ||
+			nearby.ID != m.quests.dialogue.giver.ID {
 			m.quests.closeDialogue()
 			m.mode = inputModeGame
 		}

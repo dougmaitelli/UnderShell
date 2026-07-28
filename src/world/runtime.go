@@ -16,8 +16,8 @@ func newRuntimeState(manager *Manager) *runtimeState {
 			areas: manager.areas,
 			live:  make(map[int64]*activePlayer),
 		},
-		enemies: newEnemySystem(manager.areas, manager.enemies),
-		loot:    newLootSystem(manager.items),
+		enemies: newEnemySystem(manager.areas),
+		loot:    newLootSystem(),
 		chat:    newChatSystem(),
 	}
 	state.enemies.populate()

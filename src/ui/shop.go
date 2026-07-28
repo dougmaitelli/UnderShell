@@ -76,7 +76,7 @@ func (s *shopState) sellEntries(inventory *domain.Inventory) []shopSellEntry {
 	}
 	prices := make(map[string]npcconfig.ShopItem, len(s.npc.Stock))
 	for _, stock := range s.npc.Stock {
-		prices[stock.ItemID] = stock
+		prices[stock.Item.ID] = stock
 	}
 	entries := make([]shopSellEntry, 0, len(inventory.Items))
 	for _, inventoryItem := range inventory.Items {
@@ -108,12 +108,8 @@ func (s *shopState) view(
 	}
 	stock := make([]shopBuyEntry, 0, len(s.npc.Stock))
 	for _, configured := range s.npc.Stock {
-		name := configured.ItemID
-		if configured.Item != nil {
-			name = configured.Item.Name
-		}
 		stock = append(stock, shopBuyEntry{
-			Name: name, BuyPrice: configured.BuyPrice,
+			Name: configured.Item.Name, BuyPrice: configured.BuyPrice,
 		})
 	}
 	return ShopView{
@@ -181,13 +177,6 @@ func (m *gameModel) updateShopInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m *gameModel) buyShopItem(stock npcconfig.ShopItem) tea.Cmd {
 	return func() tea.Msg {
-		if stock.Item == nil {
-			return shopTradeMsg{
-				itemName: stock.ItemID,
-				buying:   true,
-				err:      errors.New("unknown shop item"),
-			}
-		}
 		result, err := m.repositories.Shops.BuyItem(
 			context.Background(), m.character.ID,
 			stock.Item.ID, stock.Item.MaxStack, stock.BuyPrice,

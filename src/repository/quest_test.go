@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"sshrpg/src/domain"
+	"sshrpg/src/item"
 	"sshrpg/src/persistence"
 	"sshrpg/src/quest"
 )
@@ -48,10 +49,10 @@ func TestQuestCompletionConsumesItemsAndRewardsGoldAtomically(t *testing.T) {
 	if accepted.Status != domain.QuestActive || accepted.GiverID != "orin" {
 		t.Fatalf("unexpected accepted quest: %#v", accepted)
 	}
-	completed, err := quests.Complete(ctx, character.ID, quest.Definition{
+	completed, err := quests.Complete(ctx, character.ID, &quest.Definition{
 		ID: "slime_supplies",
 		Objective: quest.Objective{
-			ItemID: "slime_gel", Quantity: 3,
+			Item: questItem("slime_gel"), Quantity: 3,
 		},
 		Reward: quest.Reward{Gold: 30},
 	})
@@ -81,7 +82,7 @@ func TestQuestCompletionConsumesItemsAndRewardsGoldAtomically(t *testing.T) {
 		t.Fatalf("unexpected persisted quests: %#v", progress)
 	}
 	if _, err := quests.Complete(
-		ctx, character.ID, quest.Definition{ID: "slime_supplies"},
+		ctx, character.ID, &quest.Definition{ID: "slime_supplies"},
 	); !errors.Is(err, ErrQuestNotActive) {
 		t.Fatalf("expected completed quest rejection, got %v", err)
 	}
@@ -115,10 +116,10 @@ func TestQuestCompletionRollsBackWhenItemsAreIncomplete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = quests.Complete(ctx, character.ID, quest.Definition{
+	_, err = quests.Complete(ctx, character.ID, &quest.Definition{
 		ID: "slime_supplies",
 		Objective: quest.Objective{
-			ItemID: "slime_gel", Quantity: 2,
+			Item: questItem("slime_gel"), Quantity: 2,
 		},
 		Reward: quest.Reward{Gold: 30},
 	})
@@ -201,11 +202,11 @@ func TestQuestStateAndProgressPersistAcrossDatabaseReopen(t *testing.T) {
 	definition := quest.Definition{
 		ID: "slime_supplies",
 		Objective: quest.Objective{
-			ItemID: "slime_gel", Quantity: 2,
+			Item: questItem("slime_gel"), Quantity: 2,
 		},
 		Reward: quest.Reward{Gold: 30},
 	}
-	completed, err := quests.Complete(ctx, character.ID, definition)
+	completed, err := quests.Complete(ctx, character.ID, &definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,7 +232,7 @@ func TestQuestStateAndProgressPersistAcrossDatabaseReopen(t *testing.T) {
 		t.Fatalf("completed quest did not persist: %#v", progress)
 	}
 	if _, err := quests.Complete(
-		ctx, character.ID, definition,
+		ctx, character.ID, &definition,
 	); !errors.Is(err, ErrQuestNotActive) {
 		t.Fatalf("second completion was not rejected: %v", err)
 	}
@@ -243,4 +244,8 @@ func TestQuestStateAndProgressPersistAcrossDatabaseReopen(t *testing.T) {
 	if reloaded.Gold != domain.DefaultStartingGold+30 {
 		t.Fatalf("second completion changed gold to %d", reloaded.Gold)
 	}
+}
+
+func questItem(id string) *item.Definition {
+	return &item.Definition{ID: id, Name: id, MaxStack: 50}
 }

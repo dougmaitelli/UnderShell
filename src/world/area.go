@@ -10,7 +10,9 @@ import (
 	"unicode"
 
 	"sshrpg/src/enemy"
+	"sshrpg/src/item"
 	"sshrpg/src/npc"
+	"sshrpg/src/quest"
 )
 
 type Point struct {
@@ -18,7 +20,7 @@ type Point struct {
 	Y int `json:"y"`
 }
 
-type Waypoint struct {
+type WaypointDefinition struct {
 	X               int    `json:"x"`
 	Y               int    `json:"y"`
 	Width           int    `json:"width"`
@@ -28,22 +30,32 @@ type Waypoint struct {
 	DestinationY    int    `json:"destination_y"`
 }
 
-type AreaDefinition struct {
-	ID          string           `json:"id"`
-	Name        string           `json:"name"`
-	Layout      []string         `json:"layout"`
-	Width       int              `json:"width"`
-	Height      int              `json:"height"`
-	Default     string           `json:"default_tile"`
-	Border      string           `json:"border_tile"`
-	Features    []TileRect       `json:"features"`
-	Spawn       Point            `json:"spawn"`
-	Waypoints   []Waypoint       `json:"waypoints"`
-	EnemySpawns []EnemySpawn     `json:"enemy_spawns"`
-	NPCs        []npc.Definition `json:"npcs"`
+type Waypoint struct {
+	X            int
+	Y            int
+	Width        int
+	Height       int
+	Destination  *Area
+	DestinationX int
+	DestinationY int
 }
 
-type EnemySpawn struct {
+type AreaDefinition struct {
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Layout      []string               `json:"layout"`
+	Width       int                    `json:"width"`
+	Height      int                    `json:"height"`
+	Default     string                 `json:"default_tile"`
+	Border      string                 `json:"border_tile"`
+	Features    []TileRect             `json:"features"`
+	Spawn       Point                  `json:"spawn"`
+	Waypoints   []WaypointDefinition   `json:"waypoints"`
+	EnemySpawns []EnemySpawnDefinition `json:"enemy_spawns"`
+	NPCs        []npc.Config           `json:"npcs"`
+}
+
+type EnemySpawnDefinition struct {
 	EnemyID        string `json:"enemy_id"`
 	X              int    `json:"x"`
 	Y              int    `json:"y"`
@@ -51,6 +63,16 @@ type EnemySpawn struct {
 	Height         int    `json:"height"`
 	MaxEnemies     int    `json:"max_enemies"`
 	RespawnSeconds int    `json:"respawn_seconds"`
+}
+
+type EnemySpawn struct {
+	Enemy          *enemy.Definition
+	X              int
+	Y              int
+	Width          int
+	Height         int
+	MaxEnemies     int
+	RespawnSeconds int
 }
 
 type TileRect struct {
@@ -70,16 +92,31 @@ type Area struct {
 	Spawn       Point
 	EnemySpawns []EnemySpawn
 	NPCs        []npc.Definition
-	waypoints   map[Point]Waypoint
+	waypoints   map[Point]*Waypoint
+}
+
+type npcLocation struct {
+	definition *npc.Definition
+	area       *Area
 }
 
 type Areas struct {
 	areas        map[string]*Area
-	defaultID    string
+	npcs         map[string]npcLocation
+	defaultArea  *Area
 	defaultPoint Point
 }
 
-func LoadAreas(directory string) (*Areas, error) {
+type References struct {
+	Items   *item.Items
+	Enemies *enemy.Enemies
+	Quests  *quest.Quests
+}
+
+func LoadAreas(
+	directory string,
+	references ...References,
+) (*Areas, error) {
 	paths, err := filepath.Glob(filepath.Join(directory, "*.json"))
 	if err != nil {
 		return nil, fmt.Errorf("find area files: %w", err)
@@ -102,17 +139,29 @@ func LoadAreas(directory string) (*Areas, error) {
 		}
 		definitions = append(definitions, definition)
 	}
-	return NewAreas(definitions)
+	return NewAreas(definitions, references...)
 }
 
-func NewAreas(definitions []AreaDefinition) (*Areas, error) {
+func NewAreas(
+	definitions []AreaDefinition,
+	references ...References,
+) (*Areas, error) {
 	if len(definitions) == 0 {
 		return nil, errors.New("at least one area is required")
 	}
+	var refs References
+	if len(references) > 0 {
+		refs = references[0]
+	}
 
-	set := &Areas{areas: make(map[string]*Area, len(definitions))}
+	set := &Areas{
+		areas: make(map[string]*Area, len(definitions)),
+		npcs:  make(map[string]npcLocation),
+	}
 	for _, definition := range definitions {
-		area, err := buildArea(definition)
+		area, err := buildArea(
+			definition, refs.Items, refs.Enemies, refs.Quests,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("area %q: %w", definition.ID, err)
 		}
@@ -120,39 +169,47 @@ func NewAreas(definitions []AreaDefinition) (*Areas, error) {
 			return nil, fmt.Errorf("duplicate area ID %q", area.ID)
 		}
 		set.areas[area.ID] = area
-		if set.defaultID == "" {
-			set.defaultID = area.ID
+		if set.defaultArea == nil {
+			set.defaultArea = area
 			set.defaultPoint = area.Spawn
 		}
 	}
 
-	npcAreas := make(map[string]string)
 	for _, area := range set.areas {
-		for _, definition := range area.NPCs {
-			if existingArea, exists := npcAreas[definition.ID]; exists {
+		for index := range area.NPCs {
+			definition := &area.NPCs[index]
+			if existing, exists := set.npcs[definition.ID]; exists {
 				return nil, fmt.Errorf(
 					"duplicate NPC ID %q in areas %q and %q",
-					definition.ID, existingArea, area.ID,
+					definition.ID, existing.area.ID, area.ID,
 				)
 			}
-			npcAreas[definition.ID] = area.ID
+			set.npcs[definition.ID] = npcLocation{
+				definition: definition,
+				area:       area,
+			}
 		}
 	}
 
-	for _, area := range set.areas {
-		for point, waypoint := range area.waypoints {
-			destination, ok := set.areas[waypoint.DestinationArea]
+	for _, definition := range definitions {
+		area := set.areas[strings.TrimSpace(definition.ID)]
+		for _, source := range definition.Waypoints {
+			destinationID := strings.TrimSpace(source.DestinationArea)
+			destination, ok := set.areas[destinationID]
 			if !ok {
 				return nil, fmt.Errorf(
 					"area %q waypoint at (%d,%d) targets unknown area %q",
-					area.ID, point.X, point.Y, waypoint.DestinationArea,
+					area.ID, source.X, source.Y, destinationID,
 				)
 			}
-			target := Point{X: waypoint.DestinationX, Y: waypoint.DestinationY}
+			waypoint := area.waypoints[Point{X: source.X, Y: source.Y}]
+			waypoint.Destination = destination
+			target := Point{X: source.DestinationX, Y: source.DestinationY}
 			if !destination.Walkable(target) {
 				return nil, fmt.Errorf(
 					"area %q waypoint at (%d,%d) has blocked destination (%d,%d) in %q",
-					area.ID, point.X, point.Y, target.X, target.Y, destination.ID,
+					area.ID, source.X, source.Y,
+					target.X, target.Y, destination.ID,
 				)
 			}
 		}
@@ -166,15 +223,11 @@ func (s *Areas) Area(id string) (*Area, bool) {
 }
 
 func (s *Areas) NPC(id string) (*npc.Definition, *Area, bool) {
-	for _, area := range s.areas {
-		for index := range area.NPCs {
-			definition := &area.NPCs[index]
-			if definition.ID == id {
-				return definition, area, true
-			}
-		}
+	location, ok := s.npcs[id]
+	if !ok {
+		return nil, nil, false
 	}
-	return nil, nil, false
+	return location.definition, location.area, true
 }
 
 func (s *Areas) SetDefaultSpawn(areaID string, point Point) error {
@@ -191,29 +244,12 @@ func (s *Areas) SetDefaultSpawn(areaID string, point Point) error {
 	if npc, occupied := area.NPCAt(point); occupied {
 		return fmt.Errorf("default spawn cannot overlap NPC %q", npc.ID)
 	}
-	s.defaultID, s.defaultPoint = areaID, point
+	s.defaultArea, s.defaultPoint = area, point
 	return nil
 }
 
 func (s *Areas) DefaultSpawn() (*Area, Point) {
-	return s.areas[s.defaultID], s.defaultPoint
-}
-
-func (s *Areas) ValidateEnemySpawns(enemies *enemy.Enemies) error {
-	if enemies == nil {
-		return errors.New("enemies are required")
-	}
-	for _, area := range s.areas {
-		for index, spawn := range area.EnemySpawns {
-			if _, ok := enemies.Enemy(spawn.EnemyID); !ok {
-				return fmt.Errorf(
-					"area %q enemy spawn %d references unknown enemy %q",
-					area.ID, index, spawn.EnemyID,
-				)
-			}
-		}
-	}
-	return nil
+	return s.defaultArea, s.defaultPoint
 }
 
 func (a *Area) Tile(point Point) rune {
@@ -231,12 +267,17 @@ func (a *Area) Walkable(point Point) bool {
 	return a.InBounds(point) && a.Tile(point) != '#'
 }
 
-func (a *Area) Waypoint(point Point) (Waypoint, bool) {
+func (a *Area) Waypoint(point Point) (*Waypoint, bool) {
 	waypoint, ok := a.waypoints[point]
 	return waypoint, ok
 }
 
-func buildArea(definition AreaDefinition) (*Area, error) {
+func buildArea(
+	definition AreaDefinition,
+	items *item.Items,
+	enemies *enemy.Enemies,
+	quests *quest.Quests,
+) (*Area, error) {
 	definition.ID = strings.TrimSpace(definition.ID)
 	definition.Name = strings.TrimSpace(definition.Name)
 	if definition.ID == "" || definition.Name == "" {
@@ -265,13 +306,17 @@ func buildArea(definition AreaDefinition) (*Area, error) {
 		}
 	}
 
+	npcs, err := npc.Resolve(definition.NPCs, items, quests)
+	if err != nil {
+		return nil, err
+	}
 	area := &Area{
 		ID: definition.ID, Name: definition.Name,
 		Layout: append([]string(nil), definition.Layout...),
 		Width:  width, Height: len(definition.Layout), Spawn: definition.Spawn,
-		EnemySpawns: append([]EnemySpawn(nil), definition.EnemySpawns...),
-		NPCs:        npc.Clone(definition.NPCs),
-		waypoints:   make(map[Point]Waypoint, len(definition.Waypoints)),
+		EnemySpawns: make([]EnemySpawn, len(definition.EnemySpawns)),
+		NPCs:        npcs,
+		waypoints:   make(map[Point]*Waypoint, len(definition.Waypoints)),
 	}
 	if !area.Walkable(area.Spawn) {
 		return nil, errors.New("spawn point must be on a walkable tile")
@@ -286,6 +331,12 @@ func buildArea(definition AreaDefinition) (*Area, error) {
 		if waypoint.Width < 1 || waypoint.Height < 1 {
 			return nil, fmt.Errorf("waypoint at (%d,%d) must have positive dimensions", waypoint.X, waypoint.Y)
 		}
+		resolvedWaypoint := Waypoint{
+			X: waypoint.X, Y: waypoint.Y,
+			Width: waypoint.Width, Height: waypoint.Height,
+			DestinationX: waypoint.DestinationX,
+			DestinationY: waypoint.DestinationY,
+		}
 		for y := waypoint.Y; y < waypoint.Y+waypoint.Height; y++ {
 			for x := waypoint.X; x < waypoint.X+waypoint.Width; x++ {
 				point := Point{X: x, Y: y}
@@ -295,14 +346,31 @@ func buildArea(definition AreaDefinition) (*Area, error) {
 				if _, exists := area.waypoints[point]; exists {
 					return nil, fmt.Errorf("overlapping waypoint at (%d,%d)", point.X, point.Y)
 				}
-				area.waypoints[point] = waypoint
+				area.waypoints[point] = &resolvedWaypoint
 			}
 		}
 	}
-	for index, spawn := range area.EnemySpawns {
-		spawn.EnemyID = strings.TrimSpace(spawn.EnemyID)
-		if spawn.EnemyID == "" {
+	for index, source := range definition.EnemySpawns {
+		enemyID := strings.TrimSpace(source.EnemyID)
+		if enemyID == "" {
 			return nil, fmt.Errorf("enemy spawn %d requires enemy_id", index)
+		}
+		if enemies == nil {
+			return nil, fmt.Errorf("enemy spawn %d requires enemy definitions", index)
+		}
+		enemyDefinition, ok := enemies.Enemy(enemyID)
+		if !ok {
+			return nil, fmt.Errorf(
+				"enemy spawn %d references unknown enemy %q",
+				index, enemyID,
+			)
+		}
+		spawn := EnemySpawn{
+			Enemy: enemyDefinition,
+			X:     source.X, Y: source.Y,
+			Width: source.Width, Height: source.Height,
+			MaxEnemies:     source.MaxEnemies,
+			RespawnSeconds: source.RespawnSeconds,
 		}
 		if spawn.Width < 1 || spawn.Height < 1 {
 			return nil, fmt.Errorf("enemy spawn %d must have positive dimensions", index)

@@ -53,9 +53,8 @@ const (
 type questDialogueState struct {
 	open       bool
 	kind       questDialogueKind
-	definition questconfig.Definition
-	giverID    string
-	giverName  string
+	definition *questconfig.Definition
+	giver      *npcconfig.Definition
 }
 
 type QuestDialogueView struct {
@@ -74,7 +73,7 @@ const (
 
 type questInteractionMsg struct {
 	kind       questInteractionKind
-	definition questconfig.Definition
+	definition *questconfig.Definition
 	progress   domain.CharacterQuest
 	completion repository.QuestCompletion
 	err        error
@@ -104,15 +103,12 @@ func (s *questState) views(inventory *domain.Inventory) []QuestView {
 		if !ok || progress.Status != domain.QuestActive {
 			continue
 		}
-		itemName := definition.Objective.ItemID
-		if definition.Objective.Item != nil {
-			itemName = definition.Objective.Item.Name
-		}
+		itemName := definition.Objective.Item.Name
 		views = append(views, QuestView{
 			Name: definition.Name, Description: definition.Description,
 			ItemName: itemName,
 			Current: min(
-				inventoryQuantity(inventory, definition.Objective.ItemID),
+				inventoryQuantity(inventory, definition.Objective.Item.ID),
 				definition.Objective.Quantity,
 			),
 			Required:   definition.Objective.Quantity,
@@ -191,12 +187,11 @@ func (m *gameModel) updateJournalInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 
 func (s *questState) openDialogue(
 	kind questDialogueKind,
-	definition questconfig.Definition,
+	definition *questconfig.Definition,
 	giver *npcconfig.Definition,
 ) {
 	s.dialogue = questDialogueState{
-		open: true, kind: kind, definition: definition,
-		giverID: giver.ID, giverName: giver.Name,
+		open: true, kind: kind, definition: definition, giver: giver,
 	}
 }
 
@@ -219,7 +214,7 @@ func (s *questState) dialogueView() QuestDialogueView {
 		text = dialogue.definition.Dialogue.Completed
 	}
 	return QuestDialogueView{
-		NPCName:     dialogue.giverName,
+		NPCName:     dialogue.giver.Name,
 		Text:        text,
 		CanAccept:   dialogue.kind == questDialogueOffer,
 		CanComplete: dialogue.kind == questDialogueReady,
@@ -228,7 +223,7 @@ func (s *questState) dialogueView() QuestDialogueView {
 
 func (m *gameModel) openQuestDialogue(
 	kind questDialogueKind,
-	definition questconfig.Definition,
+	definition *questconfig.Definition,
 	giver *npcconfig.Definition,
 ) (tea.Model, tea.Cmd) {
 	m.quests.openDialogue(kind, definition, giver)
@@ -257,7 +252,7 @@ func (m *gameModel) updateQuestDialogueInput(
 	case questDialogueOffer:
 		m.quests.inFlight = true
 		return m, m.acceptQuest(
-			dialogue.definition, dialogue.giverID,
+			dialogue.definition, dialogue.giver.ID,
 		)
 	case questDialogueReady:
 		m.quests.inFlight = true
@@ -273,17 +268,13 @@ func (m *gameModel) interactQuestGiver(
 	if m.quests.inFlight || m.quests.definitions == nil {
 		return m, nil
 	}
-	for _, questID := range giver.QuestIDs {
-		progress, tracked := m.quests.progress[questID]
+	for _, definition := range giver.Quests {
+		progress, tracked := m.quests.progress[definition.ID]
 		if !tracked || progress.Status != domain.QuestActive ||
 			progress.GiverID != giver.ID {
 			continue
 		}
-		definition, ok := m.quests.definitions.Quest(questID)
-		if !ok {
-			continue
-		}
-		current := inventoryQuantity(m.inventory, definition.Objective.ItemID)
+		current := inventoryQuantity(m.inventory, definition.Objective.Item.ID)
 		if current < definition.Objective.Quantity {
 			return m.openQuestDialogue(
 				questDialogueProgress, definition, giver,
@@ -293,26 +284,18 @@ func (m *gameModel) interactQuestGiver(
 			questDialogueReady, definition, giver,
 		)
 	}
-	for _, questID := range giver.QuestIDs {
-		if _, tracked := m.quests.progress[questID]; tracked {
-			continue
-		}
-		definition, ok := m.quests.definitions.Quest(questID)
-		if !ok {
+	for _, definition := range giver.Quests {
+		if _, tracked := m.quests.progress[definition.ID]; tracked {
 			continue
 		}
 		return m.openQuestDialogue(
 			questDialogueOffer, definition, giver,
 		)
 	}
-	for _, questID := range giver.QuestIDs {
-		progress, tracked := m.quests.progress[questID]
+	for _, definition := range giver.Quests {
+		progress, tracked := m.quests.progress[definition.ID]
 		if !tracked || progress.Status != domain.QuestCompleted ||
 			progress.GiverID != giver.ID {
-			continue
-		}
-		definition, ok := m.quests.definitions.Quest(questID)
-		if !ok {
 			continue
 		}
 		return m.openQuestDialogue(
@@ -326,7 +309,7 @@ func (m *gameModel) interactQuestGiver(
 }
 
 func (m *gameModel) acceptQuest(
-	definition questconfig.Definition,
+	definition *questconfig.Definition,
 	giverID string,
 ) tea.Cmd {
 	characterID := m.character.ID
@@ -342,7 +325,7 @@ func (m *gameModel) acceptQuest(
 	}
 }
 
-func (m *gameModel) completeQuest(definition questconfig.Definition) tea.Cmd {
+func (m *gameModel) completeQuest(definition *questconfig.Definition) tea.Cmd {
 	characterID := m.character.ID
 	return func() tea.Msg {
 		completion, err := m.repositories.Quests.Complete(

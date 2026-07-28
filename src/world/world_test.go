@@ -78,21 +78,21 @@ func TestUnknownOrBlockedSavedLocationUsesDefaultSpawn(t *testing.T) {
 }
 
 func TestEnemiesSpawnToCapAndRespawnInsideTheirArea(t *testing.T) {
-	areas, err := NewAreas([]AreaDefinition{{
-		ID: "meadow", Name: "Meadow",
-		Layout: []string{"#######", "#.....#", "#######"},
-		Spawn:  Point{X: 1, Y: 1},
-		EnemySpawns: []EnemySpawn{{
-			EnemyID: "slime", X: 2, Y: 1, Width: 3, Height: 1,
-			MaxEnemies: 2, RespawnSeconds: 1,
-		}},
+	enemies, err := enemy.NewEnemies([]enemy.Definition{{
+		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 3, Experience: 1,
 	}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	enemies, err := enemy.NewEnemies([]enemy.Definition{{
-		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 3, Experience: 1,
-	}})
+	areas, err := NewAreas([]AreaDefinition{{
+		ID: "meadow", Name: "Meadow",
+		Layout: []string{"#######", "#.....#", "#######"},
+		Spawn:  Point{X: 1, Y: 1},
+		EnemySpawns: []EnemySpawnDefinition{{
+			EnemyID: "slime", X: 2, Y: 1, Width: 3, Height: 1,
+			MaxEnemies: 2, RespawnSeconds: 1,
+		}},
+	}}, References{Enemies: enemies})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,8 +102,15 @@ func TestEnemiesSpawnToCapAndRespawnInsideTheirArea(t *testing.T) {
 	session := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
 	snapshot := receiveSnapshot(t, session.Updates)
 	assertEnemiesInSpawn(t, snapshot, 2)
-	if len(snapshot.Enemies[0].Visual) != 1 || snapshot.Enemies[0].Visual[0] != "(s)" {
-		t.Fatalf("enemy visual was not copied from its definition: %#v", snapshot.Enemies[0].Visual)
+	canonicalEnemy, _ := enemies.Enemy("slime")
+	if snapshot.Enemies[0].Definition == nil ||
+		snapshot.Enemies[0].Definition != canonicalEnemy ||
+		len(snapshot.Enemies[0].Definition.Visual) != 1 ||
+		snapshot.Enemies[0].Definition.Visual[0] != "(s)" {
+		t.Fatalf(
+			"enemy did not retain its definition: %#v",
+			snapshot.Enemies[0].Definition,
+		)
 	}
 	defeatedID := snapshot.Enemies[0].ID
 	if !manager.DefeatEnemy(defeatedID) {
@@ -130,28 +137,29 @@ func TestEnemiesSpawnToCapAndRespawnInsideTheirArea(t *testing.T) {
 }
 
 func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
+	items, err := item.NewItems([]item.Definition{{
+		ID: "slime_gel", Name: "Slime Gel", MaxStack: 10,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	slimeGel, _ := items.Item("slime_gel")
+	enemies, err := enemy.NewEnemies([]enemy.Definition{{
+		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 3, Experience: 125,
+		Drops: []enemy.Drop{{Item: slimeGel, Chance: 1}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	areas, err := NewAreas([]AreaDefinition{{
 		ID: "meadow", Name: "Meadow",
 		Layout: []string{"#####", "#...#", "#####"},
 		Spawn:  Point{X: 1, Y: 1},
-		EnemySpawns: []EnemySpawn{{
+		EnemySpawns: []EnemySpawnDefinition{{
 			EnemyID: "slime", X: 2, Y: 1, Width: 1, Height: 1,
 			MaxEnemies: 1, RespawnSeconds: 10,
 		}},
-	}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	enemies, err := enemy.NewEnemies([]enemy.Definition{{
-		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 3, Experience: 125,
-		Drops: []enemy.Drop{{ItemID: "slime_gel", Chance: 1}},
-	}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	items, err := item.NewItems([]item.Definition{{
-		ID: "slime_gel", Name: "Slime Gel", MaxStack: 10,
-	}})
+	}}, References{Enemies: enemies})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -314,10 +322,6 @@ func TestEnemyPursuesAndAttacksNearestPlayer(t *testing.T) {
 		ID: "meadow", Name: "Meadow",
 		Layout: []string{"#######", "#.....#", "#######"},
 		Spawn:  Point{X: 1, Y: 1},
-		EnemySpawns: []EnemySpawn{{
-			EnemyID: "slime", X: 1, Y: 1, Width: 5, Height: 1,
-			MaxEnemies: 1, RespawnSeconds: 10,
-		}},
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -331,9 +335,15 @@ func TestEnemyPursuesAndAttacksNearestPlayer(t *testing.T) {
 		Health: 10, MaxHealth: 10, Defense: 1,
 	}, events: make(chan Event, 10)}
 	players := map[int64]*activePlayer{1: player}
+	bat := &enemy.Definition{Name: "Cave Bat", Damage: 2}
+	area, _ := areas.Area("meadow")
+	area.EnemySpawns = []EnemySpawn{{
+		Enemy: bat, X: 1, Y: 1, Width: 5, Height: 1,
+		MaxEnemies: 1, RespawnSeconds: 10,
+	}}
 	live := map[uint64]*Enemy{1: {
-		ID: 1, Name: "Cave Bat", AreaID: "meadow", X: 5, Y: 1,
-		Damage: 2, spawnIndex: 0,
+		ID: 1, Definition: bat, AreaID: "meadow", X: 5, Y: 1,
+		spawnIndex: 0,
 	}}
 	now := time.Now()
 
@@ -383,10 +393,6 @@ func TestPeacefulEnemyDoesNotAggroOrAttackPlayer(t *testing.T) {
 		ID: "meadow", Name: "Meadow",
 		Layout: []string{"#######", "#.....#", "#######"},
 		Spawn:  Point{X: 1, Y: 1},
-		EnemySpawns: []EnemySpawn{{
-			EnemyID: "deer", X: 1, Y: 1, Width: 5, Height: 1,
-			MaxEnemies: 1, RespawnSeconds: 10,
-		}},
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -395,8 +401,15 @@ func TestPeacefulEnemyDoesNotAggroOrAttackPlayer(t *testing.T) {
 	player := &activePlayer{Player: Player{
 		ID: 1, AreaID: "meadow", X: 1, Y: 1, Health: 10, MaxHealth: 10,
 	}}
+	deer := &enemy.Definition{Name: "Deer", Damage: 0}
+	area, _ := areas.Area("meadow")
+	area.EnemySpawns = []EnemySpawn{{
+		Enemy: deer, X: 1, Y: 1, Width: 5, Height: 1,
+		MaxEnemies: 1, RespawnSeconds: 10,
+	}}
 	live := map[uint64]*Enemy{1: {
-		ID: 1, AreaID: "meadow", X: 2, Y: 1, Damage: 0, spawnIndex: 0,
+		ID: 1, Definition: deer, AreaID: "meadow", X: 2, Y: 1,
+		spawnIndex: 0,
 	}}
 	for tick := 0; tick < 20; tick++ {
 		manager.updateEnemies(
@@ -428,7 +441,7 @@ func testAreas(t *testing.T) *Areas {
 			ID: "meadow", Name: "Meadow",
 			Layout: []string{"####", "#..#", "####"},
 			Spawn:  Point{X: 1, Y: 1},
-			Waypoints: []Waypoint{{
+			Waypoints: []WaypointDefinition{{
 				X: 2, Y: 1, DestinationArea: "cavern",
 				DestinationX: 1, DestinationY: 1,
 			}},

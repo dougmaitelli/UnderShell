@@ -50,8 +50,10 @@ func (combatSystem) attack(
 			continue
 		}
 		result.DefeatedIDs = append(result.DefeatedIDs, target.ID)
-		sendEvent(player, Event{Kind: EventCombat, Message: "Defeated " + target.Name})
-		player.grantExperience(target.Experience)
+		sendEvent(player, Event{
+			Kind: EventCombat, Message: "Defeated " + target.Definition.Name,
+		})
+		player.grantExperience(target.Definition.Experience)
 		combatSystem{}.defeatEnemy(enemies, loot, target)
 	}
 	if len(result.HitIDs) > 0 {
@@ -61,8 +63,6 @@ func (combatSystem) attack(
 }
 
 func (combatSystem) defeatEnemy(enemies *enemySystem, loot *lootSystem, target *Enemy) {
-	if definition, ok := enemies.defs.Enemy(target.DefinitionID); ok {
-		loot.rollDrops(target, definition)
-	}
+	loot.rollDrops(target)
 	enemies.remove(target)
 }

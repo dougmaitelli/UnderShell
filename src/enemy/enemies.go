@@ -14,31 +14,50 @@ import (
 )
 
 type Drop struct {
+	Item   *item.Definition
+	Chance float64
+}
+
+type Definition struct {
+	ID          string
+	Name        string
+	Description string
+	Visual      []string
+	Health      int
+	Damage      int
+	Experience  int64
+	Drops       []Drop
+}
+
+type dropFile struct {
 	ItemID string  `json:"item_id"`
 	Chance float64 `json:"chance"`
 }
 
-type Definition struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Visual      []string `json:"visual"`
-	Health      int      `json:"health"`
-	Damage      int      `json:"damage"`
-	Experience  int64    `json:"experience"`
-	Drops       []Drop   `json:"drops"`
+type definitionFile struct {
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Visual      []string   `json:"visual"`
+	Health      int        `json:"health"`
+	Damage      int        `json:"damage"`
+	Experience  int64      `json:"experience"`
+	Drops       []dropFile `json:"drops"`
 }
 
 type enemiesFile struct {
-	Enemies []Definition `json:"enemies"`
+	Enemies []definitionFile `json:"enemies"`
 }
 
 type Enemies struct {
-	enemies map[string]Definition
+	enemies map[string]*Definition
 	order   []string
 }
 
-func LoadEnemies(path string) (*Enemies, error) {
+func LoadEnemies(path string, items *item.Items) (*Enemies, error) {
+	if items == nil {
+		return nil, errors.New("item definitions are required")
+	}
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open enemy definitions %s: %w", path, err)
@@ -57,7 +76,29 @@ func LoadEnemies(path string) (*Enemies, error) {
 		}
 		return nil, fmt.Errorf("decode enemy definitions %s: %w", path, err)
 	}
-	return NewEnemies(contents.Enemies)
+	definitions := make([]Definition, len(contents.Enemies))
+	for index, source := range contents.Enemies {
+		definition := Definition{
+			ID: source.ID, Name: source.Name, Description: source.Description,
+			Visual: source.Visual, Health: source.Health, Damage: source.Damage,
+			Experience: source.Experience,
+			Drops:      make([]Drop, len(source.Drops)),
+		}
+		for dropIndex, sourceDrop := range source.Drops {
+			itemDefinition, ok := items.Item(strings.TrimSpace(sourceDrop.ItemID))
+			if !ok {
+				return nil, fmt.Errorf(
+					"enemy %q drop %d references unknown item %q",
+					source.ID, dropIndex, sourceDrop.ItemID,
+				)
+			}
+			definition.Drops[dropIndex] = Drop{
+				Item: itemDefinition, Chance: sourceDrop.Chance,
+			}
+		}
+		definitions[index] = definition
+	}
+	return NewEnemies(definitions)
 }
 
 func NewEnemies(definitions []Definition) (*Enemies, error) {
@@ -65,7 +106,7 @@ func NewEnemies(definitions []Definition) (*Enemies, error) {
 		return nil, errors.New("at least one enemy is required")
 	}
 	enemies := &Enemies{
-		enemies: make(map[string]Definition, len(definitions)),
+		enemies: make(map[string]*Definition, len(definitions)),
 		order:   make([]string, 0, len(definitions)),
 	}
 	for index, definition := range definitions {
@@ -74,28 +115,25 @@ func NewEnemies(definitions []Definition) (*Enemies, error) {
 		definition.Description = strings.TrimSpace(definition.Description)
 		definition.Visual = append([]string(nil), definition.Visual...)
 		definition.Drops = append([]Drop(nil), definition.Drops...)
-		for dropIndex := range definition.Drops {
-			definition.Drops[dropIndex].ItemID = strings.TrimSpace(definition.Drops[dropIndex].ItemID)
-		}
 		if err := validateDefinition(definition); err != nil {
 			return nil, fmt.Errorf("enemy %d (%q): %w", index, definition.ID, err)
 		}
 		if _, exists := enemies.enemies[definition.ID]; exists {
 			return nil, fmt.Errorf("duplicate enemy ID %q", definition.ID)
 		}
-		enemies.enemies[definition.ID] = definition
+		enemies.enemies[definition.ID] = &definition
 		enemies.order = append(enemies.order, definition.ID)
 	}
 	return enemies, nil
 }
 
-func (e *Enemies) Enemy(id string) (Definition, bool) {
+func (e *Enemies) Enemy(id string) (*Definition, bool) {
 	definition, ok := e.enemies[id]
 	return definition, ok
 }
 
-func (e *Enemies) All() []Definition {
-	definitions := make([]Definition, 0, len(e.order))
+func (e *Enemies) All() []*Definition {
+	definitions := make([]*Definition, 0, len(e.order))
 	for _, id := range e.order {
 		definitions = append(definitions, e.enemies[id])
 	}
@@ -103,23 +141,6 @@ func (e *Enemies) All() []Definition {
 }
 
 func (e *Enemies) Len() int { return len(e.enemies) }
-
-func (e *Enemies) ValidateDrops(items *item.Items) error {
-	if items == nil {
-		return errors.New("items are required")
-	}
-	for _, definition := range e.enemies {
-		for index, drop := range definition.Drops {
-			if _, ok := items.Item(drop.ItemID); !ok {
-				return fmt.Errorf(
-					"enemy %q drop %d references unknown item %q",
-					definition.ID, index, drop.ItemID,
-				)
-			}
-		}
-	}
-	return nil
-}
 
 func validateDefinition(definition Definition) error {
 	if definition.ID == "" || definition.Name == "" {
@@ -170,8 +191,8 @@ func validateDefinition(definition Definition) error {
 		return errors.New("experience must be at least 1")
 	}
 	for index, drop := range definition.Drops {
-		if drop.ItemID == "" {
-			return fmt.Errorf("drop %d requires item_id", index)
+		if drop.Item == nil {
+			return fmt.Errorf("drop %d requires an item reference", index)
 		}
 		if drop.Chance <= 0 || drop.Chance > 1 {
 			return fmt.Errorf("drop %d chance must be greater than 0 and at most 1", index)

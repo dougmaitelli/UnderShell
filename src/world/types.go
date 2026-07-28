@@ -3,6 +3,7 @@ package world
 import (
 	"time"
 
+	"sshrpg/src/enemy"
 	"sshrpg/src/item"
 )
 
@@ -30,19 +31,14 @@ type Snapshot struct {
 }
 
 type Enemy struct {
-	ID           uint64
-	DefinitionID string
-	Name         string
-	Visual       []string
-	Health       int
-	MaxHealth    int
-	Damage       int
-	Experience   int64
-	AreaID       string
-	X            int
-	Y            int
-	spawnIndex   int
-	nextAttack   time.Time
+	ID         uint64
+	Definition *enemy.Definition
+	Health     int
+	AreaID     string
+	X          int
+	Y          int
+	spawnIndex int
+	nextAttack time.Time
 }
 
 type GroundItem struct {

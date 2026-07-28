@@ -2,7 +2,6 @@
 package npc
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"unicode"
@@ -18,160 +17,191 @@ const (
 	TypeQuestGiver Type = "quest_giver"
 )
 
+type Config struct {
+	ID       string           `json:"id"`
+	Name     string           `json:"name"`
+	Type     Type             `json:"type"`
+	X        int              `json:"x"`
+	Y        int              `json:"y"`
+	Stock    []ShopItemConfig `json:"stock"`
+	QuestIDs []string         `json:"quests"`
+}
+
+type ShopItemConfig struct {
+	ItemID    string `json:"item_id"`
+	BuyPrice  int    `json:"buy_price"`
+	SellPrice int    `json:"sell_price"`
+}
+
 type Definition struct {
-	ID       string     `json:"id"`
-	Name     string     `json:"name"`
-	Type     Type       `json:"type"`
-	X        int        `json:"x"`
-	Y        int        `json:"y"`
-	Stock    []ShopItem `json:"stock"`
-	QuestIDs []string   `json:"quests"`
+	ID     string
+	Name   string
+	Type   Type
+	X      int
+	Y      int
+	Stock  []ShopItem
+	Quests []*quest.Definition
 }
 
 type ShopItem struct {
-	ItemID    string           `json:"item_id"`
-	BuyPrice  int              `json:"buy_price"`
-	SellPrice int              `json:"sell_price"`
-	Item      *item.Definition `json:"-"`
+	Item      *item.Definition
+	BuyPrice  int
+	SellPrice int
 }
 
 func Clone(definitions []Definition) []Definition {
 	clones := append([]Definition(nil), definitions...)
 	for index := range clones {
 		clones[index].Stock = append([]ShopItem(nil), definitions[index].Stock...)
-		clones[index].QuestIDs = append([]string(nil), definitions[index].QuestIDs...)
+		clones[index].Quests = append(
+			[]*quest.Definition(nil), definitions[index].Quests...,
+		)
 	}
 	return clones
 }
 
-func Validate(definitions []Definition) error {
-	ids := make(map[string]bool, len(definitions))
-	for index := range definitions {
+func Resolve(
+	configs []Config,
+	items *item.Items,
+	quests *quest.Quests,
+) ([]Definition, error) {
+	definitions := make([]Definition, len(configs))
+	ids := make(map[string]bool, len(configs))
+	for index := range configs {
+		config := &configs[index]
 		definition := &definitions[index]
+		definition.ID = config.ID
+		definition.Name = config.Name
+		definition.Type = config.Type
+		definition.X, definition.Y = config.X, config.Y
 		definition.ID = strings.TrimSpace(definition.ID)
 		definition.Name = strings.TrimSpace(definition.Name)
 		if definition.ID == "" || definition.Name == "" {
-			return fmt.Errorf("NPC %d requires id and name", index)
+			return nil, fmt.Errorf("NPC %d requires id and name", index)
 		}
 		for _, character := range definition.ID {
 			if !((character >= 'a' && character <= 'z') ||
 				(character >= '0' && character <= '9') ||
 				character == '_' || character == '-') {
-				return fmt.Errorf("NPC %q id has unsupported characters", definition.ID)
+				return nil, fmt.Errorf("NPC %q id has unsupported characters", definition.ID)
 			}
 		}
 		for _, character := range definition.Name {
 			if unicode.IsControl(character) || !unicode.IsPrint(character) {
-				return fmt.Errorf("NPC %q name must be printable", definition.ID)
+				return nil, fmt.Errorf("NPC %q name must be printable", definition.ID)
 			}
 		}
 		if ids[definition.ID] {
-			return fmt.Errorf("duplicate NPC ID %q", definition.ID)
+			return nil, fmt.Errorf("duplicate NPC ID %q", definition.ID)
 		}
 		ids[definition.ID] = true
 		switch definition.Type {
 		case TypeShop:
-			if len(definition.QuestIDs) > 0 {
-				return fmt.Errorf("shop NPC %q cannot define quests", definition.ID)
+			if len(config.QuestIDs) > 0 {
+				return nil, fmt.Errorf("shop NPC %q cannot define quests", definition.ID)
 			}
-			if err := validateShop(definition); err != nil {
-				return err
+			stock, err := resolveShop(definition.ID, config.Stock, items)
+			if err != nil {
+				return nil, err
 			}
+			definition.Stock = stock
 		case TypeQuestGiver:
-			if len(definition.Stock) > 0 {
-				return fmt.Errorf("quest giver NPC %q cannot define stock", definition.ID)
+			if len(config.Stock) > 0 {
+				return nil, fmt.Errorf("quest giver NPC %q cannot define stock", definition.ID)
 			}
-			if err := validateQuestGiver(definition); err != nil {
-				return err
+			resolvedQuests, err := resolveQuests(
+				definition.ID, config.QuestIDs, quests,
+			)
+			if err != nil {
+				return nil, err
 			}
+			definition.Quests = resolvedQuests
 		default:
-			return fmt.Errorf("NPC %q has unsupported type %q", definition.ID, definition.Type)
-		}
-	}
-	return nil
-}
-
-func ResolveItems(definitions []Definition, items *item.Items) error {
-	if items == nil {
-		return errors.New("items are required")
-	}
-	for npcIndex := range definitions {
-		definition := &definitions[npcIndex]
-		for stockIndex := range definition.Stock {
-			stock := &definition.Stock[stockIndex]
-			itemDefinition, ok := items.Item(stock.ItemID)
-			if !ok {
-				return fmt.Errorf(
-					"NPC %q stock %d references unknown item %q",
-					definition.ID, stockIndex, stock.ItemID,
-				)
-			}
-			stock.Item = itemDefinition
-		}
-	}
-	return nil
-}
-
-func ResolveQuests(definitions []Definition, quests *quest.Quests) error {
-	for _, definition := range definitions {
-		for index, questID := range definition.QuestIDs {
-			if quests == nil {
-				return errors.New("quests are required")
-			}
-			if _, ok := quests.Quest(questID); !ok {
-				return fmt.Errorf(
-					"NPC %q quest %d references unknown quest %q",
-					definition.ID, index, questID,
-				)
-			}
-		}
-	}
-	return nil
-}
-
-func validateShop(definition *Definition) error {
-	if len(definition.Stock) == 0 {
-		return fmt.Errorf("shop NPC %q requires stock", definition.ID)
-	}
-	stockIDs := make(map[string]bool, len(definition.Stock))
-	for index := range definition.Stock {
-		stock := &definition.Stock[index]
-		stock.ItemID = strings.TrimSpace(stock.ItemID)
-		if stock.ItemID == "" {
-			return fmt.Errorf("NPC %q stock %d requires item_id", definition.ID, index)
-		}
-		if stockIDs[stock.ItemID] {
-			return fmt.Errorf("NPC %q has duplicate stock item %q", definition.ID, stock.ItemID)
-		}
-		stockIDs[stock.ItemID] = true
-		if stock.BuyPrice < 1 || stock.SellPrice < 1 {
-			return fmt.Errorf("NPC %q stock %q prices must be positive", definition.ID, stock.ItemID)
-		}
-		if stock.SellPrice > stock.BuyPrice {
-			return fmt.Errorf(
-				"NPC %q stock %q sell_price cannot exceed buy_price",
-				definition.ID, stock.ItemID,
+			return nil, fmt.Errorf(
+				"NPC %q has unsupported type %q",
+				definition.ID, definition.Type,
 			)
 		}
 	}
-	return nil
+	return definitions, nil
 }
 
-func validateQuestGiver(definition *Definition) error {
-	if len(definition.QuestIDs) == 0 {
-		return fmt.Errorf("quest giver NPC %q requires quests", definition.ID)
+func resolveShop(
+	npcID string,
+	configs []ShopItemConfig,
+	items *item.Items,
+) ([]ShopItem, error) {
+	if len(configs) == 0 {
+		return nil, fmt.Errorf("shop NPC %q requires stock", npcID)
 	}
-	ids := make(map[string]bool, len(definition.QuestIDs))
-	for index := range definition.QuestIDs {
-		questID := strings.TrimSpace(definition.QuestIDs[index])
+	if items == nil {
+		return nil, fmt.Errorf("shop NPC %q requires item definitions", npcID)
+	}
+	stock := make([]ShopItem, len(configs))
+	stockIDs := make(map[string]bool, len(configs))
+	for index, config := range configs {
+		itemID := strings.TrimSpace(config.ItemID)
+		if itemID == "" {
+			return nil, fmt.Errorf("NPC %q stock %d requires item_id", npcID, index)
+		}
+		if stockIDs[itemID] {
+			return nil, fmt.Errorf("NPC %q has duplicate stock item %q", npcID, itemID)
+		}
+		stockIDs[itemID] = true
+		if config.BuyPrice < 1 || config.SellPrice < 1 {
+			return nil, fmt.Errorf("NPC %q stock %q prices must be positive", npcID, itemID)
+		}
+		if config.SellPrice > config.BuyPrice {
+			return nil, fmt.Errorf(
+				"NPC %q stock %q sell_price cannot exceed buy_price",
+				npcID, itemID,
+			)
+		}
+		itemDefinition, ok := items.Item(itemID)
+		if !ok {
+			return nil, fmt.Errorf(
+				"NPC %q stock %d references unknown item %q",
+				npcID, index, itemID,
+			)
+		}
+		stock[index] = ShopItem{
+			Item:     itemDefinition,
+			BuyPrice: config.BuyPrice, SellPrice: config.SellPrice,
+		}
+	}
+	return stock, nil
+}
+
+func resolveQuests(
+	npcID string,
+	questIDs []string,
+	quests *quest.Quests,
+) ([]*quest.Definition, error) {
+	if len(questIDs) == 0 {
+		return nil, fmt.Errorf("quest giver NPC %q requires quests", npcID)
+	}
+	if quests == nil {
+		return nil, fmt.Errorf("quest giver NPC %q requires quest definitions", npcID)
+	}
+	resolved := make([]*quest.Definition, len(questIDs))
+	ids := make(map[string]bool, len(questIDs))
+	for index, rawID := range questIDs {
+		questID := strings.TrimSpace(rawID)
 		if questID == "" {
-			return fmt.Errorf("NPC %q quest %d requires an ID", definition.ID, index)
+			return nil, fmt.Errorf("NPC %q quest %d requires an ID", npcID, index)
 		}
 		if ids[questID] {
-			return fmt.Errorf("NPC %q has duplicate quest %q", definition.ID, questID)
+			return nil, fmt.Errorf("NPC %q has duplicate quest %q", npcID, questID)
 		}
-		definition.QuestIDs[index] = questID
 		ids[questID] = true
+		definition, ok := quests.Quest(questID)
+		if !ok {
+			return nil, fmt.Errorf(
+				"NPC %q quest %d references unknown quest %q",
+				npcID, index, questID,
+			)
+		}
+		resolved[index] = definition
 	}
-	return nil
+	return resolved, nil
 }

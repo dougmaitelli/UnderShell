@@ -3,22 +3,8 @@ package world
 import (
 	"fmt"
 
-	"sshrpg/src/item"
 	"sshrpg/src/npc"
-	"sshrpg/src/quest"
 )
-
-func (s *Areas) ValidateNPCs(items *item.Items, quests *quest.Quests) error {
-	for _, area := range s.areas {
-		if err := npc.ResolveItems(area.NPCs, items); err != nil {
-			return fmt.Errorf("area %q: %w", area.ID, err)
-		}
-		if err := npc.ResolveQuests(area.NPCs, quests); err != nil {
-			return fmt.Errorf("area %q: %w", area.ID, err)
-		}
-	}
-	return nil
-}
 
 func (a *Area) NPCAt(point Point) (*npc.Definition, bool) {
 	for index := range a.NPCs {
@@ -31,9 +17,6 @@ func (a *Area) NPCAt(point Point) (*npc.Definition, bool) {
 }
 
 func validateNPCPlacements(area *Area) error {
-	if err := npc.Validate(area.NPCs); err != nil {
-		return err
-	}
 	positions := make(map[Point]bool, len(area.NPCs))
 	for index := range area.NPCs {
 		definition := &area.NPCs[index]

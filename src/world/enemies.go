@@ -4,8 +4,6 @@ import (
 	"fmt"
 	mathrand "math/rand/v2"
 	"time"
-
-	"sshrpg/src/enemy"
 )
 
 type spawnKey struct {
@@ -20,7 +18,6 @@ type spawnState struct {
 
 type enemySystem struct {
 	areas  *Areas
-	defs   *enemy.Enemies
 	live   map[uint64]*Enemy
 	spawns map[spawnKey]*spawnState
 	nextID uint64
@@ -34,7 +31,7 @@ func (e *Enemy) attack(player *activePlayer, now time.Time) (int, bool) {
 	if now.Before(e.nextAttack) {
 		return 0, false
 	}
-	actualDamage := player.takeDamage(e.Damage)
+	actualDamage := player.takeDamage(e.Definition.Damage)
 	e.nextAttack = now.Add(enemyAttackInterval)
 	return actualDamage, true
 }
@@ -53,10 +50,10 @@ func (e *Enemy) canMoveTo(area *Area, spawn EnemySpawn, target Point) bool {
 		area.Walkable(target)
 }
 
-func newEnemySystem(areas *Areas, definitions *enemy.Enemies) enemySystem {
+func newEnemySystem(areas *Areas) enemySystem {
 	return enemySystem{
-		areas: areas, defs: definitions,
-		live: make(map[uint64]*Enemy), spawns: make(map[spawnKey]*spawnState),
+		areas: areas,
+		live:  make(map[uint64]*Enemy), spawns: make(map[spawnKey]*spawnState),
 	}
 }
 
@@ -78,17 +75,13 @@ func (s *enemySystem) enemy(id uint64) *Enemy { return s.live[id] }
 
 func (s *enemySystem) spawn(area *Area, spawnIndex int, id uint64) {
 	spawn := area.EnemySpawns[spawnIndex]
-	definition, ok := s.defs.Enemy(spawn.EnemyID)
-	if !ok {
+	if spawn.Enemy == nil {
 		return
 	}
 	points := walkableSpawnPoints(area, spawn)
 	point := points[mathrand.IntN(len(points))]
 	s.live[id] = &Enemy{
-		ID: id, DefinitionID: definition.ID, Name: definition.Name,
-		Visual: append([]string(nil), definition.Visual...),
-		Health: definition.Health, MaxHealth: definition.Health,
-		Damage: definition.Damage, Experience: definition.Experience,
+		ID: id, Definition: spawn.Enemy, Health: spawn.Enemy.Health,
 		AreaID: area.ID, X: point.X, Y: point.Y, spawnIndex: spawnIndex,
 	}
 }
@@ -134,7 +127,7 @@ func (s *enemySystem) update(players *playerSystem, now time.Time) bool {
 		spawn := area.EnemySpawns[current.spawnIndex]
 		var targetPlayer *activePlayer
 		distance := enemyAggroRange + 1
-		if current.Damage > 0 {
+		if current.Definition.Damage > 0 {
 			targetPlayer, distance = nearestPlayer(current, players.live, respawned)
 		}
 		if targetPlayer != nil && distance <= 1 {
@@ -144,8 +137,11 @@ func (s *enemySystem) update(players *playerSystem, now time.Time) bool {
 			}
 			if actualDamage > 0 {
 				sendEvent(targetPlayer, Event{
-					Kind:    EventDamage,
-					Message: fmt.Sprintf("Took %d damage from %s", actualDamage, current.Name),
+					Kind: EventDamage,
+					Message: fmt.Sprintf(
+						"Took %d damage from %s",
+						actualDamage, current.Definition.Name,
+					),
 				})
 			}
 			if targetPlayer.Health == 0 {

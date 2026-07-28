@@ -15,41 +15,68 @@ import (
 )
 
 type Objective struct {
-	ItemID   string           `json:"item_id"`
-	Quantity int              `json:"quantity"`
-	Item     *item.Definition `json:"-"`
+	Item     *item.Definition
+	Quantity int
 }
 
 type Reward struct {
-	Gold int `json:"gold"`
+	Gold int
 }
 
 type Dialogue struct {
+	Offer      string
+	InProgress string
+	Ready      string
+	Completed  string
+}
+
+type Definition struct {
+	ID          string
+	Name        string
+	Description string
+	Objective   Objective
+	Reward      Reward
+	Dialogue    Dialogue
+}
+
+type objectiveFile struct {
+	ItemID   string `json:"item_id"`
+	Quantity int    `json:"quantity"`
+}
+
+type rewardFile struct {
+	Gold int `json:"gold"`
+}
+
+type dialogueFile struct {
 	Offer      string `json:"offer"`
 	InProgress string `json:"in_progress"`
 	Ready      string `json:"ready"`
 	Completed  string `json:"completed"`
 }
 
-type Definition struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Objective   Objective `json:"objective"`
-	Reward      Reward    `json:"reward"`
-	Dialogue    Dialogue  `json:"dialogue"`
+type definitionFile struct {
+	ID          string        `json:"id"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	Objective   objectiveFile `json:"objective"`
+	Reward      rewardFile    `json:"reward"`
+	Dialogue    dialogueFile  `json:"dialogue"`
 }
 
 type questsFile struct {
-	Quests []Definition `json:"quests"`
+	Quests []definitionFile `json:"quests"`
 }
 
 type Quests struct {
-	quests map[string]Definition
+	quests map[string]*Definition
 	order  []string
 }
 
-func LoadQuests(path string) (*Quests, error) {
+func LoadQuests(path string, items *item.Items) (*Quests, error) {
+	if items == nil {
+		return nil, errors.New("item definitions are required")
+	}
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open quest definitions %s: %w", path, err)
@@ -68,7 +95,30 @@ func LoadQuests(path string) (*Quests, error) {
 		}
 		return nil, fmt.Errorf("decode quest definitions %s: %w", path, err)
 	}
-	return NewQuests(contents.Quests)
+	definitions := make([]Definition, len(contents.Quests))
+	for index, source := range contents.Quests {
+		itemDefinition, ok := items.Item(strings.TrimSpace(source.Objective.ItemID))
+		if !ok {
+			return nil, fmt.Errorf(
+				"quest %q references unknown item %q",
+				source.ID, source.Objective.ItemID,
+			)
+		}
+		definitions[index] = Definition{
+			ID: source.ID, Name: source.Name, Description: source.Description,
+			Objective: Objective{
+				Item: itemDefinition, Quantity: source.Objective.Quantity,
+			},
+			Reward: Reward{Gold: source.Reward.Gold},
+			Dialogue: Dialogue{
+				Offer:      source.Dialogue.Offer,
+				InProgress: source.Dialogue.InProgress,
+				Ready:      source.Dialogue.Ready,
+				Completed:  source.Dialogue.Completed,
+			},
+		}
+	}
+	return NewQuests(definitions)
 }
 
 func NewQuests(definitions []Definition) (*Quests, error) {
@@ -76,14 +126,13 @@ func NewQuests(definitions []Definition) (*Quests, error) {
 		return nil, errors.New("at least one quest is required")
 	}
 	quests := &Quests{
-		quests: make(map[string]Definition, len(definitions)),
+		quests: make(map[string]*Definition, len(definitions)),
 		order:  make([]string, 0, len(definitions)),
 	}
 	for index, definition := range definitions {
 		definition.ID = strings.TrimSpace(definition.ID)
 		definition.Name = strings.TrimSpace(definition.Name)
 		definition.Description = strings.TrimSpace(definition.Description)
-		definition.Objective.ItemID = strings.TrimSpace(definition.Objective.ItemID)
 		definition.Dialogue.Offer = strings.TrimSpace(definition.Dialogue.Offer)
 		definition.Dialogue.InProgress = strings.TrimSpace(definition.Dialogue.InProgress)
 		definition.Dialogue.Ready = strings.TrimSpace(definition.Dialogue.Ready)
@@ -94,29 +143,10 @@ func NewQuests(definitions []Definition) (*Quests, error) {
 		if _, exists := quests.quests[definition.ID]; exists {
 			return nil, fmt.Errorf("duplicate quest ID %q", definition.ID)
 		}
-		quests.quests[definition.ID] = definition
+		quests.quests[definition.ID] = &definition
 		quests.order = append(quests.order, definition.ID)
 	}
 	return quests, nil
-}
-
-func (q *Quests) ResolveItems(items *item.Items) error {
-	if items == nil {
-		return errors.New("items are required")
-	}
-	for _, id := range q.order {
-		definition := q.quests[id]
-		itemDefinition, ok := items.Item(definition.Objective.ItemID)
-		if !ok {
-			return fmt.Errorf(
-				"quest %q references unknown item %q",
-				definition.ID, definition.Objective.ItemID,
-			)
-		}
-		definition.Objective.Item = itemDefinition
-		q.quests[id] = definition
-	}
-	return nil
 }
 
 func (q *Quests) ValidateObjectives(enemies *enemy.Enemies) error {
@@ -126,28 +156,28 @@ func (q *Quests) ValidateObjectives(enemies *enemy.Enemies) error {
 	droppedItems := make(map[string]bool)
 	for _, definition := range enemies.All() {
 		for _, drop := range definition.Drops {
-			droppedItems[drop.ItemID] = true
+			droppedItems[drop.Item.ID] = true
 		}
 	}
 	for _, id := range q.order {
 		definition := q.quests[id]
-		if !droppedItems[definition.Objective.ItemID] {
+		if !droppedItems[definition.Objective.Item.ID] {
 			return fmt.Errorf(
 				"quest %q objective item %q is not dropped by any enemy",
-				definition.ID, definition.Objective.ItemID,
+				definition.ID, definition.Objective.Item.ID,
 			)
 		}
 	}
 	return nil
 }
 
-func (q *Quests) Quest(id string) (Definition, bool) {
+func (q *Quests) Quest(id string) (*Definition, bool) {
 	definition, ok := q.quests[id]
 	return definition, ok
 }
 
-func (q *Quests) All() []Definition {
-	definitions := make([]Definition, 0, len(q.order))
+func (q *Quests) All() []*Definition {
+	definitions := make([]*Definition, 0, len(q.order))
 	for _, id := range q.order {
 		definitions = append(definitions, q.quests[id])
 	}
@@ -174,8 +204,8 @@ func validateDefinition(definition Definition) error {
 			}
 		}
 	}
-	if definition.Objective.ItemID == "" {
-		return errors.New("objective.item_id is required")
+	if definition.Objective.Item == nil {
+		return errors.New("objective requires an item reference")
 	}
 	if definition.Objective.Quantity < 1 {
 		return errors.New("objective.quantity must be at least 1")

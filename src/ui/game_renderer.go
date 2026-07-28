@@ -91,8 +91,11 @@ func (GameRenderer) Render(state ViewState) string {
 		}
 		drawEnemy(
 			grid, x, y,
-			fmt.Sprintf("%s [%d/%d]", enemy.Name, enemy.Health, enemy.MaxHealth),
-			enemy.Visual, enemyStyle,
+			fmt.Sprintf(
+				"%s [%d/%d]",
+				enemy.Definition.Name, enemy.Health, enemy.Definition.Health,
+			),
+			enemy.Definition.Visual, enemyStyle,
 		)
 	}
 	if state.Snapshot.Area != nil {

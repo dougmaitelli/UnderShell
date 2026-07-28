@@ -233,17 +233,23 @@ func TestInteractOpensNearbyShopBeforePickup(t *testing.T) {
 	}, &domain.Inventory{CharacterID: 1})
 	model.phase = phasePlaying
 	model.width, model.height = 80, 24
+	items, err := item.NewItems([]item.Definition{{
+		ID: "potion", Name: "Potion", MaxStack: 10,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	areas, err := world.NewAreas([]world.AreaDefinition{{
 		ID: "market", Name: "Market",
 		Layout: []string{"########", "#......#", "########"},
 		Spawn:  world.Point{X: 1, Y: 1},
-		NPCs: []npc.Definition{{
+		NPCs: []npc.Config{{
 			ID: "merchant", Name: "Mira", Type: npc.TypeShop, X: 3, Y: 1,
-			Stock: []npc.ShopItem{{
+			Stock: []npc.ShopItemConfig{{
 				ItemID: "potion", BuyPrice: 10, SellPrice: 5,
 			}},
 		}},
-	}})
+	}}, world.References{Items: items})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -256,15 +262,6 @@ func TestInteractOpensNearbyShopBeforePickup(t *testing.T) {
 		Drops: []world.GroundItem{{
 			ID: 1, AreaID: "market", X: 2, Y: 1,
 		}},
-	}
-	items, err := item.NewItems([]item.Definition{{
-		ID: "potion", Name: "Potion", MaxStack: 10,
-	}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := npc.ResolveItems(area.NPCs, items); err != nil {
-		t.Fatal(err)
 	}
 	potion, _ := items.Item("potion")
 	model.connection.snapshot.Drops[0].Item = potion
@@ -303,11 +300,18 @@ func TestInteractOpensNearbyShopBeforePickup(t *testing.T) {
 }
 
 func TestQuestGiverInteractionAndJournal(t *testing.T) {
+	items, err := item.NewItems([]item.Definition{{
+		ID: "slime_gel", Name: "Slime Gel", MaxStack: 50,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	slimeGel, _ := items.Item("slime_gel")
 	definitions, err := quest.NewQuests([]quest.Definition{{
 		ID: "slime_supplies", Name: "Slime Supplies",
 		Description: "Collect gel from meadow slimes.",
 		Objective: quest.Objective{
-			ItemID: "slime_gel", Quantity: 5,
+			Item: slimeGel, Quantity: 5,
 		},
 		Reward: quest.Reward{Gold: 30},
 		Dialogue: quest.Dialogue{
@@ -318,15 +322,6 @@ func TestQuestGiverInteractionAndJournal(t *testing.T) {
 		},
 	}})
 	if err != nil {
-		t.Fatal(err)
-	}
-	items, err := item.NewItems([]item.Definition{{
-		ID: "slime_gel", Name: "Slime Gel", MaxStack: 50,
-	}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := definitions.ResolveItems(items); err != nil {
 		t.Fatal(err)
 	}
 	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{
@@ -344,11 +339,11 @@ func TestQuestGiverInteractionAndJournal(t *testing.T) {
 		ID: "meadow", Name: "Meadow",
 		Layout: []string{"########", "#......#", "########"},
 		Spawn:  world.Point{X: 1, Y: 1},
-		NPCs: []npc.Definition{{
+		NPCs: []npc.Config{{
 			ID: "orin", Name: "Orin", Type: npc.TypeQuestGiver, X: 3, Y: 1,
 			QuestIDs: []string{"slime_supplies"},
 		}},
-	}})
+	}}, world.References{Items: items, Quests: definitions})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -518,13 +513,19 @@ func TestJournalInputMovesAndWrapsSelection(t *testing.T) {
 	definitions, err := quest.NewQuests([]quest.Definition{
 		{
 			ID: "first", Name: "First",
-			Objective: quest.Objective{ItemID: "first_item", Quantity: 1},
-			Dialogue:  dialogue,
+			Objective: quest.Objective{
+				Item:     &item.Definition{ID: "first_item", Name: "First Item", MaxStack: 1},
+				Quantity: 1,
+			},
+			Dialogue: dialogue,
 		},
 		{
 			ID: "second", Name: "Second",
-			Objective: quest.Objective{ItemID: "second_item", Quantity: 1},
-			Dialogue:  dialogue,
+			Objective: quest.Objective{
+				Item:     &item.Definition{ID: "second_item", Name: "Second Item", MaxStack: 1},
+				Quantity: 1,
+			},
+			Dialogue: dialogue,
 		},
 	})
 	if err != nil {

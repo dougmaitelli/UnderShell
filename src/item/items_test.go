@@ -113,6 +113,53 @@ func TestEquipmentRequiresSupportedSlotAndSingleStack(t *testing.T) {
 	}
 }
 
+func TestEquipmentStatsMustBeNonNegativeAndEquipmentOnly(t *testing.T) {
+	valid, err := NewItems([]Definition{{
+		ID: "sword", Name: "Sword", Type: TypeEquipment,
+		EquipmentSlot: SlotWeapon,
+		Stats: EquipmentStats{
+			Attack: 2, Defense: 1, Vitality: 1,
+		},
+		MaxStack: 1,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sword, _ := valid.Item("sword")
+	if sword.Stats.Attack != 2 ||
+		sword.Stats.Defense != 1 ||
+		sword.Stats.Vitality != 1 {
+		t.Fatalf("equipment stats = %#v", sword.Stats)
+	}
+
+	for name, definition := range map[string]Definition{
+		"negative equipment stat": {
+			ID: "sword", Name: "Sword", Type: TypeEquipment,
+			EquipmentSlot: SlotWeapon,
+			Stats:         EquipmentStats{Attack: -1},
+			MaxStack:      1,
+		},
+		"stats on material": {
+			ID: "ore", Name: "Ore", Type: TypeMaterial,
+			Stats: EquipmentStats{Defense: 1}, MaxStack: 10,
+		},
+		"stats on consumable": {
+			ID: "potion", Name: "Potion", Type: TypeConsumable,
+			Stats: EquipmentStats{Vitality: 1},
+			Effects: []Effect{{
+				Type: EffectRestoreHealth, Amount: 5,
+			}},
+			MaxStack: 10,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := NewItems([]Definition{definition}); err == nil {
+				t.Fatal("expected invalid item stats to fail")
+			}
+		})
+	}
+}
+
 func TestBundledItemsAreValid(t *testing.T) {
 	items, err := LoadItems(filepath.Join("..", "..", "items", "items.json"))
 	if err != nil {
@@ -120,5 +167,9 @@ func TestBundledItemsAreValid(t *testing.T) {
 	}
 	if items.Len() == 0 {
 		t.Fatal("bundled item definitions is empty")
+	}
+	sword, ok := items.Item("rusty_sword")
+	if !ok || sword.Stats.Attack != 1 {
+		t.Fatalf("rusty sword stats = %#v", sword)
 	}
 }

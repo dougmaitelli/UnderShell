@@ -42,6 +42,7 @@ type InventoryView struct {
 
 type inventoryEquipmentMsg struct {
 	inventory *domain.Inventory
+	player    world.Player
 	itemName  string
 	equipped  bool
 	err       error
@@ -115,6 +116,33 @@ func (m *gameModel) inventoryView() InventoryView {
 		definitions = m.world.Items()
 	}
 	return m.inventoryMenu.view(m.inventory, definitions)
+}
+
+func (m *gameModel) equipmentStats(
+	inventory *domain.Inventory,
+) item.EquipmentStats {
+	stats := item.EquipmentStats{}
+	if inventory == nil || m.world == nil || m.world.Items() == nil {
+		return stats
+	}
+	itemsBySlot := make(map[int]domain.InventoryItem, len(inventory.Items))
+	for _, owned := range inventory.Items {
+		itemsBySlot[owned.Slot] = owned
+	}
+	for _, equipped := range inventory.Equipment {
+		owned, ok := itemsBySlot[equipped.InventorySlot]
+		if !ok {
+			continue
+		}
+		definition, ok := m.world.Items().Item(owned.ItemKey)
+		if !ok || definition.Type != item.TypeEquipment {
+			continue
+		}
+		stats.Attack += definition.Stats.Attack
+		stats.Defense += definition.Stats.Defense
+		stats.Vitality += definition.Stats.Vitality
+	}
+	return stats
 }
 
 func (m *gameModel) updateInventoryInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -245,8 +273,18 @@ func (m *gameModel) toggleEquipment(selected InventoryItemView) tea.Cmd {
 				string(definition.EquipmentSlot),
 			)
 		}
+		player := world.Player{}
+		if err == nil {
+			player = m.world.UpdateEquipment(
+				m.character.ID, m.connection.session.Token,
+				m.equipmentStats(inventory),
+			)
+			if player.ID == 0 {
+				err = errors.New("world rejected equipment update")
+			}
+		}
 		return inventoryEquipmentMsg{
-			inventory: inventory, itemName: definition.Name,
+			inventory: inventory, player: player, itemName: definition.Name,
 			equipped: equipped, err: err,
 		}
 	}
@@ -256,6 +294,9 @@ func (m *gameModel) updateInventoryEquipment(
 	msg inventoryEquipmentMsg,
 ) (tea.Model, tea.Cmd) {
 	m.inventoryMenu.inFlight = false
+	if msg.inventory != nil {
+		m.inventory = msg.inventory
+	}
 	if msg.err != nil {
 		if errors.Is(msg.err, repository.ErrItemNotOwned) {
 			m.inventoryMenu.message = "That item is no longer available."
@@ -271,7 +312,12 @@ func (m *gameModel) updateInventoryEquipment(
 		}
 		return m, nil
 	}
-	m.inventory = msg.inventory
+	for index := range m.connection.snapshot.Players {
+		if m.connection.snapshot.Players[index].ID == msg.player.ID {
+			m.connection.snapshot.Players[index] = msg.player
+			break
+		}
+	}
 	action := "Unequipped "
 	if msg.equipped {
 		action = "Equipped "
@@ -418,6 +464,10 @@ func (InventoryRenderer) RenderOver(
 			if entry.Equipped {
 				detailRows = append(detailRows, "Status: Equipped")
 			}
+			detailRows = append(
+				detailRows,
+				inventoryStatDescriptions(entry.Definition.Stats)...,
+			)
 		} else if entry.Definition != nil &&
 			entry.Definition.Type == item.TypeConsumable {
 			for _, effect := range entry.Definition.Effects {
@@ -507,6 +557,20 @@ func inventoryEffectDescription(effect item.Effect) string {
 	default:
 		return "Effect: Unknown"
 	}
+}
+
+func inventoryStatDescriptions(stats item.EquipmentStats) []string {
+	rows := make([]string, 0, 3)
+	if stats.Attack > 0 {
+		rows = append(rows, fmt.Sprintf("Attack: +%d", stats.Attack))
+	}
+	if stats.Defense > 0 {
+		rows = append(rows, fmt.Sprintf("Defense: +%d", stats.Defense))
+	}
+	if stats.Vitality > 0 {
+		rows = append(rows, fmt.Sprintf("Vitality: +%d", stats.Vitality))
+	}
+	return rows
 }
 
 func inventoryVisibleRows(rows []string, selected, limit int) []string {

@@ -114,6 +114,54 @@ func TestHealthConsumableRestoresHealthWithoutExceedingMaximum(t *testing.T) {
 	}
 }
 
+func TestEquipmentStatsAffectCombatAndMaximumHealth(t *testing.T) {
+	manager := New(testAreas(t), nil, nil, nil)
+	defer manager.Close()
+	session := manager.Join(Player{
+		ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1,
+		Attack: 2, Defense: 1, Vitality: 1,
+	})
+	receiveSnapshot(t, session.Updates)
+
+	equipped := manager.UpdateEquipment(
+		1, session.Token,
+		item.EquipmentStats{Attack: 3, Defense: 2, Vitality: 1},
+	)
+	if equipped.Attack != 2 ||
+		equipped.Defense != 1 ||
+		equipped.Vitality != 1 {
+		t.Fatalf("equipment changed base stats: %#v", equipped)
+	}
+	if equipped.EquipmentStats.Attack != 3 ||
+		equipped.EquipmentStats.Defense != 2 ||
+		equipped.EquipmentStats.Vitality != 1 ||
+		equipped.MaxHealth != 20 ||
+		equipped.Health != 20 {
+		t.Fatalf("equipped player = %#v", equipped)
+	}
+	snapshot := receiveSnapshot(t, session.Updates)
+	if snapshot.Players[0].EquipmentStats != equipped.EquipmentStats {
+		t.Fatalf(
+			"broadcast equipment stats = %#v",
+			snapshot.Players[0].EquipmentStats,
+		)
+	}
+	active := &activePlayer{Player: equipped}
+	if damage := active.attackDamage(); damage != 6 {
+		t.Fatalf("equipped attack damage = %d, want 6", damage)
+	}
+	if damage := active.takeDamage(5); damage != 2 {
+		t.Fatalf("damage through equipped defense = %d, want 2", damage)
+	}
+
+	unequipped := manager.UpdateEquipment(
+		1, session.Token, item.EquipmentStats{},
+	)
+	if unequipped.MaxHealth != 15 || unequipped.Health != 15 {
+		t.Fatalf("unequipped health = %#v", unequipped)
+	}
+}
+
 func TestEnemiesSpawnToCapAndRespawnInsideTheirArea(t *testing.T) {
 	enemies, err := enemy.NewEnemies([]enemy.Definition{{
 		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 3, Experience: 1,

@@ -1,5 +1,7 @@
 package world
 
+import "sshrpg/src/item"
+
 type activePlayer struct {
 	Player
 	token   string
@@ -76,7 +78,8 @@ func (s *playerSystem) leave(id int64, token string) bool {
 }
 
 func (s *playerSystem) place(player *Player) {
-	expectedMaxHealth := playerMaxHealth + player.Vitality*vitalityHealthPerRank
+	expectedMaxHealth := playerMaxHealth +
+		(player.Vitality+player.EquipmentStats.Vitality)*vitalityHealthPerRank
 	if player.MaxHealth < 1 {
 		player.Health = expectedMaxHealth
 		player.MaxHealth = expectedMaxHealth
@@ -124,8 +127,20 @@ func (s *playerSystem) respawn(player *activePlayer) {
 func (p *activePlayer) respawn(areaID string, spawn Point) {
 	p.AreaID = areaID
 	p.X, p.Y = spawn.X, spawn.Y
-	p.MaxHealth = playerMaxHealth + p.Vitality*vitalityHealthPerRank
+	p.MaxHealth = playerMaxHealth +
+		(p.Vitality+p.EquipmentStats.Vitality)*vitalityHealthPerRank
 	p.Health = p.MaxHealth
+}
+
+func (p *activePlayer) setEquipmentStats(stats item.EquipmentStats) {
+	previousMaxHealth := p.MaxHealth
+	p.EquipmentStats = stats
+	p.MaxHealth = playerMaxHealth +
+		(p.Vitality+p.EquipmentStats.Vitality)*vitalityHealthPerRank
+	if p.MaxHealth > previousMaxHealth {
+		p.Health += p.MaxHealth - previousMaxHealth
+	}
+	p.Health = min(p.Health, p.MaxHealth)
 }
 
 func (s *playerSystem) snapshot(

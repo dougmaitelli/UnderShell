@@ -3,11 +3,14 @@ package world
 type combatSystem struct{}
 
 func (p *activePlayer) attackDamage() int {
-	return 1 + p.Attack
+	return 1 + p.Attack + p.EquipmentStats.Attack
 }
 
 func (p *activePlayer) takeDamage(rawDamage int) int {
-	damage := max(rawDamage-p.Defense, 0)
+	damage := max(
+		rawDamage-p.Defense-p.EquipmentStats.Defense,
+		0,
+	)
 	previousHealth := p.Health
 	p.Health = max(p.Health-damage, 0)
 	return previousHealth - p.Health

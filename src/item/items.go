@@ -41,14 +41,25 @@ type Effect struct {
 	Amount int        `json:"amount"`
 }
 
+type EquipmentStats struct {
+	Attack   int `json:"attack,omitempty"`
+	Defense  int `json:"defense,omitempty"`
+	Vitality int `json:"vitality,omitempty"`
+}
+
+func (s EquipmentStats) IsZero() bool {
+	return s.Attack == 0 && s.Defense == 0 && s.Vitality == 0
+}
+
 type Definition struct {
-	ID            string        `json:"id"`
-	Name          string        `json:"name"`
-	Description   string        `json:"description"`
-	Type          Type          `json:"type"`
-	EquipmentSlot EquipmentSlot `json:"equipment_slot"`
-	Effects       []Effect      `json:"effects,omitempty"`
-	MaxStack      int           `json:"max_stack"`
+	ID            string         `json:"id"`
+	Name          string         `json:"name"`
+	Description   string         `json:"description"`
+	Type          Type           `json:"type"`
+	EquipmentSlot EquipmentSlot  `json:"equipment_slot"`
+	Stats         EquipmentStats `json:"stats,omitempty"`
+	Effects       []Effect       `json:"effects,omitempty"`
+	MaxStack      int            `json:"max_stack"`
 }
 
 type itemsFile struct {
@@ -145,6 +156,11 @@ func validateDefinition(definition Definition) error {
 	if definition.MaxStack < 1 {
 		return errors.New("max_stack must be at least 1")
 	}
+	if definition.Stats.Attack < 0 ||
+		definition.Stats.Defense < 0 ||
+		definition.Stats.Vitality < 0 {
+		return errors.New("equipment stats cannot be negative")
+	}
 	switch definition.Type {
 	case TypeConsumable:
 		if definition.EquipmentSlot != "" {
@@ -156,6 +172,9 @@ func validateDefinition(definition Definition) error {
 		if len(definition.Effects) == 0 {
 			return errors.New("consumable items require at least one effect")
 		}
+		if !definition.Stats.IsZero() {
+			return errors.New("consumable items cannot define stats")
+		}
 	case TypeMaterial:
 		if definition.EquipmentSlot != "" {
 			return fmt.Errorf(
@@ -165,6 +184,9 @@ func validateDefinition(definition Definition) error {
 		}
 		if len(definition.Effects) > 0 {
 			return errors.New("material items cannot define effects")
+		}
+		if !definition.Stats.IsZero() {
+			return errors.New("material items cannot define stats")
 		}
 	case TypeEquipment:
 		switch definition.EquipmentSlot {

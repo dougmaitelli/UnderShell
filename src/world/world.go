@@ -102,6 +102,22 @@ func (m *Manager) UseConsumable(
 	}
 }
 
+func (m *Manager) UpdateEquipment(
+	id int64,
+	token string,
+	stats item.EquipmentStats,
+) Player {
+	reply := make(chan Player)
+	select {
+	case m.events <- updateEquipmentRequest{
+		id: id, token: token, stats: stats, reply: reply,
+	}:
+		return <-reply
+	case <-m.done:
+		return Player{}
+	}
+}
+
 func (m *Manager) SpendSkillPoint(id int64, token, skill string) Player {
 	reply := make(chan Player)
 	select {

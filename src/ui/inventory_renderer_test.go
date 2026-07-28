@@ -8,6 +8,7 @@ import (
 
 	"sshrpg/src/domain"
 	"sshrpg/src/item"
+	"sshrpg/src/world"
 )
 
 func TestInventoryRendererCompositesWindowOverGame(t *testing.T) {
@@ -35,6 +36,9 @@ func TestInventoryRendererShowsResolvedDetailsAndEquipment(t *testing.T) {
 		ID: "rusty_sword", Name: "Rusty Sword",
 		Description: "A worn but dependable blade.",
 		Type:        item.TypeEquipment, EquipmentSlot: item.SlotWeapon,
+		Stats: item.EquipmentStats{
+			Attack: 1,
+		},
 		MaxStack: 1,
 	}
 	inventory := &domain.Inventory{
@@ -61,7 +65,7 @@ func TestInventoryRendererShowsResolvedDetailsAndEquipment(t *testing.T) {
 	))
 	for _, expected := range []string{
 		"Rusty Sword", "Type: Equipment", "Slot: Weapon",
-		"Status: Equipped", "Weapon: Rusty Sword",
+		"Status: Equipped", "Attack: +1", "Weapon: Rusty Sword",
 	} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("inventory missing %q: %q", expected, output)
@@ -99,6 +103,57 @@ func TestInventoryRendererShowsConsumableEffectAndUseAction(t *testing.T) {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("inventory missing %q: %q", expected, output)
 		}
+	}
+}
+
+func TestEquipmentStatsAreDerivedFromEquippedInventoryReferences(t *testing.T) {
+	items, err := item.NewItems([]item.Definition{
+		{
+			ID: "sword", Name: "Sword", Type: item.TypeEquipment,
+			EquipmentSlot: item.SlotWeapon,
+			Stats:         item.EquipmentStats{Attack: 2},
+			MaxStack:      1,
+		},
+		{
+			ID: "helmet", Name: "Helmet", Type: item.TypeEquipment,
+			EquipmentSlot: item.SlotHelmet,
+			Stats:         item.EquipmentStats{Defense: 3},
+			MaxStack:      1,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	areas, err := world.NewAreas([]world.AreaDefinition{{
+		ID: "room", Name: "Room",
+		Layout: []string{
+			"#####",
+			"#...#",
+			"#####",
+		},
+		Spawn: world.Point{X: 1, Y: 1},
+	}}, world.References{Items: items})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := world.New(areas, items, nil, nil)
+	defer manager.Close()
+	inventory := &domain.Inventory{
+		CharacterID: 1,
+		Items: []domain.InventoryItem{
+			{Slot: 1, ItemKey: "sword", Quantity: 1},
+			{Slot: 2, ItemKey: "helmet", Quantity: 1},
+		},
+		Equipment: []domain.EquippedItem{{
+			EquipmentSlot: string(item.SlotWeapon), InventorySlot: 1,
+		}},
+	}
+	model := newGameModel(
+		Repositories{}, manager, nil, Identity{},
+		&domain.Character{ID: 1}, inventory,
+	)
+	if stats := model.equipmentStats(inventory); stats != (item.EquipmentStats{Attack: 2}) {
+		t.Fatalf("derived equipment stats = %#v", stats)
 	}
 }
 

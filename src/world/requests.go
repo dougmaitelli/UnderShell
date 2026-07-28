@@ -44,6 +44,13 @@ type useConsumableRequest struct {
 	reply      chan ConsumableResult
 }
 
+type updateEquipmentRequest struct {
+	id    int64
+	token string
+	stats item.EquipmentStats
+	reply chan Player
+}
+
 type spendSkillRequest struct {
 	id    int64
 	token string

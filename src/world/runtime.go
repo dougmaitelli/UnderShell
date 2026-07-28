@@ -81,6 +81,15 @@ func (s *runtimeState) handle(event any) {
 			s.broadcast()
 		}
 		request.reply <- result
+	case updateEquipmentRequest:
+		player := s.players.authenticated(request.id, request.token)
+		if player == nil {
+			request.reply <- Player{}
+			return
+		}
+		player.setEquipmentStats(request.stats)
+		s.broadcast()
+		request.reply <- player.Player
 	case spendSkillRequest:
 		player := s.players.authenticated(request.id, request.token)
 		if player == nil || !player.spendSkillPoint(request.skill) {

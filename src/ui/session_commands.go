@@ -36,7 +36,9 @@ func (m *gameModel) joinWorld() tea.Cmd {
 			AreaID: m.character.AreaID, X: m.character.X, Y: m.character.Y,
 			Level: m.character.Level, Experience: m.character.Experience,
 			SkillPoints: m.character.SkillPoints,
-			Attack:      m.character.Attack, Defense: m.character.Defense, Vitality: m.character.Vitality,
+			Attack:      m.character.Attack, Defense: m.character.Defense,
+			Vitality:       m.character.Vitality,
+			EquipmentStats: m.equipmentStats(m.inventory),
 		})
 		return worldJoinedMsg{session: session}
 	}

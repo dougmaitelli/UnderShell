@@ -8,19 +8,20 @@ import (
 )
 
 type Player struct {
-	ID          int64
-	Name        string
-	AreaID      string
-	X           int
-	Y           int
-	Health      int
-	MaxHealth   int
-	Level       int
-	Experience  int64
-	SkillPoints int
-	Attack      int
-	Defense     int
-	Vitality    int
+	ID             int64
+	Name           string
+	AreaID         string
+	X              int
+	Y              int
+	Health         int
+	MaxHealth      int
+	Level          int
+	Experience     int64
+	SkillPoints    int
+	Attack         int
+	Defense        int
+	Vitality       int
+	EquipmentStats item.EquipmentStats
 }
 
 type Snapshot struct {

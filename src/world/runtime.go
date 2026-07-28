@@ -70,6 +70,17 @@ func (s *runtimeState) handle(event any) {
 		request.reply <- s.loot.pickup(
 			s.players.authenticated(request.id, request.token), s.broadcast,
 		)
+	case useConsumableRequest:
+		player := s.players.authenticated(request.id, request.token)
+		if player == nil {
+			request.reply <- ConsumableResult{}
+			return
+		}
+		result := player.useConsumable(request.definition)
+		if result.Applied {
+			s.broadcast()
+		}
+		request.reply <- result
 	case spendSkillRequest:
 		player := s.players.authenticated(request.id, request.token)
 		if player == nil || !player.spendSkillPoint(request.skill) {

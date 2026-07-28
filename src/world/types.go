@@ -73,6 +73,8 @@ const (
 	EventDeath       EventKind = "death"
 	EventRespawn     EventKind = "respawn"
 	EventQuest       EventKind = "quest"
+	EventConsumable  EventKind = "consumable"
+	EventTrade       EventKind = "trade"
 )
 
 type Event struct {
@@ -88,6 +90,12 @@ type AttackResult struct {
 type PickupResult struct {
 	Item  GroundItem
 	Found bool
+}
+
+type ConsumableResult struct {
+	Player         Player
+	Applied        bool
+	HealthRestored int
 }
 
 const (

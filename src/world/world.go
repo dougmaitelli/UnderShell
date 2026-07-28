@@ -79,6 +79,29 @@ func (m *Manager) Pickup(id int64, token string) PickupResult {
 	}
 }
 
+func (m *Manager) UseConsumable(
+	id int64,
+	token string,
+	itemID string,
+) ConsumableResult {
+	if m.items == nil {
+		return ConsumableResult{}
+	}
+	definition, ok := m.items.Item(itemID)
+	if !ok || definition.Type != item.TypeConsumable {
+		return ConsumableResult{}
+	}
+	reply := make(chan ConsumableResult)
+	select {
+	case m.events <- useConsumableRequest{
+		id: id, token: token, definition: definition, reply: reply,
+	}:
+		return <-reply
+	case <-m.done:
+		return ConsumableResult{}
+	}
+}
+
 func (m *Manager) SpendSkillPoint(id int64, token, skill string) Player {
 	reply := make(chan Player)
 	select {

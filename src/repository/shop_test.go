@@ -92,3 +92,50 @@ func TestShopRejectsPurchaseWithoutGold(t *testing.T) {
 		t.Fatalf("failed purchase changed inventory: %#v", inventory.Items)
 	}
 }
+
+func TestShopRejectsSellingEquippedItem(t *testing.T) {
+	database, err := persistence.Open(filepath.Join(t.TempDir(), "game.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	ctx := context.Background()
+	character, err := NewCharacterRepository(database.ORM()).Create(
+		ctx,
+		CreateCharacterParams{
+			KeyFingerprint: "SHA256:equipped-shop",
+			PublicKeyType:  "ssh-ed25519",
+			PublicKey:      "key-equipped-shop",
+			Name:           "Knight",
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	shops := NewShopRepository(database.ORM())
+	bought, err := shops.BuyItem(ctx, character.ID, "rusty_sword", 1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stack := bought.Inventory.Items[0]
+	inventories := NewInventoryRepository(database.ORM())
+	if _, err := inventories.Equip(
+		ctx, character.ID, stack.Slot, stack.ItemKey, "weapon",
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = shops.SellItem(
+		ctx, character.ID, stack.Slot, stack.ItemKey, 5,
+	)
+	if !errors.Is(err, ErrItemEquipped) {
+		t.Fatalf("expected equipped item rejection, got %v", err)
+	}
+	reloaded, err := inventories.FindOrCreate(ctx, character.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reloaded.Items) != 1 || !reloaded.IsEquipped(stack.Slot) {
+		t.Fatalf("rejected sale changed equipment: %#v", reloaded)
+	}
+}

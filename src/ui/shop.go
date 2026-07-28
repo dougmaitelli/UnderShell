@@ -12,6 +12,7 @@ import (
 	"sshrpg/src/domain"
 	npcconfig "sshrpg/src/npc"
 	"sshrpg/src/repository"
+	"sshrpg/src/world"
 )
 
 type shopTab uint8
@@ -33,6 +34,7 @@ type shopSellEntry struct {
 	Item      domain.InventoryItem
 	Name      string
 	SellPrice int
+	Equipped  bool
 }
 
 type shopBuyEntry struct {
@@ -90,6 +92,7 @@ func (s *shopState) sellEntries(inventory *domain.Inventory) []shopSellEntry {
 		}
 		entries = append(entries, shopSellEntry{
 			Item: inventoryItem, Name: name, SellPrice: stock.SellPrice,
+			Equipped: inventory.IsEquipped(inventoryItem.Slot),
 		})
 	}
 	return entries
@@ -204,6 +207,8 @@ func (m *gameModel) updateShopTrade(msg shopTradeMsg) (tea.Model, tea.Cmd) {
 			m.shop.message = "Not enough gold."
 		} else if errors.Is(msg.err, repository.ErrItemNotOwned) {
 			m.shop.message = "That item is no longer available."
+		} else if errors.Is(msg.err, repository.ErrItemEquipped) {
+			m.shop.message = "Unequip that item before selling it."
 		} else {
 			m.shop.message = "The trade could not be completed."
 			m.log.Error("shop trade", "character_id", m.character.ID, "error", msg.err)
@@ -212,8 +217,10 @@ func (m *gameModel) updateShopTrade(msg shopTradeMsg) (tea.Model, tea.Cmd) {
 	}
 	m.inventory = msg.result.Inventory
 	m.character.Gold = msg.result.Gold
+	eventMessage := "Sold " + msg.itemName
 	if msg.buying {
 		m.shop.message = "Bought " + msg.itemName + "."
+		eventMessage = "Bought " + msg.itemName
 	} else {
 		m.shop.message = "Sold " + msg.itemName + "."
 	}
@@ -225,7 +232,9 @@ func (m *gameModel) updateShopTrade(msg shopTradeMsg) (tea.Model, tea.Cmd) {
 			m.shop.selected = count - 1
 		}
 	}
-	return m, nil
+	return m, m.addEvent(EventView{
+		Kind: world.EventTrade, Message: eventMessage,
+	})
 }
 
 type ShopRenderer struct{}
@@ -236,9 +245,13 @@ func (ShopRenderer) RenderOver(game string, width, height int, view ShopView) st
 	if view.Tab == shopTabSell {
 		tab = "SELL"
 		for index, entry := range view.Sell {
+			name := entry.Name
+			if entry.Equipped {
+				name += " [equipped]"
+			}
 			rows = append(rows, shopRow(
 				index == view.Selected,
-				fmt.Sprintf("%s ×%d", entry.Name, entry.Item.Quantity),
+				fmt.Sprintf("%s ×%d", name, entry.Item.Quantity),
 				entry.SellPrice,
 			))
 		}

@@ -10,7 +10,7 @@ func TestLoadItems(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "items.json")
 	if err := os.WriteFile(path, []byte(`{
 		"items": [
-			{"id":"health_potion","name":"Health Potion","description":"Restores health.","type":"consumable","max_stack":10}
+			{"id":"health_potion","name":"Health Potion","description":"Restores health.","type":"consumable","effects":[{"type":"restore_health","amount":5}],"max_stack":10}
 		]
 	}`), 0600); err != nil {
 		t.Fatal(err)
@@ -33,11 +33,44 @@ func TestLoadItems(t *testing.T) {
 
 func TestItemsRejectDuplicateIDs(t *testing.T) {
 	_, err := NewItems([]Definition{
-		{ID: "potion", Name: "Potion", Type: TypeConsumable, MaxStack: 10},
-		{ID: "potion", Name: "Other Potion", Type: TypeConsumable, MaxStack: 10},
+		{
+			ID: "potion", Name: "Potion", Type: TypeConsumable,
+			Effects:  []Effect{{Type: EffectRestoreHealth, Amount: 5}},
+			MaxStack: 10,
+		},
+		{
+			ID: "potion", Name: "Other Potion", Type: TypeConsumable,
+			Effects:  []Effect{{Type: EffectRestoreHealth, Amount: 5}},
+			MaxStack: 10,
+		},
 	})
 	if err == nil {
 		t.Fatal("expected duplicate item ID to fail validation")
+	}
+}
+
+func TestConsumablesRequireValidEffects(t *testing.T) {
+	for name, definition := range map[string]Definition{
+		"missing effect": {
+			ID: "potion", Name: "Potion",
+			Type: TypeConsumable, MaxStack: 10,
+		},
+		"unsupported effect": {
+			ID: "potion", Name: "Potion", Type: TypeConsumable,
+			Effects:  []Effect{{Type: "invisibility", Amount: 1}},
+			MaxStack: 10,
+		},
+		"zero amount": {
+			ID: "potion", Name: "Potion", Type: TypeConsumable,
+			Effects:  []Effect{{Type: EffectRestoreHealth}},
+			MaxStack: 10,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := NewItems([]Definition{definition}); err == nil {
+				t.Fatal("expected invalid consumable effect to fail")
+			}
+		})
 	}
 }
 

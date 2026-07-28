@@ -5,6 +5,9 @@
       "name": "Health Potion",
       "description": "Restores a small amount of health.",
       "type": "consumable",
+      "effects": [
+        { "type": "restore_health", "amount": 5 }
+      ],
       "max_stack": 10
     },
     {

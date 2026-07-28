@@ -18,6 +18,7 @@ type ViewState struct {
 	Snapshot          world.Snapshot
 	InventoryOpen     bool
 	Inventory         *domain.Inventory
+	InventoryView     InventoryView
 	SkillsOpen        bool
 	Events            []EventView
 	ChatMessages      []world.ChatMessage
@@ -80,7 +81,10 @@ func (r Renderer) Render(state ViewState) string {
 	case phasePlaying:
 		game := r.game.Render(state)
 		if state.InventoryOpen {
-			game = r.inventory.RenderOver(game, state.Width, state.Height, state.Inventory)
+			game = r.inventory.RenderOver(
+				game, state.Width, state.Height,
+				state.Inventory, state.InventoryView,
+			)
 		}
 		if state.SkillsOpen {
 			game = r.skills.RenderOver(game, state.Width, state.Height, state.Character)

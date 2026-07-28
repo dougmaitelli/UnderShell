@@ -16,7 +16,11 @@ func TestShopDefinitionValidatesItemReferences(t *testing.T) {
 	}}
 	items, err := item.NewItems([]item.Definition{{
 		ID: "potion", Name: "Potion", Description: "Restores health.",
-		Type: item.TypeConsumable, MaxStack: 10,
+		Type: item.TypeConsumable,
+		Effects: []item.Effect{{
+			Type: item.EffectRestoreHealth, Amount: 5,
+		}},
+		MaxStack: 10,
 	}})
 	if err != nil {
 		t.Fatal(err)

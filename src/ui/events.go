@@ -140,6 +140,10 @@ func eventStyle(kind world.EventKind) lipgloss.Style {
 	switch kind {
 	case world.EventPickup:
 		return pickupEventStyle
+	case world.EventConsumable:
+		return consumableEventStyle
+	case world.EventTrade:
+		return tradeEventStyle
 	case world.EventProgression:
 		return progressionEventStyle
 	case world.EventDamage, world.EventDeath:
@@ -163,6 +167,8 @@ var (
 				Border(lipgloss.RoundedBorder()).
 				BorderForeground(lipgloss.Color("#475569"))
 	pickupEventStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#4ADE80"))
+	consumableEventStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#2DD4BF"))
+	tradeEventStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#F59E0B"))
 	progressionEventStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#C084FC"))
 	damageEventStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#FB7185"))
 	combatEventStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#FBBF24"))

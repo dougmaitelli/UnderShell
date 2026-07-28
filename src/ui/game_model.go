@@ -34,18 +34,19 @@ type gameModel struct {
 	character *domain.Character
 	inventory *domain.Inventory
 
-	connection worldConnection
-	movement   movementState
-	actions    actionState
-	skills     skillsState
-	shop       shopState
-	quests     questState
-	chat       chatPanelState
-	eventFeed  eventFeed
-	mode       inputMode
-	width      int
-	height     int
-	renderer   Renderer
+	connection    worldConnection
+	movement      movementState
+	actions       actionState
+	inventoryMenu inventoryState
+	skills        skillsState
+	shop          shopState
+	quests        questState
+	chat          chatPanelState
+	eventFeed     eventFeed
+	mode          inputMode
+	width         int
+	height        int
+	renderer      Renderer
 }
 
 type characterCreatedMsg struct {
@@ -191,6 +192,10 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.addEvent(EventView{
 			Kind: world.EventPickup, Message: "Picked up " + msg.itemName,
 		})
+	case inventoryEquipmentMsg:
+		return m.updateInventoryEquipment(msg)
+	case inventoryConsumableMsg:
+		return m.updateInventoryConsumable(msg)
 	case skillSpentMsg:
 		m.skills.finishSpend()
 		if msg.player.ID == 0 {
@@ -289,6 +294,7 @@ func (m *gameModel) viewState() ViewState {
 		Snapshot:          m.connection.snapshot,
 		InventoryOpen:     m.mode == inputModeInventory,
 		Inventory:         m.inventory,
+		InventoryView:     m.inventoryView(),
 		SkillsOpen:        m.mode == inputModeSkills,
 		Events:            m.eventFeed.views(),
 		ChatMessages:      append([]world.ChatMessage(nil), m.chat.messages...),

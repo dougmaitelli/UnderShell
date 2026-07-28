@@ -77,6 +77,43 @@ func TestUnknownOrBlockedSavedLocationUsesDefaultSpawn(t *testing.T) {
 	}
 }
 
+func TestHealthConsumableRestoresHealthWithoutExceedingMaximum(t *testing.T) {
+	items, err := item.NewItems([]item.Definition{{
+		ID: "health_potion", Name: "Health Potion",
+		Type: item.TypeConsumable,
+		Effects: []item.Effect{{
+			Type: item.EffectRestoreHealth, Amount: 5,
+		}},
+		MaxStack: 10,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := New(testAreas(t), items, nil, nil)
+	defer manager.Close()
+	session := manager.Join(Player{
+		ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1,
+		Health: 6, MaxHealth: 10,
+	})
+	receiveSnapshot(t, session.Updates)
+
+	first := manager.UseConsumable(1, session.Token, "health_potion")
+	if !first.Applied || first.HealthRestored != 4 ||
+		first.Player.Health != 10 {
+		t.Fatalf("health potion result = %#v", first)
+	}
+	snapshot := receiveSnapshot(t, session.Updates)
+	if snapshot.Players[0].Health != 10 {
+		t.Fatalf("broadcast health = %d, want 10", snapshot.Players[0].Health)
+	}
+
+	full := manager.UseConsumable(1, session.Token, "health_potion")
+	if full.Applied || full.HealthRestored != 0 ||
+		full.Player.Health != 10 {
+		t.Fatalf("full-health potion result = %#v", full)
+	}
+}
+
 func TestEnemiesSpawnToCapAndRespawnInsideTheirArea(t *testing.T) {
 	enemies, err := enemy.NewEnemies([]enemy.Definition{{
 		ID: "slime", Name: "Slime", Visual: []string{"(s)"}, Health: 3, Experience: 1,

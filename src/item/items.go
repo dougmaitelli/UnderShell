@@ -30,12 +30,24 @@ const (
 	SlotLegs   EquipmentSlot = "legs"
 )
 
+type EffectType string
+
+const (
+	EffectRestoreHealth EffectType = "restore_health"
+)
+
+type Effect struct {
+	Type   EffectType `json:"type"`
+	Amount int        `json:"amount"`
+}
+
 type Definition struct {
 	ID            string        `json:"id"`
 	Name          string        `json:"name"`
 	Description   string        `json:"description"`
 	Type          Type          `json:"type"`
 	EquipmentSlot EquipmentSlot `json:"equipment_slot"`
+	Effects       []Effect      `json:"effects,omitempty"`
 	MaxStack      int           `json:"max_stack"`
 }
 
@@ -134,12 +146,25 @@ func validateDefinition(definition Definition) error {
 		return errors.New("max_stack must be at least 1")
 	}
 	switch definition.Type {
-	case TypeConsumable, TypeMaterial:
+	case TypeConsumable:
 		if definition.EquipmentSlot != "" {
 			return fmt.Errorf(
 				"%s items cannot define equipment_slot",
 				definition.Type,
 			)
+		}
+		if len(definition.Effects) == 0 {
+			return errors.New("consumable items require at least one effect")
+		}
+	case TypeMaterial:
+		if definition.EquipmentSlot != "" {
+			return fmt.Errorf(
+				"%s items cannot define equipment_slot",
+				definition.Type,
+			)
+		}
+		if len(definition.Effects) > 0 {
+			return errors.New("material items cannot define effects")
 		}
 	case TypeEquipment:
 		switch definition.EquipmentSlot {
@@ -153,8 +178,28 @@ func validateDefinition(definition Definition) error {
 		if definition.MaxStack != 1 {
 			return errors.New("equipment items must have max_stack 1")
 		}
+		if len(definition.Effects) > 0 {
+			return errors.New("equipment items cannot define effects")
+		}
 	default:
 		return fmt.Errorf("unsupported item type %q", definition.Type)
+	}
+	seenEffects := make(map[EffectType]bool, len(definition.Effects))
+	for _, effect := range definition.Effects {
+		if seenEffects[effect.Type] {
+			return fmt.Errorf("duplicate effect type %q", effect.Type)
+		}
+		seenEffects[effect.Type] = true
+		switch effect.Type {
+		case EffectRestoreHealth:
+			if effect.Amount < 1 {
+				return errors.New(
+					"restore_health effect amount must be at least 1",
+				)
+			}
+		default:
+			return fmt.Errorf("unsupported effect type %q", effect.Type)
+		}
 	}
 	return nil
 }

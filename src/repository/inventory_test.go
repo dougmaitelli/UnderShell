@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -85,5 +86,123 @@ func TestAddItemStacksToLimitThenUsesNextSlot(t *testing.T) {
 		third.Items[1].Quantity != 1 ||
 		third.Items[1].Slot != 2 {
 		t.Fatalf("third pickup = %#v", third.Items)
+	}
+}
+
+func TestEquipmentAssignmentsArePersistedReplacedAndRemoved(t *testing.T) {
+	database, err := persistence.Open(filepath.Join(t.TempDir(), "game.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	ctx := context.Background()
+	character, err := NewCharacterRepository(database.ORM()).Create(
+		ctx,
+		CreateCharacterParams{
+			KeyFingerprint: "SHA256:equipment",
+			PublicKeyType:  "ssh-ed25519",
+			PublicKey:      "key-equipment",
+			Name:           "Armorer",
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventories := NewInventoryRepository(database.ORM())
+	first, err := inventories.AddItem(ctx, character.ID, "rusty_sword", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := inventories.AddItem(ctx, character.ID, "iron_sword", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	equipped, err := inventories.Equip(
+		ctx, character.ID, first.Items[0].Slot, "rusty_sword", "weapon",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slot, ok := equipped.EquippedInventorySlot("weapon"); !ok ||
+		slot != first.Items[0].Slot {
+		t.Fatalf("first equipment assignment = %#v", equipped.Equipment)
+	}
+
+	replaced, err := inventories.Equip(
+		ctx, character.ID, second.Items[1].Slot, "iron_sword", "weapon",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(replaced.Equipment) != 1 ||
+		replaced.Equipment[0].InventorySlot != second.Items[1].Slot ||
+		replaced.IsEquipped(first.Items[0].Slot) {
+		t.Fatalf("replaced equipment assignment = %#v", replaced.Equipment)
+	}
+
+	unequipped, err := inventories.Unequip(ctx, character.ID, "weapon")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(unequipped.Equipment) != 0 {
+		t.Fatalf("equipment remained after unequip: %#v", unequipped.Equipment)
+	}
+}
+
+func TestConsumeItemDecrementsThenRemovesOwnedStack(t *testing.T) {
+	database, err := persistence.Open(filepath.Join(t.TempDir(), "game.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	ctx := context.Background()
+	character, err := NewCharacterRepository(database.ORM()).Create(
+		ctx,
+		CreateCharacterParams{
+			KeyFingerprint: "SHA256:consume",
+			PublicKeyType:  "ssh-ed25519",
+			PublicKey:      "key-consume",
+			Name:           "Alchemist",
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventories := NewInventoryRepository(database.ORM())
+	if _, err := inventories.AddItem(
+		ctx, character.ID, "health_potion", 10,
+	); err != nil {
+		t.Fatal(err)
+	}
+	stacked, err := inventories.AddItem(
+		ctx, character.ID, "health_potion", 10,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	remaining, err := inventories.ConsumeItem(
+		ctx, character.ID, stacked.Items[0].Slot, "health_potion",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(remaining.Items) != 1 || remaining.Items[0].Quantity != 1 {
+		t.Fatalf("consumed stack = %#v", remaining.Items)
+	}
+	empty, err := inventories.ConsumeItem(
+		ctx, character.ID, remaining.Items[0].Slot, "health_potion",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(empty.Items) != 0 {
+		t.Fatalf("last consumed item remained: %#v", empty.Items)
+	}
+	if _, err := inventories.ConsumeItem(
+		ctx, character.ID, remaining.Items[0].Slot, "health_potion",
+	); !errors.Is(err, ErrItemNotOwned) {
+		t.Fatalf("missing consumed item error = %v", err)
 	}
 }

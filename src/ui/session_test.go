@@ -239,7 +239,11 @@ func TestInteractOpensNearbyShopBeforePickup(t *testing.T) {
 	model.width, model.height = 80, 24
 	items, err := item.NewItems([]item.Definition{{
 		ID: "potion", Name: "Potion",
-		Type: item.TypeConsumable, MaxStack: 10,
+		Type: item.TypeConsumable,
+		Effects: []item.Effect{{
+			Type: item.EffectRestoreHealth, Amount: 5,
+		}},
+		MaxStack: 10,
 	}})
 	if err != nil {
 		t.Fatal(err)

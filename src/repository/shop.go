@@ -15,6 +15,7 @@ import (
 var (
 	ErrInsufficientGold = errors.New("not enough gold")
 	ErrItemNotOwned     = errors.New("item is no longer in the inventory")
+	ErrItemEquipped     = errors.New("equipped items cannot be sold")
 )
 
 type TradeResult struct {
@@ -112,6 +113,18 @@ func (r *BunShopRepository) SellItem(
 	}
 	if err != nil {
 		return TradeResult{}, fmt.Errorf("find sold inventory item: %w", err)
+	}
+	var equippedCount int
+	if err := tx.NewSelect().
+		Model((*entity.CharacterEquipment)(nil)).
+		ColumnExpr("COUNT(*)").
+		Where("character_id = ?", characterID).
+		Where("inventory_slot = ?", slot).
+		Scan(ctx, &equippedCount); err != nil {
+		return TradeResult{}, fmt.Errorf("check sold equipment: %w", err)
+	}
+	if equippedCount > 0 {
+		return TradeResult{}, ErrItemEquipped
 	}
 	if stack.Quantity > 1 {
 		if _, err := tx.NewUpdate().

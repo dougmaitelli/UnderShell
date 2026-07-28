@@ -1,5 +1,7 @@
 package world
 
+import "sshrpg/src/item"
+
 type joinRequest struct {
 	player Player
 	reply  chan Session
@@ -33,6 +35,13 @@ type pickupRequest struct {
 	id    int64
 	token string
 	reply chan PickupResult
+}
+
+type useConsumableRequest struct {
+	id         int64
+	token      string
+	definition *item.Definition
+	reply      chan ConsumableResult
 }
 
 type spendSkillRequest struct {

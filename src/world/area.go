@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"sshrpg/src/enemy"
+	"sshrpg/src/npc"
 )
 
 type Point struct {
@@ -28,17 +29,18 @@ type Waypoint struct {
 }
 
 type AreaDefinition struct {
-	ID          string       `json:"id"`
-	Name        string       `json:"name"`
-	Layout      []string     `json:"layout"`
-	Width       int          `json:"width"`
-	Height      int          `json:"height"`
-	Default     string       `json:"default_tile"`
-	Border      string       `json:"border_tile"`
-	Features    []TileRect   `json:"features"`
-	Spawn       Point        `json:"spawn"`
-	Waypoints   []Waypoint   `json:"waypoints"`
-	EnemySpawns []EnemySpawn `json:"enemy_spawns"`
+	ID          string           `json:"id"`
+	Name        string           `json:"name"`
+	Layout      []string         `json:"layout"`
+	Width       int              `json:"width"`
+	Height      int              `json:"height"`
+	Default     string           `json:"default_tile"`
+	Border      string           `json:"border_tile"`
+	Features    []TileRect       `json:"features"`
+	Spawn       Point            `json:"spawn"`
+	Waypoints   []Waypoint       `json:"waypoints"`
+	EnemySpawns []EnemySpawn     `json:"enemy_spawns"`
+	NPCs        []npc.Definition `json:"npcs"`
 }
 
 type EnemySpawn struct {
@@ -67,6 +69,7 @@ type Area struct {
 	Height      int
 	Spawn       Point
 	EnemySpawns []EnemySpawn
+	NPCs        []npc.Definition
 	waypoints   map[Point]Waypoint
 }
 
@@ -160,6 +163,9 @@ func (s *Areas) SetDefaultSpawn(areaID string, point Point) error {
 			point.X, point.Y, areaID,
 		)
 	}
+	if npc, occupied := area.NPCAt(point); occupied {
+		return fmt.Errorf("default spawn cannot overlap NPC %q", npc.ID)
+	}
 	s.defaultID, s.defaultPoint = areaID, point
 	return nil
 }
@@ -239,6 +245,7 @@ func buildArea(definition AreaDefinition) (*Area, error) {
 		Layout: append([]string(nil), definition.Layout...),
 		Width:  width, Height: len(definition.Layout), Spawn: definition.Spawn,
 		EnemySpawns: append([]EnemySpawn(nil), definition.EnemySpawns...),
+		NPCs:        npc.Clone(definition.NPCs),
 		waypoints:   make(map[Point]Waypoint, len(definition.Waypoints)),
 	}
 	if !area.Walkable(area.Spawn) {
@@ -293,6 +300,9 @@ func buildArea(definition AreaDefinition) (*Area, error) {
 			return nil, fmt.Errorf("enemy spawn %d must contain a walkable tile", index)
 		}
 		area.EnemySpawns[index] = spawn
+	}
+	if err := validateNPCPlacements(area); err != nil {
+		return nil, err
 	}
 	return area, nil
 }

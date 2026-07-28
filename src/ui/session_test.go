@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"sshrpg/src/domain"
+	"sshrpg/src/npc"
 	"sshrpg/src/world"
 )
 
@@ -41,6 +42,51 @@ func TestEnhancedMovementKeepsEarlierDirectionHeld(t *testing.T) {
 	_, _ = model.Update(tea.KeyReleaseMsg(tea.Key{Text: "s", Code: 's'}))
 	if dx, dy := heldMovement(model.movement.held); dx != -1 || dy != 0 {
 		t.Fatalf("movement after releasing S = (%d,%d), want (-1,0)", dx, dy)
+	}
+}
+
+func TestEnhancedMovementIgnoresTerminalKeyRepeats(t *testing.T) {
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{ID: 1}, nil)
+	model.phase = phasePlaying
+	model.movement.enhanced = true
+
+	_, initialCommand := model.Update(tea.KeyPressMsg(tea.Key{
+		Text: "s",
+		Code: 's',
+	}))
+	if initialCommand == nil {
+		t.Fatal("initial movement press did not start movement")
+	}
+	model.movement.inFlight = false
+	walkSteps := model.movement.walkSteps
+
+	_, repeatCommand := model.Update(tea.KeyPressMsg(tea.Key{
+		Text:     "s",
+		Code:     's',
+		IsRepeat: true,
+	}))
+	if repeatCommand != nil {
+		t.Fatal("enhanced movement accepted a terminal key-repeat event")
+	}
+	if model.movement.inFlight {
+		t.Fatal("terminal key repeat started an extra movement request")
+	}
+	if model.movement.walkSteps != walkSteps {
+		t.Fatal("terminal key repeat advanced the walking animation")
+	}
+}
+
+func TestBasicMovementUsesTerminalKeyRepeats(t *testing.T) {
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{ID: 1}, nil)
+	model.phase = phasePlaying
+
+	_, command := model.Update(tea.KeyPressMsg(tea.Key{
+		Text:     "s",
+		Code:     's',
+		IsRepeat: true,
+	}))
+	if command == nil || !model.movement.inFlight {
+		t.Fatal("basic movement did not accept a terminal key-repeat event")
 	}
 }
 
@@ -175,6 +221,71 @@ func TestPickupKeyRequestsNearbyDrop(t *testing.T) {
 	_, command := model.Update(tea.KeyPressMsg(tea.Key{Text: "e", Code: 'e'}))
 	if command == nil || !model.actions.pickupInFlight {
 		t.Fatalf("pickup state = in-flight %v, command %v", model.actions.pickupInFlight, command != nil)
+	}
+}
+
+func TestInteractOpensNearbyShopBeforePickup(t *testing.T) {
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{
+		ID: 1, Name: "Aria", AreaID: "market", X: 2, Y: 1, Gold: 100,
+	}, &domain.Inventory{CharacterID: 1})
+	model.phase = phasePlaying
+	model.width, model.height = 80, 24
+	areas, err := world.NewAreas([]world.AreaDefinition{{
+		ID: "market", Name: "Market",
+		Layout: []string{"########", "#......#", "########"},
+		Spawn:  world.Point{X: 1, Y: 1},
+		NPCs: []npc.Definition{{
+			ID: "merchant", Name: "Mira", Type: npc.TypeShop, X: 3, Y: 1,
+			Stock: []npc.ShopItem{{
+				ItemID: "potion", Name: "Potion", MaxStack: 10,
+				BuyPrice: 10, SellPrice: 5,
+			}},
+		}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	area, _ := areas.Area("market")
+	model.connection.snapshot = world.Snapshot{
+		Area: area,
+		Players: []world.Player{{
+			ID: 1, Name: "Aria", AreaID: "market", X: 2, Y: 1,
+		}},
+		Drops: []world.GroundItem{{
+			ID: 1, ItemID: "potion", Name: "Potion", AreaID: "market", X: 2, Y: 1,
+		}},
+	}
+
+	_, command := model.Update(tea.KeyPressMsg(tea.Key{Text: "e", Code: 'e'}))
+	if command != nil || model.mode != inputModeShop || model.actions.pickupInFlight {
+		t.Fatalf(
+			"interaction = mode %v, pickup %v, command %v",
+			model.mode, model.actions.pickupInFlight, command != nil,
+		)
+	}
+	plain := ansi.Strip(model.View().Content)
+	for _, expected := range []string{"Mira's Shop", "[BUY]", "Potion", "10 gold", "Gold: 100"} {
+		if !strings.Contains(plain, expected) {
+			t.Fatalf("shop is missing %q: %q", expected, plain)
+		}
+	}
+	_, command = model.Update(tea.KeyPressMsg(tea.Key{Text: "e", Code: 'e'}))
+	if command == nil || model.mode != inputModeShop || model.shop.npc == nil {
+		t.Fatal("E did not trade while keeping the shop open")
+	}
+	model.shop.inFlight = false
+	_, command = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeySpace}))
+	if command == nil || model.mode != inputModeShop || model.shop.npc == nil {
+		t.Fatal("Space did not trade while keeping the shop open")
+	}
+	model.shop.inFlight = false
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyTab}))
+	if model.shop.tab != shopTabSell {
+		t.Fatal("Tab did not switch the shop to selling")
+	}
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
+	if model.mode != inputModeGame || model.shop.npc != nil {
+		t.Fatal("Escape did not close the shop")
 	}
 }
 

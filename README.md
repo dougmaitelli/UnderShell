@@ -33,12 +33,12 @@ Use a different SSH key to create another character.
 |---|---|
 | WASD or arrow keys | Move |
 | X | Attack nearby enemies |
-| E | Pick up nearby item drops |
+| E | Interact with a nearby NPC or pick up an item drop |
 | I | Open or close inventory |
 | K | Open or close skills |
 | T | Focus chat |
 | F1 | Open or close help |
-| Esc | Close inventory |
+| Esc | Close the active menu |
 | Enter | Submit the character name |
 | Ctrl+C | Disconnect |
 
@@ -108,6 +108,18 @@ same width. A `#` tile is a wall; every other printable character is walkable.
     "##########"
   ],
   "spawn": { "x": 1, "y": 1 },
+  "npcs": [
+    {
+      "id": "merchant",
+      "name": "Mira",
+      "type": "shop",
+      "x": 3,
+      "y": 1,
+      "stock": [
+        { "item_id": "health_potion", "buy_price": 10, "sell_price": 5 }
+      ]
+    }
+  ],
   "enemy_spawns": [
     {
       "enemy_id": "slime",
@@ -165,6 +177,12 @@ Each `enemy_spawns` entry is a rectangular roaming area. The referenced
 enemies owned by that spawn may be alive at once. After one is defeated, the
 spawn creates one replacement every `respawn_seconds` until it reaches its cap.
 Enemies choose walkable steps and cannot leave their owning spawn rectangle.
+
+Area-owned NPCs are placed on walkable tiles and block player and enemy
+movement. Shop NPC stock references item definitions and assigns the price a
+player pays (`buy_price`) and receives (`sell_price`). Prices must be positive,
+and a shop cannot pay more than it charges for the same item. Invalid item
+references prevent startup.
 
 ## Items
 
@@ -287,6 +305,17 @@ items appear as the same green `◆` marker regardless of type. Press `E` within
 two tiles to collect one into the persistent inventory; normal item stack limits
 are respected. Enemies and uncollected ground drops are runtime-only.
 
+## Shops and gold
+
+Characters begin with 100 gold, which is persisted with their progression and
+shown in the HUD. Press `E` within two tiles of a shop NPC to open its menu.
+`Tab` switches between buying and selling, W/S or the arrow keys select an item,
+and `E` or Space trades one item. Press Escape to close the shop.
+
+Purchases and sales update gold and inventory in one database transaction.
+Shops buy only items listed in their configured stock, using that entry's
+`sell_price`.
+
 ## Persistent data
 
 Runtime state is written to `./data` with the default configuration:
@@ -328,8 +357,8 @@ SSH_LISTEN_ADDR=:22 ./bin/sshrpg
 - A newer login with the same character key disconnects the older session.
 - The server never receives or stores client private keys.
 
-Combat, collision, chat, inventory, and account/key recovery are not implemented
-yet. Losing a private key means losing access to its character until an
+Account/key recovery is not implemented yet. Losing a private key means losing
+access to its character until an
 administrative recovery workflow is available.
 
 ## Tests

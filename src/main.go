@@ -36,6 +36,7 @@ func main() {
 	defer database.Close()
 	characters := repository.NewCharacterRepository(database.ORM())
 	inventories := repository.NewInventoryRepository(database.ORM())
+	shops := repository.NewShopRepository(database.ORM())
 
 	areas, err := world.LoadAreas(cfg.MapsPath)
 	if err != nil {
@@ -72,11 +73,15 @@ func main() {
 		log.Error("validate enemy drops", "error", err)
 		os.Exit(1)
 	}
+	if err := areas.ValidateNPCs(items); err != nil {
+		log.Error("validate NPCs", "error", err)
+		os.Exit(1)
+	}
 	worldManager := world.New(areas, items, enemies)
 	defer worldManager.Close()
 
 	runner := ui.New(ui.Repositories{
-		Characters: characters, Inventories: inventories,
+		Characters: characters, Inventories: inventories, Shops: shops,
 	}, worldManager, log)
 	server, err := sshserver.New(cfg.ListenAddr, cfg.HostKeyPath, runner, log)
 	if err != nil {

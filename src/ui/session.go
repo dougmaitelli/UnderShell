@@ -24,6 +24,7 @@ type Identity struct {
 type Repositories struct {
 	Characters  repository.CharacterRepository
 	Inventories repository.InventoryRepository
+	Shops       repository.ShopRepository
 }
 
 type Runner struct {

@@ -180,6 +180,7 @@ func (r *BunCharacterRepository) UpdateProgress(
 		CharacterID: id,
 		Level:       level, Experience: experience, SkillPoints: skillPoints,
 		Attack: attack, Defense: defense, Vitality: vitality,
+		Gold: domain.DefaultStartingGold,
 	}
 	if _, err := r.db.NewInsert().
 		Model(progress).
@@ -201,7 +202,9 @@ func toDomain(
 	location *entity.CharacterLocation,
 	progress *entity.CharacterProgress,
 ) *domain.Character {
-	character := &domain.Character{ID: record.ID, Name: record.Name, Level: 1}
+	character := &domain.Character{
+		ID: record.ID, Name: record.Name, Level: 1, Gold: domain.DefaultStartingGold,
+	}
 	if location != nil {
 		character.AreaID = location.AreaID
 		character.X = location.X
@@ -214,6 +217,7 @@ func toDomain(
 		character.Attack = progress.Attack
 		character.Defense = progress.Defense
 		character.Vitality = progress.Vitality
+		character.Gold = progress.Gold
 	}
 	return character
 }

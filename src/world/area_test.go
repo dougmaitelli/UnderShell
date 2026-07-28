@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"sshrpg/src/enemy"
+	"sshrpg/src/item"
+	"sshrpg/src/npc"
 )
 
 func TestLoadAreasValidatesInterAreaWaypoints(t *testing.T) {
@@ -74,6 +76,17 @@ func TestBundledAreasAreValid(t *testing.T) {
 	if err := areas.ValidateEnemySpawns(enemies); err != nil {
 		t.Fatal(err)
 	}
+	items, err := item.LoadItems(filepath.Join("..", "..", "items", "items.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := areas.ValidateNPCs(items); err != nil {
+		t.Fatal(err)
+	}
+	shop, ok := meadow.NPCAt(Point{X: 11, Y: 32})
+	if !ok || shop.Type != npc.TypeShop || shop.Stock[0].Name == "" {
+		t.Fatalf("bundled shop NPC was not resolved: %#v", shop)
+	}
 }
 
 func TestEnemySpawnValidation(t *testing.T) {
@@ -119,6 +132,55 @@ func TestDefaultSpawnMustBeWalkableInKnownArea(t *testing.T) {
 	area, point := areas.DefaultSpawn()
 	if area.ID != "one" || point != (Point{X: 1, Y: 1}) {
 		t.Fatalf("unexpected default spawn: %s %#v", area.ID, point)
+	}
+}
+
+func TestShopNPCConfigurationAndItemResolution(t *testing.T) {
+	areas, err := NewAreas([]AreaDefinition{{
+		ID: "market", Name: "Market",
+		Layout: []string{"#####", "#...#", "#####"},
+		Spawn:  Point{X: 1, Y: 1},
+		NPCs: []npc.Definition{{
+			ID: "merchant", Name: "Mira", Type: npc.TypeShop, X: 2, Y: 1,
+			Stock: []npc.ShopItem{{
+				ItemID: "potion", BuyPrice: 10, SellPrice: 5,
+			}},
+		}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := item.NewItems([]item.Definition{{
+		ID: "potion", Name: "Potion", Description: "Restores health.", MaxStack: 10,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := areas.ValidateNPCs(items); err != nil {
+		t.Fatal(err)
+	}
+	area, _ := areas.Area("market")
+	npc, ok := area.NPCAt(Point{X: 2, Y: 1})
+	if !ok || npc.Name != "Mira" ||
+		npc.Stock[0].Name != "Potion" || npc.Stock[0].MaxStack != 10 {
+		t.Fatalf("unexpected resolved NPC: %#v", npc)
+	}
+}
+
+func TestShopNPCRejectsInvalidStockPrices(t *testing.T) {
+	_, err := NewAreas([]AreaDefinition{{
+		ID: "market", Name: "Market",
+		Layout: []string{"#####", "#...#", "#####"},
+		Spawn:  Point{X: 1, Y: 1},
+		NPCs: []npc.Definition{{
+			ID: "merchant", Name: "Mira", Type: npc.TypeShop, X: 2, Y: 1,
+			Stock: []npc.ShopItem{{
+				ItemID: "potion", BuyPrice: 5, SellPrice: 10,
+			}},
+		}},
+	}})
+	if err == nil {
+		t.Fatal("expected shop sell price above buy price to fail")
 	}
 }
 

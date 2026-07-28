@@ -16,6 +16,20 @@
     { "x": 157, "y": 23, "width": 4, "height": 13, "tile": "#" }
   ],
   "spawn": { "x": 7, "y": 32 },
+  "npcs": [
+    {
+      "id": "meadow_merchant",
+      "name": "Mira",
+      "type": "shop",
+      "x": 11,
+      "y": 32,
+      "stock": [
+        { "item_id": "health_potion", "buy_price": 10, "sell_price": 5 },
+        { "item_id": "rusty_sword", "buy_price": 50, "sell_price": 20 },
+        { "item_id": "slime_gel", "buy_price": 4, "sell_price": 2 }
+      ]
+    }
+  ],
   "enemy_spawns": [
     {
       "enemy_id": "slime",

@@ -7,6 +7,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
+	"sshrpg/src/npc"
 	"sshrpg/src/world"
 )
 
@@ -94,6 +95,15 @@ func (GameRenderer) Render(state ViewState) string {
 			enemy.Visual, enemyStyle,
 		)
 	}
+	if state.Snapshot.Area != nil {
+		for _, npc := range state.Snapshot.Area.NPCs {
+			x, y := npc.X-left, npc.Y-top
+			if x < 0 || y < 0 || x >= state.Width || y >= mapHeight {
+				continue
+			}
+			drawNPC(grid, x, y, npc)
+		}
+	}
 	// Draw players last so the local character remains visible when entities overlap.
 	for _, player := range visiblePlayers {
 		style, marker := otherPlayerStyle, "○"
@@ -128,8 +138,9 @@ func (GameRenderer) Render(state ViewState) string {
 		progression += fmt.Sprintf(" • SP %d", self.SkillPoints)
 	}
 	header := headerStyle.Render(fmt.Sprintf(
-		" %s • %s • HP %d/%d • %s  (%d, %d)  Players here: %d • Enemies: %d",
+		" %s • %s • HP %d/%d • Gold %d • %s  (%d, %d)  Players here: %d • Enemies: %d",
 		self.Name, progression, self.Health, self.MaxHealth,
+		state.Character.Gold,
 		areaName(state.Snapshot.Area), self.X, self.Y,
 		len(state.Snapshot.Players), len(state.Snapshot.Enemies),
 	))
@@ -138,6 +149,16 @@ func (GameRenderer) Render(state ViewState) string {
 		footer += " • Nearby: " + strings.Join(nearby, ", ")
 	}
 	return header + "\n" + strings.Join(rows, "\n") + "\n" + mutedStyle.Render(footer)
+}
+
+func drawNPC(grid [][]string, x, baseY int, definition npc.Definition) {
+	label := definition.Name
+	if definition.Type == npc.TypeShop {
+		label += " [Shop]"
+	}
+	drawCentered(grid, x, baseY-2, terminalCellRunes(label), npcStyle)
+	drawCentered(grid, x, baseY-1, []rune("O"), npcStyle)
+	drawCentered(grid, x, baseY, []rune("/$\\"), npcStyle)
 }
 
 func areaName(area *world.Area) string {
@@ -260,6 +281,9 @@ var (
 	groundItemStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#4ADE80"))
+	npcStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#F59E0B"))
 	wallStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#334155"))
 	waypointStyle = lipgloss.NewStyle().

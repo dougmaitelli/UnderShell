@@ -45,6 +45,9 @@ func (e *Enemy) move(direction Point) {
 }
 
 func (e *Enemy) canMoveTo(area *Area, spawn EnemySpawn, target Point) bool {
+	if _, occupied := area.NPCAt(target); occupied {
+		return false
+	}
 	return target.X >= spawn.X && target.X < spawn.X+spawn.Width &&
 		target.Y >= spawn.Y && target.Y < spawn.Y+spawn.Height &&
 		area.Walkable(target)

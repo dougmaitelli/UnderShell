@@ -75,5 +75,12 @@ func (m *gameModel) updateWorldSnapshot(msg worldSnapshotMsg) (tea.Model, tea.Cm
 		}
 		break
 	}
+	if m.mode == inputModeShop {
+		nearby := m.nearbyShop()
+		if nearby == nil || m.shop.npc == nil || nearby.ID != m.shop.npc.ID {
+			m.shop.close()
+			m.mode = inputModeGame
+		}
+	}
 	return m, tea.Batch(commands...)
 }

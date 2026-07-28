@@ -13,4 +13,5 @@ type CharacterProgress struct {
 	Attack      int   `bun:"attack,notnull,default:0"`
 	Defense     int   `bun:"defense,notnull,default:0"`
 	Vitality    int   `bun:"vitality,notnull,default:0"`
+	Gold        int   `bun:"gold,notnull,default:100"`
 }

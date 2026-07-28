@@ -24,6 +24,8 @@ type ViewState struct {
 	ChatFocused   bool
 	ChatInput     string
 	HelpOpen      bool
+	ShopOpen      bool
+	Shop          ShopView
 	AttackFrame   int
 	WalkFrame     int
 	FacingX       int
@@ -38,6 +40,7 @@ type Renderer struct {
 	events    EventRenderer
 	chat      ChatRenderer
 	help      HelpRenderer
+	shop      ShopRenderer
 }
 
 func NewRenderer() Renderer {
@@ -49,6 +52,7 @@ func NewRenderer() Renderer {
 		events:    EventRenderer{},
 		chat:      ChatRenderer{},
 		help:      HelpRenderer{},
+		shop:      ShopRenderer{},
 	}
 }
 
@@ -71,6 +75,9 @@ func (r Renderer) Render(state ViewState) string {
 		}
 		if state.SkillsOpen {
 			game = r.skills.RenderOver(game, state.Width, state.Height, state.Character)
+		}
+		if state.ShopOpen {
+			game = r.shop.RenderOver(game, state.Width, state.Height, state.Shop)
 		}
 		game = r.chat.RenderOver(
 			game, state.Width, state.Height,

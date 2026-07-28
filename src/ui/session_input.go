@@ -14,6 +14,7 @@ const (
 	inputModeSkills
 	inputModeChat
 	inputModeHelp
+	inputModeShop
 )
 
 func (m *gameModel) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -35,6 +36,8 @@ func (m *gameModel) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.updateChatInput(msg)
 	case inputModeHelp:
 		return m.updateHelpInput(msg)
+	case inputModeShop:
+		return m.updateShopInput(msg)
 	default:
 		return m.updateGameplayInput(msg)
 	}
@@ -55,6 +58,10 @@ func (m *gameModel) updateGameplayInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd
 	case "x", "e":
 		return m.updateActionInput(msg)
 	default:
+		if m.movement.enhanced && msg.IsRepeat &&
+			directionKey(msg.String()) != "" {
+			return m, nil
+		}
 		return m, m.handleMovementPress(msg.String())
 	}
 }

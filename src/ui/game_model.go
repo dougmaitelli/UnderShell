@@ -38,6 +38,7 @@ type gameModel struct {
 	movement   movementState
 	actions    actionState
 	skills     skillsState
+	shop       shopState
 	chat       chatPanelState
 	eventFeed  eventFeed
 	mode       inputMode
@@ -230,6 +231,8 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateChatMessage(msg)
 	case chatSentMsg:
 		return m, nil
+	case shopTradeMsg:
+		return m.updateShopTrade(msg)
 	case eventExpiredMsg:
 		m.eventFeed.expire(msg.id)
 		return m, nil
@@ -284,6 +287,8 @@ func (m *gameModel) viewState() ViewState {
 		ChatFocused:   m.mode == inputModeChat,
 		ChatInput:     m.chat.input.View(),
 		HelpOpen:      m.mode == inputModeHelp,
+		ShopOpen:      m.mode == inputModeShop,
+		Shop:          m.shop.view(m.character, m.inventory),
 		AttackFrame:   m.actions.attackFrame,
 		WalkFrame:     m.movement.walkFrame,
 		FacingX:       m.movement.facingX,

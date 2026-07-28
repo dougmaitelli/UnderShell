@@ -48,6 +48,9 @@ func (m *gameModel) updateActionInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 			return m, tea.Batch(m.attack(), attackAnimationTick(2))
 		}
 	case "e":
+		if shop := m.nearbyShop(); shop != nil {
+			return m.openShop(shop)
+		}
 		if m.actions.beginPickup() {
 			return m, m.pickup()
 		}

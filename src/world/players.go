@@ -106,6 +106,9 @@ func (s *playerSystem) moveActive(player *activePlayer, dx, dy int) {
 	if !area.Walkable(target) {
 		return
 	}
+	if _, occupied := area.NPCAt(target); occupied {
+		return
+	}
 	player.X, player.Y = target.X, target.Y
 	if waypoint, ok := area.Waypoint(target); ok {
 		player.AreaID = waypoint.DestinationArea

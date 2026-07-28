@@ -10,6 +10,8 @@ import (
 
 var ErrInvalidCharacterName = errors.New("name must be 3-20 printable characters")
 
+const DefaultStartingGold = 100
+
 // Character is the game-facing representation of a character. Database
 // identity and ORM metadata intentionally do not belong in this model.
 type Character struct {
@@ -24,6 +26,7 @@ type Character struct {
 	Attack      int
 	Defense     int
 	Vitality    int
+	Gold        int
 }
 
 func ValidateCharacterName(value string) (string, error) {

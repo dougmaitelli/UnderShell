@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"sshrpg/src/domain"
 	"sshrpg/src/persistence"
 )
 
@@ -30,7 +31,8 @@ func TestCharacterIdentityAndPersistence(t *testing.T) {
 	if created.AreaID != "" {
 		t.Fatalf("new character should not have a persisted location yet: %#v", created)
 	}
-	if created.Level != 1 || created.Experience != 0 || created.SkillPoints != 0 {
+	if created.Level != 1 || created.Experience != 0 || created.SkillPoints != 0 ||
+		created.Gold != domain.DefaultStartingGold {
 		t.Fatalf("unexpected initial progression: %#v", created)
 	}
 	if err := characters.UpdateLocation(ctx, created.ID, "cavern", 7, 9); err != nil {
@@ -47,7 +49,8 @@ func TestCharacterIdentityAndPersistence(t *testing.T) {
 	if found == nil || found.Name != "Aria" || found.AreaID != "cavern" ||
 		found.X != 7 || found.Y != 9 ||
 		found.Level != 3 || found.Experience != 50 || found.SkillPoints != 2 ||
-		found.Attack != 4 || found.Defense != 3 || found.Vitality != 2 {
+		found.Attack != 4 || found.Defense != 3 || found.Vitality != 2 ||
+		found.Gold != domain.DefaultStartingGold {
 		t.Fatalf("unexpected character: %#v", found)
 	}
 

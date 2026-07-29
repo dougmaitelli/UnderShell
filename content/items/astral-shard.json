@@ -3,5 +3,6 @@
   "name": "Astral Shard",
   "description": "A splinter of cold light from a fallen star creature.",
   "type": "material",
+  "sell_price": 50,
   "max_stack": 50
 }

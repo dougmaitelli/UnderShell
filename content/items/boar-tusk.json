@@ -3,5 +3,6 @@
   "name": "Boar Tusk",
   "description": "A curved tusk taken from a highland boar.",
   "type": "material",
+  "sell_price": 6,
   "max_stack": 50
 }

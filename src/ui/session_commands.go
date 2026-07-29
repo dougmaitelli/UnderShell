@@ -82,6 +82,31 @@ func (m *gameModel) sendChat(message string) tea.Cmd {
 	}
 }
 
+func (m *gameModel) executeAdminCommand(message string) tea.Cmd {
+	return func() tea.Msg {
+		if m.admin == nil {
+			return adminCommandMsg{err: errors.New("admin commands are unavailable")}
+		}
+		result, err := m.admin.ExecuteChat(
+			context.Background(),
+			m.character.ID,
+			m.connection.session.Token,
+			m.character.Name,
+			message,
+		)
+		return adminCommandMsg{message: result, err: err}
+	}
+}
+
+func (m *gameModel) reloadInventory() tea.Cmd {
+	return func() tea.Msg {
+		inventory, err := m.repositories.Inventories.FindOrCreate(
+			context.Background(), m.character.ID,
+		)
+		return inventoryReloadedMsg{inventory: inventory, err: err}
+	}
+}
+
 func (m *gameModel) storePickup(drop world.GroundItem) tea.Cmd {
 	return func() tea.Msg {
 		if drop.Item == nil {
@@ -127,10 +152,10 @@ func waitForSnapshot(updates <-chan world.Snapshot) tea.Cmd {
 	}
 }
 
-func waitForKick(kicked <-chan struct{}) tea.Cmd {
+func waitForKick(kicked <-chan string) tea.Cmd {
 	return func() tea.Msg {
-		<-kicked
-		return worldKickedMsg{}
+		reason, ok := <-kicked
+		return worldKickedMsg{reason: reason, ok: ok}
 	}
 }
 

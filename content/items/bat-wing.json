@@ -3,5 +3,6 @@
   "name": "Bat Wing",
   "description": "A delicate wing recovered from a cave bat.",
   "type": "material",
+  "sell_price": 3,
   "max_stack": 50
 }

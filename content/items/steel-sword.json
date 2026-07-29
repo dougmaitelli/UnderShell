@@ -3,6 +3,7 @@
   "name": "Steel Sword",
   "description": "A balanced blade forged for experienced travelers.",
   "type": "equipment",
+  "sell_price": 100,
   "equipment_slot": "weapon",
   "stats": {
     "attack": 3

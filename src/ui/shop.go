@@ -10,6 +10,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"sshrpg/src/domain"
+	"sshrpg/src/item"
 	npcconfig "sshrpg/src/npc"
 	"sshrpg/src/repository"
 	"sshrpg/src/world"
@@ -72,27 +73,23 @@ func (s *shopState) close() {
 	*s = shopState{}
 }
 
-func (s *shopState) sellEntries(inventory *domain.Inventory) []shopSellEntry {
-	if s.npc == nil || inventory == nil {
+func (s *shopState) sellEntries(
+	inventory *domain.Inventory,
+	definitions *item.Items,
+) []shopSellEntry {
+	if s.npc == nil || inventory == nil || definitions == nil {
 		return nil
-	}
-	prices := make(map[string]npcconfig.ShopItem, len(s.npc.Stock))
-	for _, stock := range s.npc.Stock {
-		prices[stock.Item.ID] = stock
 	}
 	entries := make([]shopSellEntry, 0, len(inventory.Items))
 	for _, inventoryItem := range inventory.Items {
-		stock, ok := prices[inventoryItem.ItemKey]
-		if !ok {
+		definition, ok := definitions.Item(inventoryItem.ItemKey)
+		if !ok || definition.SellPrice < 1 {
 			continue
 		}
-		name := inventoryItem.ItemKey
-		if stock.Item != nil {
-			name = stock.Item.Name
-		}
 		entries = append(entries, shopSellEntry{
-			Item: inventoryItem, Name: name, SellPrice: stock.SellPrice,
-			Equipped: inventory.IsEquipped(inventoryItem.Slot),
+			Item: inventoryItem, Name: definition.Name,
+			SellPrice: definition.SellPrice,
+			Equipped:  inventory.IsEquipped(inventoryItem.Slot),
 		})
 	}
 	return entries
@@ -101,6 +98,7 @@ func (s *shopState) sellEntries(inventory *domain.Inventory) []shopSellEntry {
 func (s *shopState) view(
 	character *domain.Character,
 	inventory *domain.Inventory,
+	definitions *item.Items,
 ) ShopView {
 	if s.npc == nil {
 		return ShopView{}
@@ -117,7 +115,7 @@ func (s *shopState) view(
 	}
 	return ShopView{
 		NPCName: s.npc.Name, Tab: s.tab, Selected: s.selected, Gold: gold,
-		Stock: stock, Sell: s.sellEntries(inventory),
+		Stock: stock, Sell: s.sellEntries(inventory, definitions),
 		Message: s.message, InFlight: s.inFlight,
 	}
 }
@@ -127,6 +125,21 @@ func (m *gameModel) openShop(npc *npcconfig.Definition) (tea.Model, tea.Cmd) {
 	m.mode = inputModeShop
 	m.movement.stop()
 	return m, nil
+}
+
+func (m *gameModel) shopSellEntries() []shopSellEntry {
+	if m.world == nil {
+		return nil
+	}
+	return m.shop.sellEntries(m.inventory, m.world.Items())
+}
+
+func (m *gameModel) shopView() ShopView {
+	var definitions *item.Items
+	if m.world != nil {
+		definitions = m.world.Items()
+	}
+	return m.shop.view(m.character, m.inventory, definitions)
 }
 
 func (m *gameModel) updateShopInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -151,7 +164,7 @@ func (m *gameModel) updateShopInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	count := len(m.shop.npc.Stock)
 	if m.shop.tab == shopTabSell {
-		count = len(m.shop.sellEntries(m.inventory))
+		count = len(m.shopSellEntries())
 	}
 	switch key {
 	case "up", "w":
@@ -172,7 +185,7 @@ func (m *gameModel) updateShopInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, m.buyShopItem(m.shop.npc.Stock[m.shop.selected])
 		}
 		return m, m.sellShopItem(
-			m.shop.sellEntries(m.inventory)[m.shop.selected],
+			m.shopSellEntries()[m.shop.selected],
 		)
 	}
 	return m, nil
@@ -225,7 +238,7 @@ func (m *gameModel) updateShopTrade(msg shopTradeMsg) (tea.Model, tea.Cmd) {
 		m.shop.message = "Sold " + msg.itemName + "."
 	}
 	if m.shop.tab == shopTabSell {
-		count := len(m.shop.sellEntries(m.inventory))
+		count := len(m.shopSellEntries())
 		if count == 0 {
 			m.shop.selected = 0
 		} else if m.shop.selected >= count {

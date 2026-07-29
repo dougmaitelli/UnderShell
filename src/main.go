@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"sshrpg/src/admin"
 	"sshrpg/src/config"
 	"sshrpg/src/enemy"
 	"sshrpg/src/item"
@@ -82,11 +83,12 @@ func main() {
 	}
 	worldManager := world.New(areas, items, enemies, quests)
 	defer worldManager.Close()
+	adminCommands := admin.New(characters, inventories, items, worldManager)
 
 	runner := ui.New(ui.Repositories{
 		Characters: characters, Inventories: inventories, Shops: shops,
 		Quests: questProgress,
-	}, worldManager, log)
+	}, worldManager, adminCommands, log)
 	server, err := sshserver.New(cfg.ListenAddr, cfg.HostKeyPath, runner, log)
 	if err != nil {
 		log.Error("configure SSH server", "error", err)
@@ -95,6 +97,11 @@ func main() {
 
 	errs := make(chan error, 1)
 	go func() { errs <- server.ListenAndServe() }()
+	go func() {
+		if err := adminCommands.RunConsole(context.Background(), os.Stdin, os.Stdout); err != nil {
+			log.Error("admin console stopped", "error", err)
+		}
+	}()
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)

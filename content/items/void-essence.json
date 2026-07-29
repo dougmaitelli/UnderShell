@@ -3,5 +3,6 @@
   "name": "Void Essence",
   "description": "A sealed trace of the darkness between worlds.",
   "type": "material",
+  "sell_price": 60,
   "max_stack": 50
 }

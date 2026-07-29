@@ -16,6 +16,7 @@ import (
 type InventoryRepository interface {
 	FindOrCreate(context.Context, int64) (*domain.Inventory, error)
 	AddItem(context.Context, int64, string, int) (*domain.Inventory, error)
+	AddItems(context.Context, int64, string, int, int) (*domain.Inventory, error)
 	ConsumeItem(context.Context, int64, int, string) (*domain.Inventory, error)
 	Equip(context.Context, int64, int, string, string) (*domain.Inventory, error)
 	Unequip(context.Context, int64, string) (*domain.Inventory, error)
@@ -27,46 +28,74 @@ func (r *BunInventoryRepository) AddItem(
 	itemKey string,
 	maxStack int,
 ) (*domain.Inventory, error) {
+	return r.AddItems(ctx, characterID, itemKey, maxStack, 1)
+}
+
+func (r *BunInventoryRepository) AddItems(
+	ctx context.Context,
+	characterID int64,
+	itemKey string,
+	maxStack int,
+	quantity int,
+) (*domain.Inventory, error) {
 	if maxStack < 1 {
 		return nil, errors.New("max stack must be at least 1")
 	}
-	stack := &entity.InventoryItem{}
-	err := r.db.NewSelect().
-		Model(stack).
-		Where("character_id = ?", characterID).
-		Where("item_key = ?", itemKey).
-		Where("quantity < ?", maxStack).
-		Order("slot ASC").
-		Limit(1).
-		Scan(ctx)
-	switch {
-	case err == nil:
-		if _, err := r.db.NewUpdate().
+	if quantity < 1 {
+		return nil, errors.New("quantity must be at least 1")
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin add inventory items: %w", err)
+	}
+	defer tx.Rollback()
+
+	for quantity > 0 {
+		stack := &entity.InventoryItem{}
+		err := tx.NewSelect().
 			Model(stack).
-			Column("quantity").
-			Set("quantity = quantity + 1").
-			WherePK().
-			Exec(ctx); err != nil {
-			return nil, fmt.Errorf("increase inventory item: %w", err)
+			Where("character_id = ?", characterID).
+			Where("item_key = ?", itemKey).
+			Where("quantity < ?", maxStack).
+			Order("slot ASC").
+			Limit(1).
+			Scan(ctx)
+		if err == nil {
+			added := min(quantity, maxStack-stack.Quantity)
+			if _, err := tx.NewUpdate().
+				Model(stack).
+				Column("quantity").
+				Set("quantity = quantity + ?", added).
+				WherePK().
+				Exec(ctx); err != nil {
+				return nil, fmt.Errorf("increase inventory item: %w", err)
+			}
+			quantity -= added
+			continue
 		}
-	case errors.Is(err, sql.ErrNoRows):
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("find inventory stack: %w", err)
+		}
 		var nextSlot int
-		if err := r.db.NewSelect().
+		if err := tx.NewSelect().
 			Model((*entity.InventoryItem)(nil)).
 			ColumnExpr("COALESCE(MAX(slot), 0) + 1").
 			Where("character_id = ?", characterID).
 			Scan(ctx, &nextSlot); err != nil {
 			return nil, fmt.Errorf("find next inventory slot: %w", err)
 		}
+		added := min(quantity, maxStack)
 		stack = &entity.InventoryItem{
 			CharacterID: characterID,
-			Slot:        nextSlot, ItemKey: itemKey, Quantity: 1,
+			Slot:        nextSlot, ItemKey: itemKey, Quantity: added,
 		}
-		if _, err := r.db.NewInsert().Model(stack).Exec(ctx); err != nil {
+		if _, err := tx.NewInsert().Model(stack).Exec(ctx); err != nil {
 			return nil, fmt.Errorf("add inventory item: %w", err)
 		}
-	default:
-		return nil, fmt.Errorf("find inventory stack: %w", err)
+		quantity -= added
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit inventory items: %w", err)
 	}
 	return r.FindOrCreate(ctx, characterID)
 }

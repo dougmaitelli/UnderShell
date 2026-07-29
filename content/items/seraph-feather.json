@@ -3,5 +3,6 @@
   "name": "Seraph Feather",
   "description": "A radiant feather shed by a celestial guardian.",
   "type": "material",
+  "sell_price": 80,
   "max_stack": 50
 }

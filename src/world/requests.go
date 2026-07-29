@@ -1,6 +1,9 @@
 package world
 
-import "sshrpg/src/item"
+import (
+	"sshrpg/src/domain"
+	"sshrpg/src/item"
+)
 
 type joinRequest struct {
 	player Player
@@ -63,4 +66,68 @@ type chatRequest struct {
 	token   string
 	message string
 	reply   chan bool
+}
+
+type adminAuthorizeRequest struct {
+	id    int64
+	token string
+	reply chan adminAuthorizeResult
+}
+
+type adminAuthorizeResult struct {
+	role domain.CharacterRole
+	ok   bool
+}
+
+type adminFindPlayerRequest struct {
+	name  string
+	reply chan adminPlayerResult
+}
+
+type adminPlayerResult struct {
+	player Player
+	err    error
+}
+
+type adminGrantExperienceRequest struct {
+	name   string
+	amount int64
+	reply  chan adminPlayerResult
+}
+
+type adminGrantLevelsRequest struct {
+	name   string
+	amount int
+	reply  chan adminPlayerResult
+}
+
+type adminTeleportAreaRequest struct {
+	name  string
+	area  string
+	reply chan adminPlayerResult
+}
+
+type adminTeleportPlayerRequest struct {
+	name        string
+	destination string
+	reply       chan adminPlayerResult
+}
+
+type adminNotifyRequest struct {
+	id               int64
+	message          string
+	inventoryChanged bool
+	reply            chan bool
+}
+
+type adminSetRoleRequest struct {
+	name  string
+	role  domain.CharacterRole
+	reply chan adminPlayerResult
+}
+
+type adminKickRequest struct {
+	name   string
+	reason string
+	reply  chan adminPlayerResult
 }

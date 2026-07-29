@@ -50,7 +50,10 @@ func TestWallsBlockMovementAndReconnectReplacesSession(t *testing.T) {
 
 	replacement := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
 	select {
-	case <-first.Kicked:
+	case reason := <-first.Kicked:
+		if reason != "This character connected from another session." {
+			t.Fatalf("replacement reason = %q", reason)
+		}
 	case <-time.After(time.Second):
 		t.Fatal("older session was not kicked")
 	}

@@ -3,6 +3,7 @@
   "name": "Greater Health Potion",
   "description": "Restores a large amount of health.",
   "type": "consumable",
+  "sell_price": 35,
   "effects": [
     { "type": "restore_health", "amount": 50 }
   ],

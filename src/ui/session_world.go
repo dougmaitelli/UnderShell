@@ -30,7 +30,14 @@ func (m *gameModel) updateWorldEvent(msg worldEventMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	expiry := m.addEvent(EventView{Kind: msg.event.Kind, Message: msg.event.Message})
-	return m, tea.Batch(expiry, waitForWorldEvent(m.connection.session.Events))
+	commands := []tea.Cmd{
+		expiry,
+		waitForWorldEvent(m.connection.session.Events),
+	}
+	if msg.event.InventoryChanged {
+		commands = append(commands, m.reloadInventory())
+	}
+	return m, tea.Batch(commands...)
 }
 
 func (m *gameModel) updateChatMessage(msg chatMessageMsg) (tea.Model, tea.Cmd) {
@@ -72,6 +79,7 @@ func (m *gameModel) updateWorldSnapshot(msg worldSnapshotMsg) (tea.Model, tea.Cm
 			m.character.Vitality != player.Vitality
 		m.character.AreaID = player.AreaID
 		m.character.X, m.character.Y = player.X, player.Y
+		m.character.Role = player.Role
 		m.character.Level = player.Level
 		m.character.Experience = player.Experience
 		m.character.SkillPoints = player.SkillPoints

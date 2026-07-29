@@ -201,6 +201,19 @@ func (s *Areas) Area(id string) (*Area, bool) {
 	return area, ok
 }
 
+func (s *Areas) FindArea(value string) (*Area, bool) {
+	value = strings.TrimSpace(value)
+	if area, ok := s.areas[value]; ok {
+		return area, true
+	}
+	for _, area := range s.areas {
+		if strings.EqualFold(area.Name, value) {
+			return area, true
+		}
+	}
+	return nil, false
+}
+
 func (s *Areas) NPC(id string) (*npc.Definition, *Area, bool) {
 	location, ok := s.npcs[id]
 	if !ok {

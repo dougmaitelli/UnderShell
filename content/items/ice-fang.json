@@ -3,5 +3,6 @@
   "name": "Ice Fang",
   "description": "A wolf fang that remains cold far from the mountain.",
   "type": "material",
+  "sell_price": 22,
   "max_stack": 50
 }

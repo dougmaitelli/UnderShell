@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/colorprofile"
 	"github.com/charmbracelet/ssh"
 
+	"sshrpg/src/admin"
 	"sshrpg/src/domain"
 	"sshrpg/src/repository"
 	"sshrpg/src/world"
@@ -21,6 +22,8 @@ type Identity struct {
 	PublicKey   string
 }
 
+const bannedAccountMessage = "This account has been permanently banned."
+
 type Repositories struct {
 	Characters  repository.CharacterRepository
 	Inventories repository.InventoryRepository
@@ -31,17 +34,19 @@ type Repositories struct {
 type Runner struct {
 	repositories Repositories
 	world        *world.Manager
+	admin        *admin.Handler
 	log          *slog.Logger
 }
 
 func New(
 	repositories Repositories,
 	worldManager *world.Manager,
+	adminHandler *admin.Handler,
 	log *slog.Logger,
 ) *Runner {
 	return &Runner{
 		repositories: repositories,
-		world:        worldManager, log: log,
+		world:        worldManager, admin: adminHandler, log: log,
 	}
 }
 
@@ -58,6 +63,10 @@ func (r *Runner) Run(session ssh.Session, identity Identity) {
 	if err != nil {
 		r.log.Error("load character", "error", err)
 		_, _ = io.WriteString(session, "The game could not load your character. Please try again.\n")
+		return
+	}
+	if char != nil && char.Banned {
+		_, _ = io.WriteString(session, bannedAccountMessage+"\n")
 		return
 	}
 	var inventory *domain.Inventory
@@ -78,6 +87,7 @@ func (r *Runner) Run(session ssh.Session, identity Identity) {
 	}
 
 	model := newGameModel(r.repositories, r.world, r.log, identity, char, inventory)
+	model.admin = r.admin
 	model.quests.setProgress(quests)
 	program := tea.NewProgram(
 		model,

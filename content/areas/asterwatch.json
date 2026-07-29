@@ -53,11 +53,11 @@
       "x": 30,
       "y": 28,
       "stock": [
-        { "item_id": "greater_health_potion", "buy_price": 80, "sell_price": 35 },
-        { "item_id": "superior_health_potion", "buy_price": 150, "sell_price": 65 },
-        { "item_id": "major_health_potion", "buy_price": 280, "sell_price": 120 },
-        { "item_id": "starblade", "buy_price": 900, "sell_price": 380 },
-        { "item_id": "astral_armor", "buy_price": 1100, "sell_price": 460 }
+        { "item_id": "greater_health_potion", "buy_price": 80 },
+        { "item_id": "superior_health_potion", "buy_price": 150 },
+        { "item_id": "major_health_potion", "buy_price": 280 },
+        { "item_id": "starblade", "buy_price": 900 },
+        { "item_id": "astral_armor", "buy_price": 1100 }
       ]
     },
     {

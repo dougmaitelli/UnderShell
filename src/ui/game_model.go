@@ -8,6 +8,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
+	"sshrpg/src/admin"
 	"sshrpg/src/domain"
 	"sshrpg/src/repository"
 	"sshrpg/src/world"
@@ -24,6 +25,7 @@ const (
 type gameModel struct {
 	repositories Repositories
 	world        *world.Manager
+	admin        *admin.Handler
 	log          *slog.Logger
 	identity     Identity
 
@@ -72,7 +74,10 @@ type chatMessageMsg struct {
 	message world.ChatMessage
 	ok      bool
 }
-type worldKickedMsg struct{}
+type worldKickedMsg struct {
+	reason string
+	ok     bool
+}
 
 type playerMovedMsg struct {
 	player world.Player
@@ -98,6 +103,14 @@ type itemStoredMsg struct {
 type skillSpentMsg struct{ player world.Player }
 type eventExpiredMsg struct{ id uint64 }
 type chatSentMsg struct{ ok bool }
+type adminCommandMsg struct {
+	message string
+	err     error
+}
+type inventoryReloadedMsg struct {
+	inventory *domain.Inventory
+	err       error
+}
 
 func newGameModel(
 	repositories Repositories,
@@ -216,6 +229,10 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				if existing, err := m.repositories.Characters.FindByFingerprint(
 					context.Background(), m.identity.Fingerprint,
 				); err == nil && existing != nil {
+					if existing.Banned {
+						m.message = bannedAccountMessage
+						return m, tea.Quit
+					}
 					m.character = existing
 					inventory, inventoryErr := m.repositories.Inventories.FindOrCreate(
 						context.Background(), existing.ID,
@@ -245,6 +262,25 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateChatMessage(msg)
 	case chatSentMsg:
 		return m, nil
+	case adminCommandMsg:
+		if msg.err != nil {
+			m.message = msg.err.Error()
+			return m, nil
+		}
+		m.message = msg.message
+		return m, nil
+	case inventoryReloadedMsg:
+		if msg.err != nil {
+			m.log.Error(
+				"reload inventory after admin command",
+				"character_id", m.character.ID,
+				"error", msg.err,
+			)
+			m.message = "Could not refresh your inventory."
+			return m, nil
+		}
+		m.inventory = msg.inventory
+		return m, nil
 	case shopTradeMsg:
 		return m.updateShopTrade(msg)
 	case questInteractionMsg:
@@ -255,7 +291,10 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case worldSnapshotMsg:
 		return m.updateWorldSnapshot(msg)
 	case worldKickedMsg:
-		m.message = "This character connected from another session."
+		if !msg.ok {
+			return m, nil
+		}
+		m.message = msg.reason
 		return m, tea.Quit
 	case playerMovedMsg:
 		m.movement.inFlight = false
@@ -305,7 +344,7 @@ func (m *gameModel) viewState() ViewState {
 		ChatInput:         m.chat.input.View(),
 		HelpOpen:          m.mode == inputModeHelp,
 		ShopOpen:          m.mode == inputModeShop,
-		Shop:              m.shop.view(m.character, m.inventory),
+		Shop:              m.shopView(),
 		JournalOpen:       m.mode == inputModeJournal,
 		Journal:           m.quests.journalView(m.inventory, m.questGiver),
 		QuestDialogueOpen: m.mode == inputModeQuestDialogue,

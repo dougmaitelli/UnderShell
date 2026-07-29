@@ -3,5 +3,6 @@
   "name": "Slime Gel",
   "description": "A sticky material left behind by slimes.",
   "type": "material",
+  "sell_price": 2,
   "max_stack": 50
 }

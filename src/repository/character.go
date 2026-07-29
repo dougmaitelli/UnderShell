@@ -35,6 +35,7 @@ type CharacterRepository interface {
 	UpdateLocation(context.Context, int64, string, int, int) error
 	UpdateProgress(context.Context, int64, int, int64, int, int, int, int) error
 	UpdateRole(context.Context, int64, domain.CharacterRole) error
+	SetBanned(context.Context, string, bool) (*domain.Character, error)
 }
 
 type BunCharacterRepository struct {
@@ -141,6 +142,34 @@ func (r *BunCharacterRepository) UpdateRole(
 	return nil
 }
 
+func (r *BunCharacterRepository) SetBanned(
+	ctx context.Context,
+	name string,
+	banned bool,
+) (*domain.Character, error) {
+	name = strings.TrimSpace(name)
+	record := new(entity.Character)
+	err := r.db.NewSelect().
+		Model(record).
+		Where("name = ? COLLATE NOCASE", name).
+		Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrCharacterNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find character for ban update: %w", err)
+	}
+	if _, err := r.db.NewUpdate().
+		Model(record).
+		Set("banned = ?", banned).
+		WherePK().
+		Exec(ctx); err != nil {
+		return nil, fmt.Errorf("update character ban: %w", err)
+	}
+	record.Banned = banned
+	return toDomain(record, nil, nil), nil
+}
+
 func (r *BunCharacterRepository) UpdateLocation(
 	ctx context.Context,
 	id int64,
@@ -233,7 +262,7 @@ func toDomain(
 ) *domain.Character {
 	character := &domain.Character{
 		ID: record.ID, Name: record.Name,
-		Role:  domain.CharacterRole(record.Role),
+		Role: domain.CharacterRole(record.Role), Banned: record.Banned,
 		Level: 1, Gold: domain.DefaultStartingGold,
 	}
 	if domain.ValidateCharacterRole(character.Role) != nil {

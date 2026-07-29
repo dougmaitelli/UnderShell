@@ -3,6 +3,7 @@
   "name": "Health Potion",
   "description": "Restores a moderate amount of health.",
   "type": "consumable",
+  "sell_price": 15,
   "effects": [
     { "type": "restore_health", "amount": 20 }
   ],

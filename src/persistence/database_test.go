@@ -161,9 +161,9 @@ func TestOpenMigratesLegacyProgressSchema(t *testing.T) {
 		database.Close()
 		t.Fatalf("count applied migrations: %v", err)
 	}
-	if migrationCount != 8 {
+	if migrationCount != 10 {
 		database.Close()
-		t.Fatalf("applied migrations = %d, want 8", migrationCount)
+		t.Fatalf("applied migrations = %d, want 10", migrationCount)
 	}
 	if err := database.Close(); err != nil {
 		t.Fatalf("close migrated database: %v", err)
@@ -181,7 +181,7 @@ func TestOpenMigratesLegacyProgressSchema(t *testing.T) {
 		Scan(ctx, &migrationCount); err != nil {
 		t.Fatalf("count migrations after reopen: %v", err)
 	}
-	if migrationCount != 8 {
-		t.Fatalf("applied migrations after reopen = %d, want 8", migrationCount)
+	if migrationCount != 10 {
+		t.Fatalf("applied migrations after reopen = %d, want 10", migrationCount)
 	}
 }

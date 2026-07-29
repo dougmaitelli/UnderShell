@@ -1,6 +1,13 @@
 package world
 
-import "sshrpg/src/item"
+import (
+	"errors"
+	"strings"
+
+	"sshrpg/src/item"
+)
+
+var ErrPlayerNotOnline = errors.New("player is not online")
 
 type activePlayer struct {
 	Player
@@ -8,7 +15,7 @@ type activePlayer struct {
 	updates chan Snapshot
 	events  chan Event
 	chats   chan ChatMessage
-	kicked  chan struct{}
+	kicked  chan string
 }
 
 type playerSystem struct {
@@ -22,7 +29,7 @@ func (s *playerSystem) join(
 	snapshot func(*activePlayer) Snapshot,
 ) Session {
 	if previous := s.live[player.ID]; previous != nil {
-		closePlayer(previous)
+		closePlayer(previous, "This character connected from another session.")
 	}
 	s.place(&player)
 	active := &activePlayer{
@@ -31,7 +38,7 @@ func (s *playerSystem) join(
 		updates: make(chan Snapshot, 1),
 		events:  make(chan Event, 32),
 		chats:   make(chan ChatMessage, 32),
-		kicked:  make(chan struct{}),
+		kicked:  make(chan string, 1),
 	}
 	s.live[active.ID] = active
 	for _, message := range chatHistory {
@@ -50,6 +57,16 @@ func (s *playerSystem) authenticated(id int64, token string) *activePlayer {
 		return nil
 	}
 	return player
+}
+
+func (s *playerSystem) byName(name string) *activePlayer {
+	name = strings.TrimSpace(name)
+	for _, player := range s.live {
+		if strings.EqualFold(player.Name, name) {
+			return player
+		}
+	}
+	return nil
 }
 
 func (s *playerSystem) move(
@@ -73,8 +90,19 @@ func (s *playerSystem) leave(id int64, token string) bool {
 		return false
 	}
 	delete(s.live, id)
-	closePlayer(player)
+	closePlayer(player, "")
 	return true
+}
+
+func (s *playerSystem) kick(name, reason string) (Player, error) {
+	player := s.byName(name)
+	if player == nil {
+		return Player{}, ErrPlayerNotOnline
+	}
+	delete(s.live, player.ID)
+	result := player.Player
+	closePlayer(player, reason)
+	return result, nil
 }
 
 func (s *playerSystem) place(player *Player) {
@@ -187,11 +215,14 @@ func (s *playerSystem) broadcast(snapshot func(*activePlayer) Snapshot) {
 
 func (s *playerSystem) closeAll() {
 	for _, player := range s.live {
-		closePlayer(player)
+		closePlayer(player, "")
 	}
 }
 
-func closePlayer(player *activePlayer) {
+func closePlayer(player *activePlayer, reason string) {
+	if reason != "" {
+		player.kicked <- reason
+	}
 	close(player.kicked)
 	close(player.updates)
 	close(player.events)

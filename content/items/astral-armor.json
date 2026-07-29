@@ -3,6 +3,7 @@
   "name": "Astral Armor",
   "description": "Protective plates that bend hostile energy away.",
   "type": "equipment",
+  "sell_price": 460,
   "equipment_slot": "armor",
   "stats": {
     "defense": 4,

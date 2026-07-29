@@ -29,14 +29,14 @@ func (s *playerNameShimmerState) setNeeded(
 ) tea.Cmd {
 	needed := false
 	for _, player := range players {
-		if player.Role == domain.CharacterRoleAdmin {
+		if hasPlayerNameShimmer(player.Role) {
 			needed = true
 			break
 		}
 	}
 	if !needed {
 		for _, message := range messages {
-			if message.PlayerRole == domain.CharacterRoleAdmin {
+			if hasPlayerNameShimmer(message.PlayerRole) {
 				needed = true
 				break
 			}
@@ -86,11 +86,27 @@ func playerNameStyle(
 	role domain.CharacterRole,
 	frame, characterIndex int,
 ) lipgloss.Style {
-	if role != domain.CharacterRoleAdmin {
+	styles := playerNameShimmerStyles(role)
+	if len(styles) == 0 {
 		return userPlayerNameStyle
 	}
-	index := (frame + characterIndex) % len(adminPlayerNameStyles)
-	return adminPlayerNameStyles[index]
+	index := (frame + characterIndex) % len(styles)
+	return styles[index]
+}
+
+func hasPlayerNameShimmer(role domain.CharacterRole) bool {
+	return len(playerNameShimmerStyles(role)) > 0
+}
+
+func playerNameShimmerStyles(role domain.CharacterRole) []lipgloss.Style {
+	switch role {
+	case domain.CharacterRoleAdmin:
+		return adminPlayerNameStyles
+	case domain.CharacterRoleModerator:
+		return moderatorPlayerNameStyles
+	default:
+		return nil
+	}
 }
 
 var (
@@ -106,5 +122,15 @@ var (
 		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#EF4444")),
 		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#DC2626")),
 		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#B91C1C")),
+	}
+	moderatorPlayerNameStyles = []lipgloss.Style{
+		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#A16207")),
+		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#A16207")),
+		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#A16207")),
+		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#A16207")),
+		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#FACC15")),
+		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#EAB308")),
+		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#CA8A04")),
+		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#A16207")),
 	}
 )

@@ -3,5 +3,6 @@
   "name": "Drake Scale",
   "description": "A black scale that glows along its fractured edge.",
   "type": "material",
+  "sell_price": 45,
   "max_stack": 50
 }

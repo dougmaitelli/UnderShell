@@ -49,6 +49,13 @@ func TestCharacterIdentityAndPersistence(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
+	banned, err := characters.SetBanned(ctx, "aRiA", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !banned.Banned || banned.ID != created.ID {
+		t.Fatalf("banned character = %#v", banned)
+	}
 
 	found, err := characters.FindByFingerprint(ctx, "SHA256:first")
 	if err != nil {
@@ -56,6 +63,7 @@ func TestCharacterIdentityAndPersistence(t *testing.T) {
 	}
 	if found == nil || found.Name != "Aria" ||
 		found.Role != domain.CharacterRoleAdmin ||
+		!found.Banned ||
 		found.AreaID != "cavern" ||
 		found.X != 7 || found.Y != 9 ||
 		found.Level != 3 || found.Experience != 50 || found.SkillPoints != 2 ||
@@ -63,7 +71,17 @@ func TestCharacterIdentityAndPersistence(t *testing.T) {
 		found.Gold != domain.DefaultStartingGold {
 		t.Fatalf("unexpected character: %#v", found)
 	}
-	if err := characters.UpdateRole(ctx, created.ID, "moderator"); !errors.Is(
+	if _, err := characters.SetBanned(ctx, "ARIA", false); err != nil {
+		t.Fatal(err)
+	}
+	unbanned, err := characters.FindByFingerprint(ctx, "SHA256:first")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unbanned.Banned {
+		t.Fatal("character remained banned after unban")
+	}
+	if err := characters.UpdateRole(ctx, created.ID, "owner"); !errors.Is(
 		err, domain.ErrInvalidCharacterRole,
 	) {
 		t.Fatalf("invalid role update error = %v", err)

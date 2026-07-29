@@ -31,6 +31,7 @@ func (HelpRenderer) RenderOver(game string, width, height int) string {
 		"J               Open quest journal",
 		"T               Focus chat",
 		"Enter           Send focused chat message",
+		"/...            Run a staff command",
 		"Esc             Close menu or cancel chat",
 		"F1              Open or close help",
 		"Ctrl+C          Disconnect",

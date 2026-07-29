@@ -9,20 +9,21 @@ import (
 )
 
 var ErrInvalidCharacterName = errors.New("name must be 3-20 printable characters")
-var ErrInvalidCharacterRole = errors.New("role must be user or admin")
+var ErrInvalidCharacterRole = errors.New("role must be user, moderator, or admin")
 
 const DefaultStartingGold = 100
 
 type CharacterRole string
 
 const (
-	CharacterRoleUser  CharacterRole = "user"
-	CharacterRoleAdmin CharacterRole = "admin"
+	CharacterRoleUser      CharacterRole = "user"
+	CharacterRoleModerator CharacterRole = "moderator"
+	CharacterRoleAdmin     CharacterRole = "admin"
 )
 
 func ValidateCharacterRole(role CharacterRole) error {
 	switch role {
-	case CharacterRoleUser, CharacterRoleAdmin:
+	case CharacterRoleUser, CharacterRoleModerator, CharacterRoleAdmin:
 		return nil
 	default:
 		return ErrInvalidCharacterRole
@@ -35,6 +36,7 @@ type Character struct {
 	ID          int64
 	Name        string
 	Role        CharacterRole
+	Banned      bool
 	AreaID      string
 	X           int
 	Y           int

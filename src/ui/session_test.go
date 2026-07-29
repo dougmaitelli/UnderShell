@@ -255,7 +255,7 @@ func TestInteractOpensNearbyShopBeforePickup(t *testing.T) {
 		NPCs: []npc.Config{{
 			ID: "merchant", Name: "Mira", Type: npc.TypeShop, X: 3, Y: 1,
 			Stock: []npc.ShopItemConfig{{
-				ItemID: "potion", BuyPrice: 10, SellPrice: 5,
+				ItemID: "potion", BuyPrice: 10,
 			}},
 		}},
 	}}, world.References{Items: items})
@@ -907,6 +907,41 @@ func TestPlayerNameShimmerRunsOnlyWhileAdminNameIsShown(t *testing.T) {
 		PlayerRole: domain.CharacterRoleAdmin,
 	}}); command == nil || !state.active {
 		t.Fatal("admin chat message did not start the shimmer")
+	}
+}
+
+func TestModeratorNameUsesYellowShimmer(t *testing.T) {
+	colors := make(map[[3]uint32]bool)
+	for index := range moderatorPlayerNameStyles {
+		red, green, blue, _ := playerNameStyle(
+			domain.CharacterRoleModerator, 0, index,
+		).GetForeground().RGBA()
+		if red <= blue || green <= blue {
+			t.Fatalf(
+				"moderator shimmer color is not yellow: (%x, %x, %x)",
+				red, green, blue,
+			)
+		}
+		colors[[3]uint32{red, green, blue}] = true
+	}
+	if len(colors) < 3 {
+		t.Fatalf("moderator shimmer has only %d distinct yellows", len(colors))
+	}
+	crest := moderatorPlayerNameStyles[4].GetForeground()
+	if playerNameStyle(
+		domain.CharacterRoleModerator, 0, 4,
+	).GetForeground() != crest ||
+		playerNameStyle(
+			domain.CharacterRoleModerator, 1, 3,
+		).GetForeground() != crest {
+		t.Fatal("moderator shimmer crest does not move from right to left")
+	}
+
+	state := playerNameShimmerState{}
+	if command := state.setNeeded([]world.Player{{
+		ID: 1, Role: domain.CharacterRoleModerator,
+	}}, nil); command == nil || !state.active {
+		t.Fatal("visible moderator did not start the shimmer")
 	}
 }
 

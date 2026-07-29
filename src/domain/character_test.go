@@ -26,13 +26,14 @@ func TestValidateCharacterName(t *testing.T) {
 func TestValidateCharacterRole(t *testing.T) {
 	for _, role := range []CharacterRole{
 		CharacterRoleUser,
+		CharacterRoleModerator,
 		CharacterRoleAdmin,
 	} {
 		if err := ValidateCharacterRole(role); err != nil {
 			t.Fatalf("valid role %q rejected: %v", role, err)
 		}
 	}
-	if err := ValidateCharacterRole("moderator"); err == nil {
+	if err := ValidateCharacterRole("owner"); err == nil {
 		t.Fatal("unsupported role was accepted")
 	}
 }

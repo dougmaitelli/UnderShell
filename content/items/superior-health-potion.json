@@ -3,6 +3,7 @@
   "name": "Superior Health Potion",
   "description": "Restores a substantial amount of health.",
   "type": "consumable",
+  "sell_price": 65,
   "effects": [
     { "type": "restore_health", "amount": 100 }
   ],

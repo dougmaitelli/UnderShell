@@ -55,6 +55,7 @@ type Definition struct {
 	Name          string         `json:"name"`
 	Description   string         `json:"description"`
 	Type          Type           `json:"type"`
+	SellPrice     int            `json:"sell_price,omitempty"`
 	EquipmentSlot EquipmentSlot  `json:"equipment_slot"`
 	Stats         EquipmentStats `json:"stats,omitempty"`
 	Effects       []Effect       `json:"effects,omitempty"`
@@ -119,6 +120,9 @@ func (i *Items) Len() int {
 func validateDefinition(definition Definition) error {
 	if definition.ID == "" || definition.Name == "" {
 		return errors.New("id and name are required")
+	}
+	if definition.SellPrice < 0 {
+		return errors.New("sell_price cannot be negative")
 	}
 	for _, character := range definition.ID {
 		if !((character >= 'a' && character <= 'z') ||

@@ -1,6 +1,9 @@
 package world
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 func (p *activePlayer) grantExperience(reward int64) {
 	sendEvent(p, Event{
@@ -36,6 +39,23 @@ func (p *activePlayer) spendSkillPoint(skill string) bool {
 	}
 	p.SkillPoints--
 	return true
+}
+
+func (p *activePlayer) grantLevels(levels int) {
+	if levels <= 0 {
+		return
+	}
+	if p.Level < 1 {
+		p.Level = 1
+	}
+	if levels > math.MaxInt-p.Level {
+		levels = math.MaxInt - p.Level
+	}
+	if levels > math.MaxInt-p.SkillPoints {
+		levels = math.MaxInt - p.SkillPoints
+	}
+	p.Level += levels
+	p.SkillPoints += levels
 }
 
 // ExperienceToNextLevel returns the XP required to advance from level to level+1.

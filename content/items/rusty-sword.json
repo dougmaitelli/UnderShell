@@ -3,6 +3,7 @@
   "name": "Rusty Sword",
   "description": "An old blade that has seen better days.",
   "type": "equipment",
+  "sell_price": 20,
   "equipment_slot": "weapon",
   "stats": {
     "attack": 1

@@ -28,9 +28,8 @@ type Config struct {
 }
 
 type ShopItemConfig struct {
-	ItemID    string `json:"item_id"`
-	BuyPrice  int    `json:"buy_price"`
-	SellPrice int    `json:"sell_price"`
+	ItemID   string `json:"item_id"`
+	BuyPrice int    `json:"buy_price"`
 }
 
 type Definition struct {
@@ -44,9 +43,8 @@ type Definition struct {
 }
 
 type ShopItem struct {
-	Item      *item.Definition
-	BuyPrice  int
-	SellPrice int
+	Item     *item.Definition
+	BuyPrice int
 }
 
 func Clone(definitions []Definition) []Definition {
@@ -148,14 +146,8 @@ func resolveShop(
 			return nil, fmt.Errorf("NPC %q has duplicate stock item %q", npcID, itemID)
 		}
 		stockIDs[itemID] = true
-		if config.BuyPrice < 1 || config.SellPrice < 1 {
-			return nil, fmt.Errorf("NPC %q stock %q prices must be positive", npcID, itemID)
-		}
-		if config.SellPrice > config.BuyPrice {
-			return nil, fmt.Errorf(
-				"NPC %q stock %q sell_price cannot exceed buy_price",
-				npcID, itemID,
-			)
+		if config.BuyPrice < 1 {
+			return nil, fmt.Errorf("NPC %q stock %q buy_price must be positive", npcID, itemID)
 		}
 		itemDefinition, ok := items.Item(itemID)
 		if !ok {
@@ -164,9 +156,14 @@ func resolveShop(
 				npcID, index, itemID,
 			)
 		}
+		if itemDefinition.SellPrice > config.BuyPrice {
+			return nil, fmt.Errorf(
+				"NPC %q stock %q buy_price cannot be below the item's sell_price",
+				npcID, itemID,
+			)
+		}
 		stock[index] = ShopItem{
-			Item:     itemDefinition,
-			BuyPrice: config.BuyPrice, SellPrice: config.SellPrice,
+			Item: itemDefinition, BuyPrice: config.BuyPrice,
 		}
 	}
 	return stock, nil

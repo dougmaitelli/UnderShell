@@ -3,6 +3,7 @@
   "name": "Iron Armor",
   "description": "Heavy plate made to withstand the volcanic roads.",
   "type": "equipment",
+  "sell_price": 140,
   "equipment_slot": "armor",
   "stats": {
     "defense": 2,

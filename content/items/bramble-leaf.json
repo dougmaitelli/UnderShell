@@ -3,5 +3,6 @@
   "name": "Bramble Leaf",
   "description": "A resilient leaf cut from an animated bramble.",
   "type": "material",
+  "sell_price": 5,
   "max_stack": 50
 }

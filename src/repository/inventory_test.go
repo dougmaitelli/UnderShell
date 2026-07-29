@@ -89,6 +89,39 @@ func TestAddItemStacksToLimitThenUsesNextSlot(t *testing.T) {
 	}
 }
 
+func TestAddItemsDistributesQuantityAcrossStacks(t *testing.T) {
+	database, err := persistence.Open(filepath.Join(t.TempDir(), "game.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	ctx := context.Background()
+	character, err := NewCharacterRepository(database.ORM()).Create(
+		ctx,
+		CreateCharacterParams{
+			KeyFingerprint: "SHA256:item-quantity",
+			PublicKeyType:  "ssh-ed25519",
+			PublicKey:      "key-item-quantity",
+			Name:           "Quartermaster",
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := NewInventoryRepository(database.ORM()).AddItems(
+		ctx, character.ID, "slime_gel", 2, 5,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(inventory.Items) != 3 ||
+		inventory.Items[0].Quantity != 2 ||
+		inventory.Items[1].Quantity != 2 ||
+		inventory.Items[2].Quantity != 1 {
+		t.Fatalf("bulk-added items = %#v", inventory.Items)
+	}
+}
+
 func TestEquipmentAssignmentsArePersistedReplacedAndRemoved(t *testing.T) {
 	database, err := persistence.Open(filepath.Join(t.TempDir(), "game.db"))
 	if err != nil {

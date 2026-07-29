@@ -11,7 +11,7 @@ func TestShopDefinitionValidatesItemReferences(t *testing.T) {
 	configs := []Config{{
 		ID: "merchant", Name: "Mira", Type: TypeShop, X: 2, Y: 3,
 		Stock: []ShopItemConfig{{
-			ItemID: "potion", BuyPrice: 10, SellPrice: 5,
+			ItemID: "potion", BuyPrice: 10,
 		}},
 	}}
 	items, err := item.NewItems([]item.Definition{{
@@ -39,11 +39,18 @@ func TestShopDefinitionRejectsInvalidEconomy(t *testing.T) {
 	configs := []Config{{
 		ID: "merchant", Name: "Mira", Type: TypeShop,
 		Stock: []ShopItemConfig{{
-			ItemID: "potion", BuyPrice: 5, SellPrice: 10,
+			ItemID: "ore", BuyPrice: 5,
 		}},
 	}}
-	if _, err := Resolve(configs, nil, nil); err == nil {
-		t.Fatal("expected sell price above buy price to fail")
+	items, err := item.NewItems([]item.Definition{{
+		ID: "ore", Name: "Ore", Type: item.TypeMaterial,
+		SellPrice: 10, MaxStack: 20,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Resolve(configs, items, nil); err == nil {
+		t.Fatal("expected buy price below item sell price to fail")
 	}
 }
 

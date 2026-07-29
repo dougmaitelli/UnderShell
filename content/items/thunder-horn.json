@@ -3,5 +3,6 @@
   "name": "Thunder Horn",
   "description": "A broken horn that still hums with distant thunder.",
   "type": "material",
+  "sell_price": 18,
   "max_stack": 50
 }

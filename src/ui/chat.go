@@ -45,6 +45,9 @@ func (m *gameModel) updateChatInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if message == "" {
 			return m, nil
 		}
+		if strings.HasPrefix(message, "/") {
+			return m, m.executeAdminCommand(message)
+		}
 		return m, m.sendChat(message)
 	case "esc":
 		m.chat.input.SetValue("")

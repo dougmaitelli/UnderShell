@@ -4,9 +4,47 @@ import (
 	"testing"
 
 	"sshrpg/src/domain"
+	"sshrpg/src/item"
+	"sshrpg/src/npc"
 	"sshrpg/src/repository"
 	"sshrpg/src/world"
 )
+
+func TestShopSellsAnyInventoryItemWithAnItemSellPrice(t *testing.T) {
+	items, err := item.NewItems([]item.Definition{
+		{
+			ID: "potion", Name: "Potion",
+			Type: item.TypeConsumable, SellPrice: 5,
+			Effects:  []item.Effect{{Type: item.EffectRestoreHealth, Amount: 5}},
+			MaxStack: 10,
+		},
+		{
+			ID: "slime_gel", Name: "Slime Gel",
+			Type: item.TypeMaterial, SellPrice: 2, MaxStack: 50,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	potion, _ := items.Item("potion")
+	shop := shopState{npc: &npc.Definition{
+		ID: "merchant", Name: "Mira", Type: npc.TypeShop,
+		Stock: []npc.ShopItem{{Item: potion, BuyPrice: 10}},
+	}}
+	inventory := &domain.Inventory{
+		CharacterID: 1,
+		Items: []domain.InventoryItem{{
+			Slot: 1, ItemKey: "slime_gel", Quantity: 4,
+		}},
+	}
+	entries := shop.sellEntries(inventory, items)
+	if len(entries) != 1 ||
+		entries[0].Name != "Slime Gel" ||
+		entries[0].SellPrice != 2 ||
+		entries[0].Item.Quantity != 4 {
+		t.Fatalf("sell entries = %#v", entries)
+	}
+}
 
 func TestSuccessfulShopTradesAddEvents(t *testing.T) {
 	model := newGameModel(

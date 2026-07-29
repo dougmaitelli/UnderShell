@@ -14,6 +14,7 @@ func TestLoadItems(t *testing.T) {
 		"name":"Health Potion",
 		"description":"Restores health.",
 		"type":"consumable",
+		"sell_price":4,
 		"effects":[{"type":"restore_health","amount":5}],
 		"max_stack":10
 	}`), 0600); err != nil {
@@ -26,12 +27,23 @@ func TestLoadItems(t *testing.T) {
 	}
 	definition, ok := items.Item("health_potion")
 	if !ok || definition.Name != "Health Potion" ||
-		definition.Type != TypeConsumable || definition.MaxStack != 10 {
+		definition.Type != TypeConsumable || definition.SellPrice != 4 ||
+		definition.MaxStack != 10 {
 		t.Fatalf("unexpected item definition: %#v", definition)
 	}
 	again, _ := items.Item("health_potion")
 	if definition != again {
 		t.Fatal("item lookup did not return the stable canonical definition")
+	}
+}
+
+func TestItemsRejectNegativeSellPrice(t *testing.T) {
+	_, err := NewItems([]Definition{{
+		ID: "ore", Name: "Ore", Type: TypeMaterial,
+		SellPrice: -1, MaxStack: 10,
+	}})
+	if err == nil {
+		t.Fatal("expected negative sell price to fail validation")
 	}
 }
 

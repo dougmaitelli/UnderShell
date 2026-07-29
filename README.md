@@ -48,6 +48,44 @@ make build
 ./bin/sshrpg
 ```
 
+## Staff commands
+
+Commands can be entered in the running server's standard-input console or in
+the in-game chat by an online character with the `moderator` or `admin` role.
+Every command must begin with `/`.
+
+| Command | Effect |
+|---|---|
+| `/exp <amount> [player]` | Grant experience |
+| `/lvl <amount> [player]` | Grant levels and their skill points |
+| `/item <item> <quantity> [player]` | Add an item to the inventory |
+| `/tp <area> [player]` | Move a player to an area's spawn |
+| `/tpTo <destination-player> [player]` | Move a player to another player |
+| `/promote <player>` | Promote a user to moderator; admin-only |
+| `/kick <player>` | Disconnect an online player |
+| `/ban <player>` | Permanently ban an account; admin-only |
+| `/unban <player>` | Remove a permanent account ban; admin-only |
+
+The final `player` argument can be omitted in chat, in which case the command
+targets its sender. It is required in the server console. Commands currently
+target online players. Character, area, and item names are case-insensitive;
+names containing spaces must be quoted:
+
+```text
+/item "Health Potion" 5 "Doug M"
+/tp "Crystal Grotto" "Doug M"
+```
+
+Item and area IDs can be used instead of their display names. Moderators can
+run the gameplay commands and `/kick`, but cannot kick administrators. Only
+administrators and the trusted server console can use `/promote`, `/ban`, and
+`/unban`.
+
+Bans are stored against the character account identified by its SSH key and
+survive disconnects and server restarts. `/ban` and `/unban` accept offline
+character names; the other player-targeting commands require their target to
+be online.
+
 ## Run with Docker
 
 The Compose configuration publishes host port `22` to the game server:
@@ -210,6 +248,7 @@ Add one file per item to `ITEMS_PATH`:
   "name": "Minor Tonic",
   "description": "Restores a little health.",
   "type": "consumable",
+  "sell_price": 4,
   "effects": [
     { "type": "restore_health", "amount": 5 }
   ],
@@ -225,6 +264,8 @@ Supported item types are:
 - `equipment`: requires `max_stack: 1` and an `equipment_slot`.
 
 Equipment slots are `helmet`, `weapon`, `armor`, `boots`, `gloves`, and `legs`.
+Set a positive `sell_price` to let every shop buy the item. Omitting it or
+setting it to `0` makes the item unsellable.
 Equipment may provide non-negative `attack`, `defense`, and `vitality` stats:
 
 ```json
@@ -233,6 +274,7 @@ Equipment may provide non-negative `attack`, `defense`, and `vitality` stats:
   "name": "Training Blade",
   "description": "A simple practice weapon.",
   "type": "equipment",
+  "sell_price": 15,
   "equipment_slot": "weapon",
   "stats": {
     "attack": 1
@@ -392,7 +434,9 @@ waypoint when travel should be bidirectional.
 
 NPCs are positioned inside an area. IDs must be globally unique.
 
-A shop references items and defines both trade prices:
+A shop references the items it sells and defines their purchase prices.
+Resale prices come from the item definitions, so shops can buy items they do
+not stock:
 
 ```json
 {
@@ -402,7 +446,7 @@ A shop references items and defines both trade prices:
   "x": 12,
   "y": 18,
   "stock": [
-    { "item_id": "minor_tonic", "buy_price": 10, "sell_price": 5 }
+    { "item_id": "minor_tonic", "buy_price": 10 }
   ]
 }
 ```

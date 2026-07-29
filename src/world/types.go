@@ -57,7 +57,7 @@ type Session struct {
 	Updates <-chan Snapshot
 	Events  <-chan Event
 	Chats   <-chan ChatMessage
-	Kicked  <-chan struct{}
+	Kicked  <-chan string
 }
 
 type ChatMessage struct {
@@ -79,11 +79,13 @@ const (
 	EventQuest       EventKind = "quest"
 	EventConsumable  EventKind = "consumable"
 	EventTrade       EventKind = "trade"
+	EventAdmin       EventKind = "admin"
 )
 
 type Event struct {
-	Kind    EventKind
-	Message string
+	Kind             EventKind
+	Message          string
+	InventoryChanged bool
 }
 
 type AttackResult struct {

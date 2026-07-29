@@ -3,5 +3,6 @@
   "name": "Mire Gland",
   "description": "A pungent gland used in potent marsh remedies.",
   "type": "material",
+  "sell_price": 8,
   "max_stack": 50
 }

@@ -4,7 +4,9 @@ package world
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 
+	"sshrpg/src/domain"
 	"sshrpg/src/enemy"
 	"sshrpg/src/item"
 	"sshrpg/src/npc"
@@ -135,6 +137,114 @@ func (m *Manager) Chat(id int64, token, message string) bool {
 		return <-reply
 	case <-m.done:
 		return false
+	}
+}
+
+func (m *Manager) AuthenticatedRole(
+	id int64,
+	token string,
+) (domain.CharacterRole, bool) {
+	reply := make(chan adminAuthorizeResult)
+	select {
+	case m.events <- adminAuthorizeRequest{id: id, token: token, reply: reply}:
+		result := <-reply
+		return result.role, result.ok
+	case <-m.done:
+		return "", false
+	}
+}
+
+func (m *Manager) FindOnlinePlayer(name string) (Player, error) {
+	reply := make(chan adminPlayerResult)
+	select {
+	case m.events <- adminFindPlayerRequest{name: name, reply: reply}:
+		result := <-reply
+		return result.player, result.err
+	case <-m.done:
+		return Player{}, errors.New("world is closed")
+	}
+}
+
+func (m *Manager) GrantExperience(name string, amount int64) (Player, error) {
+	reply := make(chan adminPlayerResult)
+	select {
+	case m.events <- adminGrantExperienceRequest{name: name, amount: amount, reply: reply}:
+		result := <-reply
+		return result.player, result.err
+	case <-m.done:
+		return Player{}, errors.New("world is closed")
+	}
+}
+
+func (m *Manager) GrantLevels(name string, amount int) (Player, error) {
+	reply := make(chan adminPlayerResult)
+	select {
+	case m.events <- adminGrantLevelsRequest{name: name, amount: amount, reply: reply}:
+		result := <-reply
+		return result.player, result.err
+	case <-m.done:
+		return Player{}, errors.New("world is closed")
+	}
+}
+
+func (m *Manager) TeleportToArea(name, area string) (Player, error) {
+	reply := make(chan adminPlayerResult)
+	select {
+	case m.events <- adminTeleportAreaRequest{name: name, area: area, reply: reply}:
+		result := <-reply
+		return result.player, result.err
+	case <-m.done:
+		return Player{}, errors.New("world is closed")
+	}
+}
+
+func (m *Manager) TeleportToPlayer(name, destination string) (Player, error) {
+	reply := make(chan adminPlayerResult)
+	select {
+	case m.events <- adminTeleportPlayerRequest{
+		name: name, destination: destination, reply: reply,
+	}:
+		result := <-reply
+		return result.player, result.err
+	case <-m.done:
+		return Player{}, errors.New("world is closed")
+	}
+}
+
+func (m *Manager) NotifyPlayer(id int64, message string, inventoryChanged bool) bool {
+	reply := make(chan bool)
+	select {
+	case m.events <- adminNotifyRequest{
+		id: id, message: message, inventoryChanged: inventoryChanged, reply: reply,
+	}:
+		return <-reply
+	case <-m.done:
+		return false
+	}
+}
+
+func (m *Manager) SetPlayerRole(
+	name string,
+	role domain.CharacterRole,
+) (Player, error) {
+	reply := make(chan adminPlayerResult)
+	select {
+	case m.events <- adminSetRoleRequest{name: name, role: role, reply: reply}:
+		result := <-reply
+		return result.player, result.err
+	case <-m.done:
+		return Player{}, errors.New("world is closed")
+	}
+}
+
+func (m *Manager) KickPlayer(name, reason string) (Player, error) {
+	reply := make(chan adminPlayerResult)
+	select {
+	case m.events <- adminKickRequest{name: name, reason: reason, reply: reply}:
+		result := <-reply
+		return result.player, result.err
+	case <-m.done:
+		return Player{}, errors.New("world is closed")
 	}
 }
 

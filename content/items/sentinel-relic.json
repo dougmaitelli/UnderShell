@@ -3,5 +3,6 @@
   "name": "Sentinel Relic",
   "description": "A corroded insignia from a drowned guardian.",
   "type": "material",
+  "sell_price": 24,
   "max_stack": 50
 }

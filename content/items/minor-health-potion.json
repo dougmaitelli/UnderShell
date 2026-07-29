@@ -3,6 +3,7 @@
   "name": "Minor Health Potion",
   "description": "Restores a small amount of health.",
   "type": "consumable",
+  "sell_price": 5,
   "effects": [
     { "type": "restore_health", "amount": 5 }
   ],

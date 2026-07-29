@@ -3,6 +3,7 @@
   "name": "Starblade",
   "description": "A late-game weapon edged with condensed starlight.",
   "type": "equipment",
+  "sell_price": 380,
   "equipment_slot": "weapon",
   "stats": {
     "attack": 6,

@@ -1,6 +1,9 @@
 package world
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type runtimeState struct {
 	players playerSystem
@@ -102,7 +105,136 @@ func (s *runtimeState) handle(event any) {
 		request.reply <- s.chat.send(
 			s.players.authenticated(request.id, request.token), s.players.live, request.message,
 		)
+	case adminAuthorizeRequest:
+		player := s.players.authenticated(request.id, request.token)
+		if player == nil {
+			request.reply <- adminAuthorizeResult{}
+			return
+		}
+		request.reply <- adminAuthorizeResult{role: player.Role, ok: true}
+	case adminFindPlayerRequest:
+		request.reply <- findAdminPlayer(&s.players, request.name)
+	case adminGrantExperienceRequest:
+		player := s.players.byName(request.name)
+		if player == nil {
+			request.reply <- adminPlayerResult{err: ErrPlayerNotOnline}
+			return
+		}
+		previousLevel := player.Level
+		grantExperience(&player.Player, request.amount)
+		sendEvent(player, Event{
+			Kind: EventAdmin,
+			Message: fmt.Sprintf(
+				"An administrator granted you %d XP", request.amount,
+			),
+		})
+		if player.Level > previousLevel {
+			sendEvent(player, Event{
+				Kind:    EventProgression,
+				Message: fmt.Sprintf("Reached level %d", player.Level),
+			})
+		}
+		s.broadcast()
+		request.reply <- adminPlayerResult{player: player.Player}
+	case adminGrantLevelsRequest:
+		player := s.players.byName(request.name)
+		if player == nil {
+			request.reply <- adminPlayerResult{err: ErrPlayerNotOnline}
+			return
+		}
+		player.grantLevels(request.amount)
+		sendEvent(player, Event{
+			Kind: EventAdmin,
+			Message: fmt.Sprintf(
+				"An administrator granted you %d level(s)", request.amount,
+			),
+		})
+		s.broadcast()
+		request.reply <- adminPlayerResult{player: player.Player}
+	case adminTeleportAreaRequest:
+		player := s.players.byName(request.name)
+		if player == nil {
+			request.reply <- adminPlayerResult{err: ErrPlayerNotOnline}
+			return
+		}
+		area, ok := s.players.areas.FindArea(request.area)
+		if !ok {
+			request.reply <- adminPlayerResult{
+				err: fmt.Errorf("area %q not found", request.area),
+			}
+			return
+		}
+		player.AreaID = area.ID
+		player.X, player.Y = area.Spawn.X, area.Spawn.Y
+		sendEvent(player, Event{
+			Kind:    EventAdmin,
+			Message: fmt.Sprintf("Teleported to %s", area.Name),
+		})
+		s.broadcast()
+		request.reply <- adminPlayerResult{player: player.Player}
+	case adminTeleportPlayerRequest:
+		player := s.players.byName(request.name)
+		if player == nil {
+			request.reply <- adminPlayerResult{err: ErrPlayerNotOnline}
+			return
+		}
+		destination := s.players.byName(request.destination)
+		if destination == nil {
+			request.reply <- adminPlayerResult{
+				err: fmt.Errorf(
+					"destination player %q is not online",
+					request.destination,
+				),
+			}
+			return
+		}
+		player.AreaID = destination.AreaID
+		player.X, player.Y = destination.X, destination.Y
+		sendEvent(player, Event{
+			Kind:    EventAdmin,
+			Message: fmt.Sprintf("Teleported to %s", destination.Name),
+		})
+		s.broadcast()
+		request.reply <- adminPlayerResult{player: player.Player}
+	case adminNotifyRequest:
+		player := s.players.live[request.id]
+		if player == nil {
+			request.reply <- false
+			return
+		}
+		sendEvent(player, Event{
+			Kind: EventAdmin, Message: request.message,
+			InventoryChanged: request.inventoryChanged,
+		})
+		request.reply <- true
+	case adminSetRoleRequest:
+		player := s.players.byName(request.name)
+		if player == nil {
+			request.reply <- adminPlayerResult{err: ErrPlayerNotOnline}
+			return
+		}
+		player.Role = request.role
+		sendEvent(player, Event{
+			Kind:    EventAdmin,
+			Message: fmt.Sprintf("Your role is now %s", request.role),
+		})
+		s.broadcast()
+		request.reply <- adminPlayerResult{player: player.Player}
+	case adminKickRequest:
+		player, err := s.players.kick(request.name, request.reason)
+		if err == nil {
+			s.broadcast()
+		}
+		request.reply <- adminPlayerResult{player: player, err: err}
 	}
+}
+
+func findAdminPlayer(players *playerSystem, name string) adminPlayerResult {
+	player := players.byName(name)
+	if player == nil {
+		return adminPlayerResult{err: ErrPlayerNotOnline}
+	}
+	return adminPlayerResult{player: player.Player}
 }
 
 func (s *runtimeState) snapshot(recipient *activePlayer) Snapshot {

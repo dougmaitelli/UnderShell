@@ -3,5 +3,6 @@
   "name": "Ash Fragment",
   "description": "A dense shard broken from a volcanic construct.",
   "type": "material",
+  "sell_price": 28,
   "max_stack": 50
 }

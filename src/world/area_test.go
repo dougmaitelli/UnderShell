@@ -170,7 +170,7 @@ func TestShopNPCConfigurationAndItemValidation(t *testing.T) {
 		NPCs: []npc.Config{{
 			ID: "merchant", Name: "Mira", Type: npc.TypeShop, X: 2, Y: 1,
 			Stock: []npc.ShopItemConfig{{
-				ItemID: "potion", BuyPrice: 10, SellPrice: 5,
+				ItemID: "potion", BuyPrice: 10,
 			}},
 		}},
 	}}, References{Items: items})
@@ -197,12 +197,12 @@ func TestShopNPCRejectsInvalidStockPrices(t *testing.T) {
 		NPCs: []npc.Config{{
 			ID: "merchant", Name: "Mira", Type: npc.TypeShop, X: 2, Y: 1,
 			Stock: []npc.ShopItemConfig{{
-				ItemID: "potion", BuyPrice: 5, SellPrice: 10,
+				ItemID: "potion", BuyPrice: 0,
 			}},
 		}},
 	}})
 	if err == nil {
-		t.Fatal("expected shop sell price above buy price to fail")
+		t.Fatal("expected non-positive shop buy price to fail")
 	}
 }
 
@@ -228,7 +228,7 @@ func TestAreasRequireGloballyUniqueNPCIDs(t *testing.T) {
 				ID: "shared_merchant", Name: "Merchant",
 				Type: npc.TypeShop, X: 2, Y: 1,
 				Stock: []npc.ShopItemConfig{{
-					ItemID: "potion", BuyPrice: 10, SellPrice: 5,
+					ItemID: "potion", BuyPrice: 10,
 				}},
 			}},
 		}

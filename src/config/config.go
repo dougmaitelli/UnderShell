@@ -55,14 +55,15 @@ type Game struct {
 	DefaultSpawn Spawn `json:"default_spawn"`
 }
 
-func LoadGame(path string) (Game, error) {
+func LoadGame(path string) (game Game, err error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return Game{}, fmt.Errorf("open game config %s: %w", path, err)
 	}
-	defer file.Close()
+	defer func() {
+		err = errors.Join(err, file.Close())
+	}()
 
-	var game Game
 	decoder := json.NewDecoder(file)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&game); err != nil {

@@ -14,7 +14,7 @@ func TestInventoryIsCreatedAndLoadedEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	closeDatabase(t, database)
 
 	ctx := context.Background()
 	character, err := NewCharacterRepository(database.ORM()).Create(ctx, CreateCharacterParams{
@@ -50,7 +50,7 @@ func TestAddItemStacksToLimitThenUsesNextSlot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	closeDatabase(t, database)
 	ctx := context.Background()
 	character, err := NewCharacterRepository(database.ORM()).Create(ctx, CreateCharacterParams{
 		KeyFingerprint: "SHA256:items",
@@ -94,7 +94,7 @@ func TestAddItemsDistributesQuantityAcrossStacks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	closeDatabase(t, database)
 	ctx := context.Background()
 	character, err := NewCharacterRepository(database.ORM()).Create(
 		ctx,
@@ -127,7 +127,7 @@ func TestEquipmentAssignmentsArePersistedReplacedAndRemoved(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	closeDatabase(t, database)
 	ctx := context.Background()
 	character, err := NewCharacterRepository(database.ORM()).Create(
 		ctx,
@@ -188,7 +188,7 @@ func TestConsumeItemDecrementsThenRemovesOwnedStack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	closeDatabase(t, database)
 	ctx := context.Background()
 	character, err := NewCharacterRepository(database.ORM()).Create(
 		ctx,

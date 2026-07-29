@@ -60,10 +60,6 @@ func (m *gameModel) addEvent(event EventView) tea.Cmd {
 	return m.eventFeed.add(event)
 }
 
-func (m *gameModel) eventViews() []EventView {
-	return m.eventFeed.views()
-}
-
 type EventRenderer struct{}
 
 func (EventRenderer) RenderOver(game string, width, height int, events []EventView) string {

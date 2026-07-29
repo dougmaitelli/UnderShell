@@ -159,10 +159,11 @@ func (GameRenderer) Render(state ViewState) string {
 func drawNPC(grid [][]string, x, baseY int, definition npc.Definition) {
 	label := definition.Name
 	body := "/|\\"
-	if definition.Type == npc.TypeShop {
+	switch definition.Type {
+	case npc.TypeShop:
 		label += " [Shop]"
 		body = "/$\\"
-	} else if definition.Type == npc.TypeQuestGiver {
+	case npc.TypeQuestGiver:
 		label += " [Quest]"
 		body = "/?\\"
 	}

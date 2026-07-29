@@ -79,7 +79,9 @@ func TestOpenCreatesAndReopensCurrentSchema(t *testing.T) {
 		},
 	} {
 		if _, err := database.orm.NewInsert().Model(model).Exec(ctx); err != nil {
-			database.Close()
+			if closeErr := database.Close(); closeErr != nil {
+				t.Errorf("close database after insert failure: %v", closeErr)
+			}
 			t.Fatalf("insert current schema model %T: %v", model, err)
 		}
 	}
@@ -91,7 +93,11 @@ func TestOpenCreatesAndReopensCurrentSchema(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reopen current database: %v", err)
 	}
-	defer database.Close()
+	t.Cleanup(func() {
+		if err := database.Close(); err != nil {
+			t.Errorf("close reopened database: %v", err)
+		}
+	})
 
 	reloadedCharacter := new(entity.Character)
 	if err := database.orm.NewSelect().

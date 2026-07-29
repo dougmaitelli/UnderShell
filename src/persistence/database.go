@@ -54,8 +54,10 @@ func openSQLite(path string) (*Database, error) {
 	}
 	sqlDB.SetMaxOpenConns(1)
 	if err := sqlDB.Ping(); err != nil {
-		sqlDB.Close()
-		return nil, fmt.Errorf("ping sqlite: %w", err)
+		return nil, errors.Join(
+			fmt.Errorf("ping sqlite: %w", err),
+			sqlDB.Close(),
+		)
 	}
 
 	database := &Database{
@@ -63,8 +65,7 @@ func openSQLite(path string) (*Database, error) {
 		orm: bun.NewDB(sqlDB, sqlitedialect.New()),
 	}
 	if err := database.applyMigrations(context.Background()); err != nil {
-		database.Close()
-		return nil, err
+		return nil, errors.Join(err, database.Close())
 	}
 	return database, nil
 }
@@ -76,8 +77,10 @@ func openPostgreSQL(dsn string) (*Database, error) {
 	sqlDB.SetConnMaxIdleTime(5 * time.Minute)
 	sqlDB.SetConnMaxLifetime(30 * time.Minute)
 	if err := sqlDB.Ping(); err != nil {
-		sqlDB.Close()
-		return nil, fmt.Errorf("ping PostgreSQL: %w", err)
+		return nil, errors.Join(
+			fmt.Errorf("ping PostgreSQL: %w", err),
+			sqlDB.Close(),
+		)
 	}
 
 	database := &Database{
@@ -85,8 +88,7 @@ func openPostgreSQL(dsn string) (*Database, error) {
 		orm: bun.NewDB(sqlDB, pgdialect.New()),
 	}
 	if err := database.applyMigrations(context.Background()); err != nil {
-		database.Close()
-		return nil, err
+		return nil, errors.Join(err, database.Close())
 	}
 	return database, nil
 }

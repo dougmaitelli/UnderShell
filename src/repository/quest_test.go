@@ -17,7 +17,7 @@ func TestQuestCompletionConsumesItemsAndRewardsGoldAtomically(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	closeDatabase(t, database)
 	ctx := context.Background()
 	character, err := NewCharacterRepository(database.ORM()).Create(ctx, CreateCharacterParams{
 		KeyFingerprint: "SHA256:quest",
@@ -93,7 +93,7 @@ func TestQuestCompletionRollsBackWhenItemsAreIncomplete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	closeDatabase(t, database)
 	ctx := context.Background()
 	character, err := NewCharacterRepository(database.ORM()).Create(ctx, CreateCharacterParams{
 		KeyFingerprint: "SHA256:incomplete-quest",
@@ -221,7 +221,7 @@ func TestQuestStateAndProgressPersistAcrossDatabaseReopen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	closeDatabase(t, database)
 	quests = NewQuestRepository(database.ORM())
 	progress, err = quests.FindByCharacter(ctx, character.ID)
 	if err != nil {

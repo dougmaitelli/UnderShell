@@ -30,7 +30,11 @@ func main() {
 		log.Error("open database", "error", err)
 		os.Exit(1)
 	}
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			log.Error("close database", "error", err)
+		}
+	}()
 	characters := repository.NewCharacterRepository(database.ORM())
 	inventories := repository.NewInventoryRepository(database.ORM())
 	shops := repository.NewShopRepository(database.ORM())

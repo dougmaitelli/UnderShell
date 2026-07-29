@@ -125,9 +125,9 @@ func validateDefinition(definition Definition) error {
 		return errors.New("sell_price cannot be negative")
 	}
 	for _, character := range definition.ID {
-		if !((character >= 'a' && character <= 'z') ||
-			(character >= '0' && character <= '9') ||
-			character == '_' || character == '-') {
+		if (character < 'a' || character > 'z') &&
+			(character < '0' || character > '9') &&
+			character != '_' && character != '-' {
 			return errors.New("id must contain only lowercase letters, numbers, underscores, or hyphens")
 		}
 	}

@@ -103,7 +103,9 @@ func (r *BunQuestRepository) Complete(
 	if err != nil {
 		return QuestCompletion{}, fmt.Errorf("begin quest completion: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	record := &entity.CharacterQuest{
 		CharacterID: characterID,

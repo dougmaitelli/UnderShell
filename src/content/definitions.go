@@ -38,13 +38,14 @@ func LoadDefinitions[T any](directory, kind string) ([]T, error) {
 	return definitions, nil
 }
 
-func decodeDefinition[T any](path string) (T, error) {
-	var definition T
+func decodeDefinition[T any](path string) (definition T, err error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return definition, err
 	}
-	defer file.Close()
+	defer func() {
+		err = errors.Join(err, file.Close())
+	}()
 
 	decoder := json.NewDecoder(file)
 	decoder.DisallowUnknownFields()

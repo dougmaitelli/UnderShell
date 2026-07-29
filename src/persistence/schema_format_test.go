@@ -16,9 +16,12 @@ func TestCharacterSchemaFormatsForPostgreSQL(t *testing.T) {
 	sqlDB := sql.OpenDB(pgdriver.NewConnector(
 		pgdriver.WithDSN("postgres://test:test@localhost/test?sslmode=disable"),
 	))
-	defer sqlDB.Close()
 	db := bun.NewDB(sqlDB, pgdialect.New())
-	defer db.Close()
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("close database: %v", err)
+		}
+	})
 
 	query := db.NewCreateTable().
 		Model((*entity.Character)(nil)).

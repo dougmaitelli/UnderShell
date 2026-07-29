@@ -50,7 +50,9 @@ func (r *BunShopRepository) BuyItem(
 	if err != nil {
 		return TradeResult{}, fmt.Errorf("begin shop purchase: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 	if err := ensureCharacterProgress(ctx, tx, characterID); err != nil {
 		return TradeResult{}, err
 	}
@@ -100,7 +102,9 @@ func (r *BunShopRepository) SellItem(
 	if err != nil {
 		return TradeResult{}, fmt.Errorf("begin shop sale: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 	stack := new(entity.InventoryItem)
 	err = tx.NewSelect().
 		Model(stack).

@@ -48,7 +48,9 @@ func (r *BunInventoryRepository) AddItems(
 	if err != nil {
 		return nil, fmt.Errorf("begin add inventory items: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	for quantity > 0 {
 		stack := &entity.InventoryItem{}
@@ -118,7 +120,9 @@ func (r *BunInventoryRepository) ConsumeItem(
 	if err != nil {
 		return nil, fmt.Errorf("begin consume inventory item: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 	stack := new(entity.InventoryItem)
 	err = tx.NewSelect().
 		Model(stack).
@@ -169,7 +173,9 @@ func (r *BunInventoryRepository) Equip(
 	if err != nil {
 		return nil, fmt.Errorf("begin equip item: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	var count int
 	if err := tx.NewSelect().

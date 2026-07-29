@@ -15,7 +15,7 @@ func TestShopBuyAndSellUpdatesInventoryAndGoldAtomically(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	closeDatabase(t, database)
 	ctx := context.Background()
 	character, err := NewCharacterRepository(database.ORM()).Create(ctx, CreateCharacterParams{
 		KeyFingerprint: "SHA256:shop",
@@ -66,7 +66,7 @@ func TestShopRejectsPurchaseWithoutGold(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	closeDatabase(t, database)
 	ctx := context.Background()
 	character, err := NewCharacterRepository(database.ORM()).Create(ctx, CreateCharacterParams{
 		KeyFingerprint: "SHA256:poor-shop",
@@ -98,7 +98,7 @@ func TestShopRejectsSellingEquippedItem(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	closeDatabase(t, database)
 	ctx := context.Background()
 	character, err := NewCharacterRepository(database.ORM()).Create(
 		ctx,

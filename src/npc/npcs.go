@@ -78,9 +78,9 @@ func Resolve(
 			return nil, fmt.Errorf("NPC %d requires id and name", index)
 		}
 		for _, character := range definition.ID {
-			if !((character >= 'a' && character <= 'z') ||
-				(character >= '0' && character <= '9') ||
-				character == '_' || character == '-') {
+			if (character < 'a' || character > 'z') &&
+				(character < '0' || character > '9') &&
+				character != '_' && character != '-' {
 				return nil, fmt.Errorf("NPC %q id has unsupported characters", definition.ID)
 			}
 		}

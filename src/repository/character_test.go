@@ -15,7 +15,7 @@ func TestCharacterIdentityAndPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	closeDatabase(t, database)
 	characters := NewCharacterRepository(database.ORM())
 
 	ctx := context.Background()
@@ -110,4 +110,13 @@ func TestCharacterIdentityAndPersistence(t *testing.T) {
 	if !errors.Is(err, ErrCharacterKeyExists) {
 		t.Fatalf("expected ErrCharacterKeyExists, got %v", err)
 	}
+}
+
+func closeDatabase(t *testing.T, database *persistence.Database) {
+	t.Helper()
+	t.Cleanup(func() {
+		if err := database.Close(); err != nil {
+			t.Errorf("close database: %v", err)
+		}
+	})
 }

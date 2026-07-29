@@ -328,6 +328,67 @@ func TestAdminBanDisconnectsPersistsAndUnbanWorksOffline(t *testing.T) {
 	}
 }
 
+func TestAdminCanPromoteModeratorToAdministrator(t *testing.T) {
+	handler, manager, characters, _, adminPlayer, userPlayer := testHandler(t)
+	adminSession := manager.Join(world.Player{
+		ID: adminPlayer.ID, Name: adminPlayer.Name, Role: domain.CharacterRoleAdmin,
+		AreaID: "meadow", X: 1, Y: 1, Level: 1,
+	})
+	manager.Join(world.Player{
+		ID: userPlayer.ID, Name: userPlayer.Name, Role: domain.CharacterRoleUser,
+		AreaID: "meadow", X: 2, Y: 1, Level: 1,
+	})
+
+	if _, err := handler.ExecuteChat(
+		context.Background(),
+		adminPlayer.ID,
+		adminSession.Token,
+		adminPlayer.Name,
+		`/promote "Target Player"`,
+	); err != nil {
+		t.Fatal(err)
+	}
+	message, err := handler.ExecuteChat(
+		context.Background(),
+		adminPlayer.ID,
+		adminSession.Token,
+		adminPlayer.Name,
+		`/promote "Target Player" admin`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if message != "Promoted Target Player to admin." {
+		t.Fatalf("admin promotion response = %q", message)
+	}
+	promoted, err := manager.FindOnlinePlayer("Target Player")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if promoted.Role != domain.CharacterRoleAdmin {
+		t.Fatalf("live promoted role = %q", promoted.Role)
+	}
+	persisted, err := characters.FindByFingerprint(
+		context.Background(), "SHA256:user-command",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if persisted.Role != domain.CharacterRoleAdmin {
+		t.Fatalf("persisted promoted role = %q", persisted.Role)
+	}
+
+	if _, err := handler.ExecuteChat(
+		context.Background(),
+		adminPlayer.ID,
+		adminSession.Token,
+		adminPlayer.Name,
+		`/promote "Target Player" owner`,
+	); err == nil || !strings.Contains(err.Error(), "moderator or admin") {
+		t.Fatalf("invalid promotion role error = %v", err)
+	}
+}
+
 func TestMaintenanceModeAllowsOnlyStaffConnections(t *testing.T) {
 	handler, manager, _, _, adminPlayer, userPlayer := testHandler(t)
 	adminSession := manager.Join(world.Player{

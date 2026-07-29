@@ -241,32 +241,42 @@ func requiredPlayerArgument(args []string, usage string) (string, error) {
 }
 
 func (h *Handler) promote(ctx context.Context, args []string) (string, error) {
-	target, err := requiredPlayerArgument(args, "/promote <player>")
-	if err != nil {
-		return "", err
+	if len(args) < 1 || len(args) > 2 || strings.TrimSpace(args[0]) == "" {
+		return "", errors.New("usage: /promote <player> [moderator|admin]")
+	}
+	target := strings.TrimSpace(args[0])
+	role := domain.CharacterRoleModerator
+	if len(args) == 2 {
+		role = domain.CharacterRole(strings.ToLower(strings.TrimSpace(args[1])))
+		if role != domain.CharacterRoleModerator &&
+			role != domain.CharacterRoleAdmin {
+			return "", errors.New(
+				"promotion role must be moderator or admin",
+			)
+		}
 	}
 	player, err := h.world.FindOnlinePlayer(target)
 	if err != nil {
 		return "", playerError(target, err)
 	}
-	switch player.Role {
-	case domain.CharacterRoleAdmin:
+	if player.Role == domain.CharacterRoleAdmin {
 		return "", fmt.Errorf("%s is already an administrator", player.Name)
-	case domain.CharacterRoleModerator:
+	}
+	if player.Role == role {
 		return "", fmt.Errorf("%s is already a moderator", player.Name)
 	}
 	if err := h.characters.UpdateRole(
-		ctx, player.ID, domain.CharacterRoleModerator,
+		ctx, player.ID, role,
 	); err != nil {
-		return "", fmt.Errorf("persist moderator role: %w", err)
+		return "", fmt.Errorf("persist promoted role: %w", err)
 	}
 	promoted, err := h.world.SetPlayerRole(
-		player.Name, domain.CharacterRoleModerator,
+		player.Name, role,
 	)
 	if err != nil {
 		return "", playerError(target, err)
 	}
-	return fmt.Sprintf("Promoted %s to moderator.", promoted.Name), nil
+	return fmt.Sprintf("Promoted %s to %s.", promoted.Name, role), nil
 }
 
 func (h *Handler) giveExperience(

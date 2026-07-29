@@ -61,7 +61,7 @@ Every command must begin with `/`.
 | `/item <item> <quantity> [player]` | Add an item to the inventory |
 | `/tp <area> [player]` | Move a player to an area's spawn |
 | `/tpTo <destination-player> [player]` | Move a player to another player |
-| `/promote <player>` | Promote a user to moderator; admin-only |
+| `/promote <player> [moderator\|admin]` | Promote a player to moderator or admin; admin-only |
 | `/kick <player>` | Disconnect an online player |
 | `/ban <player>` | Permanently ban an account; admin-only |
 | `/unban <player>` | Remove a permanent account ban; admin-only |
@@ -83,6 +83,9 @@ run the gameplay commands and `/kick`, but cannot kick administrators. Only
 administrators and the trusted server console can use `/promote`, `/ban`, and
 `/unban`. Both staff roles and the console can use `/m`; announcements appear
 in every player's chat as a fully yellow `Server` line.
+
+`/promote <player>` promotes to moderator by default. Pass `admin` explicitly
+to promote a user or moderator to administrator.
 
 Both staff roles and the console can toggle maintenance mode. Enabling it keeps
 current sessions connected but refuses new user and character-creation

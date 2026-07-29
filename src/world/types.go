@@ -118,7 +118,7 @@ const (
 	enemyAggroRange       = 8
 	playerMaxHealth       = 10
 	enemyAttackInterval   = 1500 * time.Millisecond
-	playerMoveInterval    = 200 * time.Millisecond
+	playerMoveInterval    = 100 * time.Millisecond
 	vitalityHealthPerRank = 5
 	chatHistoryLimit      = 10
 	chatMessageLimit      = 200

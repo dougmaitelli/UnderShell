@@ -21,7 +21,7 @@ type movementState struct {
 	nextMove         time.Time
 }
 
-const movementRepeatInterval = 200 * time.Millisecond
+const movementRepeatInterval = 100 * time.Millisecond
 
 func newMovementState() movementState {
 	return movementState{

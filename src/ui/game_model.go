@@ -319,7 +319,7 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 func (m *gameModel) View() tea.View {
 	view := tea.NewView(m.renderer.Render(m.viewState()))
 	view.AltScreen = true
-	view.WindowTitle = "SSH Realms"
+	view.WindowTitle = "UnderShell"
 	view.KeyboardEnhancements.ReportEventTypes = true
 	return view
 }

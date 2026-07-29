@@ -1035,7 +1035,7 @@ func TestModeratorNameUsesYellowShimmer(t *testing.T) {
 
 func TestWelcomeBorderRowsHaveEqualWidth(t *testing.T) {
 	box := welcomeBoxStyle.Render(strings.Join([]string{
-		titleStyle.Render("SSH REALMS"),
+		titleStyle.Render("UnderShell"),
 		"",
 		"Your SSH key has no character yet.",
 		"",

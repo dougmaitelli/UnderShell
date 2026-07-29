@@ -1,6 +1,6 @@
-# SSH Realms
+# UnderShell
 
-SSH Realms is a configurable multiplayer RPG engine that runs over SSH and
+UnderShell is a configurable multiplayer RPG engine that runs over SSH and
 renders its interface in the terminal. Players need only a standard SSH client;
 their public-key fingerprint is their persistent identity.
 

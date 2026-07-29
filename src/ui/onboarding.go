@@ -59,7 +59,7 @@ func (WelcomeRenderer) Render(state ViewState) string {
 	)
 	body := lipgloss.JoinVertical(
 		lipgloss.Center,
-		titleStyle.Render("SSH REALMS"),
+		titleStyle.Render("UnderShell"),
 		"",
 		"Your SSH key has no character yet.",
 		"",

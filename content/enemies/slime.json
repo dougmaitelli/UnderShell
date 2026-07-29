@@ -1,0 +1,15 @@
+{
+  "id": "slime",
+  "name": "Slime",
+  "description": "A wobbling blob that roams the meadow.",
+  "health": 3,
+  "damage": 1,
+  "experience": 25,
+  "drops": [
+    { "item_id": "slime_gel", "chance": 0.75 }
+  ],
+  "visual": [
+    " .-. ",
+    "(o_o)"
+  ]
+}

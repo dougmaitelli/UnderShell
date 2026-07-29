@@ -2,14 +2,12 @@
 package enemy
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"strings"
 	"unicode"
 
+	"sshrpg/src/content"
 	"sshrpg/src/item"
 )
 
@@ -45,39 +43,21 @@ type definitionFile struct {
 	Drops       []dropFile `json:"drops"`
 }
 
-type enemiesFile struct {
-	Enemies []definitionFile `json:"enemies"`
-}
-
 type Enemies struct {
 	enemies map[string]*Definition
 	order   []string
 }
 
-func LoadEnemies(path string, items *item.Items) (*Enemies, error) {
+func LoadEnemies(directory string, items *item.Items) (*Enemies, error) {
 	if items == nil {
 		return nil, errors.New("item definitions are required")
 	}
-	file, err := os.Open(path)
+	sources, err := content.LoadDefinitions[definitionFile](directory, "enemy")
 	if err != nil {
-		return nil, fmt.Errorf("open enemy definitions %s: %w", path, err)
+		return nil, err
 	}
-	defer file.Close()
-
-	var contents enemiesFile
-	decoder := json.NewDecoder(file)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&contents); err != nil {
-		return nil, fmt.Errorf("decode enemy definitions %s: %w", path, err)
-	}
-	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		if err == nil {
-			err = errors.New("multiple JSON values")
-		}
-		return nil, fmt.Errorf("decode enemy definitions %s: %w", path, err)
-	}
-	definitions := make([]Definition, len(contents.Enemies))
-	for index, source := range contents.Enemies {
+	definitions := make([]Definition, len(sources))
+	for index, source := range sources {
 		definition := Definition{
 			ID: source.ID, Name: source.Name, Description: source.Description,
 			Visual: source.Visual, Health: source.Health, Damage: source.Damage,

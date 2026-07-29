@@ -2,13 +2,12 @@
 package item
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"strings"
 	"unicode"
+
+	"sshrpg/src/content"
 )
 
 type Type string
@@ -62,35 +61,17 @@ type Definition struct {
 	MaxStack      int            `json:"max_stack"`
 }
 
-type itemsFile struct {
-	Items []Definition `json:"items"`
-}
-
 type Items struct {
 	items map[string]*Definition
 	order []string
 }
 
-func LoadItems(path string) (*Items, error) {
-	file, err := os.Open(path)
+func LoadItems(directory string) (*Items, error) {
+	definitions, err := content.LoadDefinitions[Definition](directory, "item")
 	if err != nil {
-		return nil, fmt.Errorf("open item definitions %s: %w", path, err)
+		return nil, err
 	}
-	defer file.Close()
-
-	var contents itemsFile
-	decoder := json.NewDecoder(file)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&contents); err != nil {
-		return nil, fmt.Errorf("decode item definitions %s: %w", path, err)
-	}
-	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		if err == nil {
-			err = errors.New("multiple JSON values")
-		}
-		return nil, fmt.Errorf("decode item definitions %s: %w", path, err)
-	}
-	return NewItems(contents.Items)
+	return NewItems(definitions)
 }
 
 func NewItems(definitions []Definition) (*Items, error) {

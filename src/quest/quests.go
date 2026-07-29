@@ -2,14 +2,12 @@
 package quest
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"strings"
 	"unicode"
 
+	"sshrpg/src/content"
 	"sshrpg/src/enemy"
 	"sshrpg/src/item"
 )
@@ -64,39 +62,21 @@ type definitionFile struct {
 	Dialogue    dialogueFile  `json:"dialogue"`
 }
 
-type questsFile struct {
-	Quests []definitionFile `json:"quests"`
-}
-
 type Quests struct {
 	quests map[string]*Definition
 	order  []string
 }
 
-func LoadQuests(path string, items *item.Items) (*Quests, error) {
+func LoadQuests(directory string, items *item.Items) (*Quests, error) {
 	if items == nil {
 		return nil, errors.New("item definitions are required")
 	}
-	file, err := os.Open(path)
+	sources, err := content.LoadDefinitions[definitionFile](directory, "quest")
 	if err != nil {
-		return nil, fmt.Errorf("open quest definitions %s: %w", path, err)
+		return nil, err
 	}
-	defer file.Close()
-
-	var contents questsFile
-	decoder := json.NewDecoder(file)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&contents); err != nil {
-		return nil, fmt.Errorf("decode quest definitions %s: %w", path, err)
-	}
-	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		if err == nil {
-			err = errors.New("multiple JSON values")
-		}
-		return nil, fmt.Errorf("decode quest definitions %s: %w", path, err)
-	}
-	definitions := make([]Definition, len(contents.Quests))
-	for index, source := range contents.Quests {
+	definitions := make([]Definition, len(sources))
+	for index, source := range sources {
 		itemDefinition, ok := items.Item(strings.TrimSpace(source.Objective.ItemID))
 		if !ok {
 			return nil, fmt.Errorf(

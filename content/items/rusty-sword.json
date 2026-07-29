@@ -1,0 +1,11 @@
+{
+  "id": "rusty_sword",
+  "name": "Rusty Sword",
+  "description": "An old blade that has seen better days.",
+  "type": "equipment",
+  "equipment_slot": "weapon",
+  "stats": {
+    "attack": 1
+  },
+  "max_stack": 1
+}

@@ -65,12 +65,12 @@ func main() {
 		os.Exit(1)
 	}
 	areas, err := world.LoadAreas(
-		cfg.MapsPath, world.References{
+		cfg.AreasPath, world.References{
 			Items: items, Enemies: enemies, Quests: quests,
 		},
 	)
 	if err != nil {
-		log.Error("load maps", "path", cfg.MapsPath, "error", err)
+		log.Error("load areas", "path", cfg.AreasPath, "error", err)
 		os.Exit(1)
 	}
 	if err := areas.SetDefaultSpawn(

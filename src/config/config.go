@@ -11,10 +11,10 @@ import (
 
 type Config struct {
 	ListenAddr   string
-	GamePath     string
 	HostKeyPath  string
 	DatabasePath string
-	MapsPath     string
+	GamePath     string
+	AreasPath    string
 	ItemsPath    string
 	EnemiesPath  string
 	QuestsPath   string
@@ -23,13 +23,13 @@ type Config struct {
 func Load() Config {
 	return Config{
 		ListenAddr:   env("SSH_LISTEN_ADDR", ":2222"),
-		GamePath:     env("GAME_CONFIG_PATH", "./config/game.json"),
 		HostKeyPath:  env("SSH_HOST_KEY_PATH", "./data/ssh_host_ed25519"),
 		DatabasePath: env("DATABASE_PATH", "./data/game.db"),
-		MapsPath:     env("MAPS_PATH", "./maps"),
-		ItemsPath:    env("ITEMS_PATH", "./items/items.json"),
-		EnemiesPath:  env("ENEMIES_PATH", "./enemies/enemies.json"),
-		QuestsPath:   env("QUESTS_PATH", "./quests/quests.json"),
+		GamePath:     env("GAME_CONFIG_PATH", "./content/game.json"),
+		AreasPath:    env("AREAS_PATH", "./content/areas"),
+		ItemsPath:    env("ITEMS_PATH", "./content/items"),
+		EnemiesPath:  env("ENEMIES_PATH", "./content/enemies"),
+		QuestsPath:   env("QUESTS_PATH", "./content/quests"),
 	}
 }
 

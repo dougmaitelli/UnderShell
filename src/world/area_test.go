@@ -51,18 +51,18 @@ func TestLoadAreasRejectsUnknownDestination(t *testing.T) {
 }
 
 func TestBundledConfigurationIsValid(t *testing.T) {
-	items, err := item.LoadItems(filepath.Join("..", "..", "items", "items.json"))
+	items, err := item.LoadItems(filepath.Join("..", "..", "content", "items"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	enemies, err := enemy.LoadEnemies(
-		filepath.Join("..", "..", "enemies", "enemies.json"), items,
+		filepath.Join("..", "..", "content", "enemies"), items,
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	quests, err := quest.LoadQuests(
-		filepath.Join("..", "..", "quests", "quests.json"), items,
+		filepath.Join("..", "..", "content", "quests"), items,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -71,7 +71,7 @@ func TestBundledConfigurationIsValid(t *testing.T) {
 		t.Fatal(err)
 	}
 	areas, err := LoadAreas(
-		filepath.Join("..", "..", "maps"),
+		filepath.Join("..", "..", "content", "areas"),
 		References{Items: items, Enemies: enemies, Quests: quests},
 	)
 	if err != nil {

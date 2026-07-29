@@ -1,0 +1,18 @@
+{
+  "id": "slime_supplies",
+  "name": "Slime Supplies",
+  "description": "Collect slime gel from the slimes roaming the meadow.",
+  "objective": {
+    "item_id": "slime_gel",
+    "quantity": 5
+  },
+  "reward": {
+    "gold": 30
+  },
+  "dialogue": {
+    "offer": "The meadow slimes are fouling my mixtures. Bring me five portions of Slime Gel and I will pay you.",
+    "in_progress": "I still need five portions of Slime Gel. The meadow slimes should have what we need.",
+    "ready": "That is enough Slime Gel. Hand it over and I will reward your work.",
+    "completed": "Your Slime Gel was exactly what I needed. Thank you again."
+  }
+}

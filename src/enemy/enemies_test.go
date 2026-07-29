@@ -9,12 +9,12 @@ import (
 )
 
 func TestLoadBundledEnemies(t *testing.T) {
-	items, err := item.LoadItems(filepath.Join("..", "..", "items", "items.json"))
+	items, err := item.LoadItems(filepath.Join("..", "..", "content", "items"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	enemies, err := LoadEnemies(
-		filepath.Join("..", "..", "enemies", "enemies.json"), items,
+		filepath.Join("..", "..", "content", "enemies"), items,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -46,20 +46,25 @@ func TestLoadEnemiesRejectsInvalidVisualAndUnknownFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(t.TempDir(), "enemies.json")
+	directory := t.TempDir()
+	path := filepath.Join(directory, "slime.json")
 	if err := os.WriteFile(path, []byte(`{
-		"enemies":[{"id":"slime","name":"Slime","description":"","health":1,"experience":1,"visual":[""]}]
+		"id":"slime","name":"Slime","description":"",
+		"health":1,"experience":1,"visual":[""]
 	}`), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadEnemies(path, items); err == nil {
+	if _, err := LoadEnemies(directory, items); err == nil {
 		t.Fatal("expected invalid visual to fail")
 	}
 
-	if err := os.WriteFile(path, []byte(`{"enemies":[],"extra":true}`), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(`{
+		"id":"slime","name":"Slime","health":1,
+		"experience":1,"visual":["s"],"extra":true
+	}`), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadEnemies(path, items); err == nil {
+	if _, err := LoadEnemies(directory, items); err == nil {
 		t.Fatal("expected unknown field to fail")
 	}
 }

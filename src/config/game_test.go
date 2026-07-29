@@ -7,7 +7,7 @@ import (
 )
 
 func TestLoadBundledGameConfig(t *testing.T) {
-	game, err := LoadGame(filepath.Join("..", "..", "config", "game.json"))
+	game, err := LoadGame(filepath.Join("..", "..", "content", "game.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

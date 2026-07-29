@@ -1,0 +1,7 @@
+{
+  "id": "bat_wing",
+  "name": "Bat Wing",
+  "description": "A delicate wing recovered from a cave bat.",
+  "type": "material",
+  "max_stack": 50
+}

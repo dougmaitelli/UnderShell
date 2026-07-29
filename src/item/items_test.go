@@ -7,16 +7,20 @@ import (
 )
 
 func TestLoadItems(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "items.json")
+	directory := t.TempDir()
+	path := filepath.Join(directory, "health-potion.json")
 	if err := os.WriteFile(path, []byte(`{
-		"items": [
-			{"id":"health_potion","name":"Health Potion","description":"Restores health.","type":"consumable","effects":[{"type":"restore_health","amount":5}],"max_stack":10}
-		]
+		"id":"health_potion",
+		"name":"Health Potion",
+		"description":"Restores health.",
+		"type":"consumable",
+		"effects":[{"type":"restore_health","amount":5}],
+		"max_stack":10
 	}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 
-	items, err := LoadItems(path)
+	items, err := LoadItems(directory)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +165,7 @@ func TestEquipmentStatsMustBeNonNegativeAndEquipmentOnly(t *testing.T) {
 }
 
 func TestBundledItemsAreValid(t *testing.T) {
-	items, err := LoadItems(filepath.Join("..", "..", "items", "items.json"))
+	items, err := LoadItems(filepath.Join("..", "..", "content", "items"))
 	if err != nil {
 		t.Fatal(err)
 	}

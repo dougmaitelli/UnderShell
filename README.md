@@ -57,24 +57,24 @@ Configuration is supplied through environment variables.
 | Variable | Default | Purpose |
 |---|---|---|
 | `SSH_LISTEN_ADDR` | `:2222` | Address and port used by the SSH server |
-| `GAME_CONFIG_PATH` | `./config/game.json` | JSON file containing global game settings |
 | `SSH_HOST_KEY_PATH` | `./data/ssh_host_ed25519` | Persistent Ed25519 server host-key path |
 | `DATABASE_PATH` | `./data/game.db` | Persistent SQLite database path |
-| `MAPS_PATH` | `./maps` | Directory containing JSON area definitions |
-| `ITEMS_PATH` | `./items/items.json` | JSON file containing available game items |
-| `ENEMIES_PATH` | `./enemies/enemies.json` | JSON file containing available enemy types |
-| `QUESTS_PATH` | `./quests/quests.json` | JSON file containing available quests |
+| `GAME_CONFIG_PATH` | `./content/game.json` | JSON file containing global game settings |
+| `AREAS_PATH` | `./content/areas` | Directory containing area definitions |
+| `ITEMS_PATH` | `./content/items` | Directory containing item definitions |
+| `ENEMIES_PATH` | `./content/enemies` | Directory containing enemy definitions |
+| `QUESTS_PATH` | `./content/quests` | Directory containing quest definitions |
 
 Example:
 
 ```sh
 SSH_LISTEN_ADDR=:2022 \
-GAME_CONFIG_PATH=./config/game.json \
 DATABASE_PATH=./data/development.db \
-MAPS_PATH=./maps \
-ITEMS_PATH=./items/items.json \
-ENEMIES_PATH=./enemies/enemies.json \
-QUESTS_PATH=./quests/quests.json \
+GAME_CONFIG_PATH=./content/game.json \
+AREAS_PATH=./content/areas \
+ITEMS_PATH=./content/items \
+ENEMIES_PATH=./content/enemies \
+QUESTS_PATH=./content/quests \
 make run
 ```
 
@@ -96,9 +96,14 @@ The default spawn used by both new and defeated players is defined globally in
 The area must exist and the coordinate must be a walkable tile. Invalid game
 configuration prevents the server from starting.
 
-## Areas and maps
+## Content definitions
 
-Each JSON file in `MAPS_PATH` defines one area. Layout rows must all have the
+Items, enemies, quests, and areas are organized under `content/`. Each JSON
+file contains exactly one definition, and each content type has its own
+directory. Definitions are loaded in dependency order: items, enemies, quests,
+then areas.
+
+Each JSON file in `AREAS_PATH` defines one area. Layout rows must all have the
 same width. A `#` tile is a wall; every other printable character is walkable.
 
 ```json
@@ -160,7 +165,7 @@ Walking onto any tile covered by a waypoint moves the character to its
 destination area and coordinate. `x` and `y` are the region's top-left corner;
 `width` and `height` default to 1. Area IDs must be unique, and every waypoint
 destination must refer to a loaded area and a walkable tile. The server validates
-all map files during startup.
+all area files during startup.
 
 Large areas can use a compact generated layout instead of listing every row:
 
@@ -212,15 +217,14 @@ an equipment slot.
 
 ```json
 {
-  "items": [
-    {
-      "id": "health_potion",
-      "name": "Health Potion",
-      "description": "Restores a small amount of health.",
-      "type": "consumable",
-      "max_stack": 10
-    }
-  ]
+  "id": "health_potion",
+  "name": "Health Potion",
+  "description": "Restores a small amount of health.",
+  "type": "consumable",
+  "effects": [
+    { "type": "restore_health", "amount": 5 }
+  ],
+  "max_stack": 10
 }
 ```
 
@@ -228,29 +232,25 @@ The server validates and loads the full item definitions during startup.
 
 ## Enemies
 
-Enemy types are defined in `ENEMIES_PATH`, separately from their map-owned
+Enemy types are defined in `ENEMIES_PATH`, separately from their area-owned
 spawn locations. IDs follow the same format as item IDs. `visual` contains
 between one and five rows of small ASCII art, with at most 15 characters per
 row. Leading and trailing spaces are preserved for shaping the art.
 
 ```json
 {
-  "enemies": [
-    {
-      "id": "slime",
-      "name": "Slime",
-      "description": "A wobbling blob that roams the meadow.",
-      "health": 3,
-      "damage": 1,
-      "experience": 25,
-      "drops": [
-        { "item_id": "slime_gel", "chance": 0.75 }
-      ],
-      "visual": [
-        " .-. ",
-        "(o_o)"
-      ]
-    }
+  "id": "slime",
+  "name": "Slime",
+  "description": "A wobbling blob that roams the meadow.",
+  "health": 3,
+  "damage": 1,
+  "experience": 25,
+  "drops": [
+    { "item_id": "slime_gel", "chance": 0.75 }
+  ],
+  "visual": [
+    " .-. ",
+    "(o_o)"
   ]
 }
 ```
@@ -344,26 +344,22 @@ retrieve a configured quantity of one item:
 
 ```json
 {
-  "quests": [
-    {
-      "id": "slime_supplies",
-      "name": "Slime Supplies",
-      "description": "Collect slime gel from the slimes roaming the meadow.",
-      "objective": {
-        "item_id": "slime_gel",
-        "quantity": 5
-      },
-      "reward": {
-        "gold": 30
-      },
-      "dialogue": {
-        "offer": "The meadow slimes are fouling my mixtures. Bring me five portions of Slime Gel and I will pay you.",
-        "in_progress": "I still need five portions of Slime Gel.",
-        "ready": "That is enough Slime Gel. Hand it over and I will reward your work.",
-        "completed": "Your Slime Gel was exactly what I needed. Thank you again."
-      }
-    }
-  ]
+  "id": "slime_supplies",
+  "name": "Slime Supplies",
+  "description": "Collect slime gel from the slimes roaming the meadow.",
+  "objective": {
+    "item_id": "slime_gel",
+    "quantity": 5
+  },
+  "reward": {
+    "gold": 30
+  },
+  "dialogue": {
+    "offer": "The meadow slimes are fouling my mixtures. Bring me five portions of Slime Gel and I will pay you.",
+    "in_progress": "I still need five portions of Slime Gel.",
+    "ready": "That is enough Slime Gel. Hand it over and I will reward your work.",
+    "completed": "Your Slime Gel was exactly what I needed. Thank you again."
+  }
 }
 ```
 

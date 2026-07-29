@@ -1,14 +1,12 @@
 package world
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"unicode"
 
+	"sshrpg/src/content"
 	"sshrpg/src/enemy"
 	"sshrpg/src/item"
 	"sshrpg/src/npc"
@@ -117,27 +115,9 @@ func LoadAreas(
 	directory string,
 	references ...References,
 ) (*Areas, error) {
-	paths, err := filepath.Glob(filepath.Join(directory, "*.json"))
+	definitions, err := content.LoadDefinitions[AreaDefinition](directory, "area")
 	if err != nil {
-		return nil, fmt.Errorf("find area files: %w", err)
-	}
-	if len(paths) == 0 {
-		return nil, fmt.Errorf("no JSON area files found in %s", directory)
-	}
-
-	definitions := make([]AreaDefinition, 0, len(paths))
-	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("read area %s: %w", path, err)
-		}
-		var definition AreaDefinition
-		decoder := json.NewDecoder(strings.NewReader(string(data)))
-		decoder.DisallowUnknownFields()
-		if err := decoder.Decode(&definition); err != nil {
-			return nil, fmt.Errorf("decode area %s: %w", path, err)
-		}
-		definitions = append(definitions, definition)
+		return nil, err
 	}
 	return NewAreas(definitions, references...)
 }

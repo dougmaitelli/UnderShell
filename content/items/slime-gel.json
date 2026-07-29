@@ -1,0 +1,7 @@
+{
+  "id": "slime_gel",
+  "name": "Slime Gel",
+  "description": "A sticky material left behind by slimes.",
+  "type": "material",
+  "max_stack": 50
+}

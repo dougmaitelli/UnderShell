@@ -18,7 +18,10 @@ type movementState struct {
 	walkFrame        int
 	walkSteps        uint64
 	walkGeneration   uint64
+	nextMove         time.Time
 }
+
+const movementRepeatInterval = 200 * time.Millisecond
 
 func newMovementState() movementState {
 	return movementState{
@@ -58,6 +61,15 @@ func (s *movementState) finishStep(generation uint64) {
 	}
 }
 
+func (s *movementState) beginMove(now time.Time) bool {
+	if s.inFlight || now.Before(s.nextMove) {
+		return false
+	}
+	s.inFlight = true
+	s.nextMove = now.Add(movementRepeatInterval)
+	return true
+}
+
 func (m *gameModel) handleMovementPress(key string) tea.Cmd {
 	direction := directionKey(key)
 	if direction == "" {
@@ -66,19 +78,20 @@ func (m *gameModel) handleMovementPress(key string) tea.Cmd {
 	m.movement.setFacing(movement(key))
 	if !m.movement.enhanced {
 		dx, dy := movement(key)
-		if m.movement.inFlight {
+		if !m.movement.beginMove(time.Now()) {
+			m.skipRender = true
 			return nil
 		}
-		m.movement.inFlight = true
-		return tea.Batch(m.movePlayer(dx, dy), m.movement.step())
+		m.skipRender = true
+		return m.movePlayer(dx, dy)
 	}
 
 	m.movement.held[direction] = true
 	commands := make([]tea.Cmd, 0, 2)
-	if !m.movement.inFlight {
+	if m.movement.beginMove(time.Now()) {
 		dx, dy := heldMovement(m.movement.held)
-		m.movement.inFlight = true
-		commands = append(commands, m.movePlayer(dx, dy), m.movement.step())
+		m.skipRender = true
+		commands = append(commands, m.movePlayer(dx, dy))
 	}
 	if !m.movement.looping {
 		m.movement.looping = true
@@ -93,18 +106,23 @@ func (m *gameModel) handleMovementTick() tea.Cmd {
 		return nil
 	}
 	commands := []tea.Cmd{movementTick()}
-	if !m.movement.inFlight {
+	if m.movement.beginMove(time.Now()) {
 		dx, dy := heldMovement(m.movement.held)
 		if dx != 0 || dy != 0 {
-			m.movement.inFlight = true
-			commands = append(commands, m.movePlayer(dx, dy), m.movement.step())
+			m.skipRender = true
+			commands = append(commands, m.movePlayer(dx, dy))
+		} else {
+			m.movement.inFlight = false
 		}
+	}
+	if len(commands) == 1 {
+		m.skipRender = true
 	}
 	return tea.Batch(commands...)
 }
 
 func movementTick() tea.Cmd {
-	return tea.Tick(80*time.Millisecond, func(time.Time) tea.Msg {
+	return tea.Tick(movementRepeatInterval, func(time.Time) tea.Msg {
 		return movementTickMsg{}
 	})
 }

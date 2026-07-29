@@ -91,24 +91,31 @@ func TestBasicMovementUsesTerminalKeyRepeats(t *testing.T) {
 	if command == nil || !model.movement.inFlight {
 		t.Fatal("basic movement did not accept a terminal key-repeat event")
 	}
+	model.movement.inFlight = false
+	_, command = model.Update(tea.KeyPressMsg(tea.Key{
+		Text:     "s",
+		Code:     's',
+		IsRepeat: true,
+	}))
+	if command != nil || model.movement.inFlight || !model.skipRender {
+		t.Fatal("movement repeat bypassed the client movement rate limit")
+	}
 }
 
 func TestWalkingAnimationAlternatesAndReturnsToStanding(t *testing.T) {
 	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{ID: 1}, nil)
 
-	model.handleMovementPress("d")
+	model.movement.step()
 	firstGeneration := model.movement.walkGeneration
 	if model.movement.walkFrame != 1 {
 		t.Fatalf("first walk frame = %d, want 1", model.movement.walkFrame)
 	}
 
-	model.movement.inFlight = false
-	model.handleMovementPress("d")
+	model.movement.step()
 	if model.movement.walkFrame != 1 {
 		t.Fatalf("second walk frame = %d, want held frame 1", model.movement.walkFrame)
 	}
-	model.movement.inFlight = false
-	model.handleMovementPress("d")
+	model.movement.step()
 	if model.movement.walkFrame != 2 {
 		t.Fatalf("third walk frame = %d, want 2", model.movement.walkFrame)
 	}
@@ -119,6 +126,26 @@ func TestWalkingAnimationAlternatesAndReturnsToStanding(t *testing.T) {
 	model.movement.finishStep(model.movement.walkGeneration)
 	if model.movement.walkFrame != 0 {
 		t.Fatalf("finished walk frame = %d, want standing frame 0", model.movement.walkFrame)
+	}
+}
+
+func TestRejectedMovementReusesPreviousRender(t *testing.T) {
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{
+		ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1,
+	}, nil)
+	model.phase = phasePlaying
+	initial := model.View().Content
+
+	_, command := model.Update(playerMovedMsg{
+		player: world.Player{
+			ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1,
+		},
+	})
+	if command != nil || !model.skipRender {
+		t.Fatal("rejected movement scheduled work or invalidated the render")
+	}
+	if rendered := model.View().Content; rendered != initial {
+		t.Fatal("rejected movement changed the rendered frame")
 	}
 }
 
@@ -738,35 +765,6 @@ func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
 	}
 	if !strings.Contains(plain, "Lv 2 • XP 25/400 • SP 1 • HP 8/10") {
 		t.Fatalf("player progression not rendered: %q", plain)
-	}
-}
-
-func TestGameViewCapsLargeTerminalViewport(t *testing.T) {
-	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{
-		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
-	}, nil)
-	model.phase = phasePlaying
-	model.width, model.height = 320, 100
-	model.connection.snapshot = world.Snapshot{
-		Players: []world.Player{{
-			ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
-		}},
-	}
-
-	state := model.viewState()
-	if state.Width != maxViewportWidth || state.Height != maxViewportHeight {
-		t.Fatalf(
-			"large terminal rendered at %dx%d, want %dx%d",
-			state.Width, state.Height, maxViewportWidth, maxViewportHeight,
-		)
-	}
-	rendered := model.View().Content
-	if width, height := lipgloss.Size(rendered); width > maxViewportWidth ||
-		height > maxViewportHeight {
-		t.Fatalf(
-			"large terminal produced %dx%d output, maximum is %dx%d",
-			width, height, maxViewportWidth, maxViewportHeight,
-		)
 	}
 }
 

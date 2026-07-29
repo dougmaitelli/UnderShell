@@ -36,6 +36,62 @@ func TestPlayersOnlySeeOthersInTheirArea(t *testing.T) {
 	}
 }
 
+func TestJoiningAnotherAreaDoesNotRedrawExistingPlayers(t *testing.T) {
+	manager := New(testAreas(t), nil, nil, nil)
+	defer manager.Close()
+
+	first := manager.Join(Player{
+		ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1,
+	})
+	receiveSnapshot(t, first.Updates)
+	second := manager.Join(Player{
+		ID: 2, Name: "Rowan", AreaID: "cavern", X: 1, Y: 1,
+	})
+	receiveSnapshot(t, second.Updates)
+	assertNoSnapshot(t, first.Updates)
+}
+
+func TestMovementRateIsLimitedAndOnlyAcceptedMovesBroadcast(t *testing.T) {
+	areas, err := NewAreas([]AreaDefinition{{
+		ID: "road", Name: "Road",
+		Layout: []string{"######", "#....#", "######"},
+		Spawn:  Point{X: 1, Y: 1},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := New(areas, nil, nil, nil)
+	defer manager.Close()
+	session := manager.Join(Player{
+		ID: 1, Name: "Aria", AreaID: "road", X: 1, Y: 1,
+	})
+	receiveSnapshot(t, session.Updates)
+
+	first := manager.Move(1, session.Token, 1, 0)
+	if first.X != 2 {
+		t.Fatalf("first move ended at x=%d, want 2", first.X)
+	}
+	receiveSnapshot(t, session.Updates)
+	limited := manager.Move(1, session.Token, 1, 0)
+	if limited.X != 2 {
+		t.Fatalf("rate-limited move ended at x=%d, want 2", limited.X)
+	}
+	assertNoSnapshot(t, session.Updates)
+
+	time.Sleep(playerMoveInterval)
+	next := manager.Move(1, session.Token, 1, 0)
+	if next.X != 3 {
+		t.Fatalf("move after cooldown ended at x=%d, want 3", next.X)
+	}
+	receiveSnapshot(t, session.Updates)
+
+	jump := manager.Move(1, session.Token, 2, 0)
+	if jump.X != 3 {
+		t.Fatalf("multi-tile move ended at x=%d, want 3", jump.X)
+	}
+	assertNoSnapshot(t, session.Updates)
+}
+
 func TestWallsBlockMovementAndReconnectReplacesSession(t *testing.T) {
 	manager := New(testAreas(t), nil, nil, nil)
 	defer manager.Close()
@@ -47,6 +103,7 @@ func TestWallsBlockMovementAndReconnectReplacesSession(t *testing.T) {
 	if blocked.X != 1 || blocked.Y != 1 {
 		t.Fatalf("player walked through a wall: %#v", blocked)
 	}
+	assertNoSnapshot(t, first.Updates)
 
 	replacement := manager.Join(Player{ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1})
 	select {
@@ -731,6 +788,15 @@ func receiveSnapshot(t *testing.T, updates <-chan Snapshot) Snapshot {
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for snapshot")
 		return Snapshot{}
+	}
+}
+
+func assertNoSnapshot(t *testing.T, updates <-chan Snapshot) {
+	t.Helper()
+	select {
+	case snapshot := <-updates:
+		t.Fatalf("received unexpected snapshot: %#v", snapshot)
+	default:
 	}
 }
 

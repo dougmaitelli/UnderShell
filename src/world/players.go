@@ -3,6 +3,7 @@ package world
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"sshrpg/src/item"
 )
@@ -11,11 +12,12 @@ var ErrPlayerNotOnline = errors.New("player is not online")
 
 type activePlayer struct {
 	Player
-	token   string
-	updates chan Snapshot
-	events  chan Event
-	chats   chan ChatMessage
-	kicked  chan string
+	token    string
+	updates  chan Snapshot
+	events   chan Event
+	chats    chan ChatMessage
+	kicked   chan string
+	nextMove time.Time
 }
 
 type playerSystem struct {
@@ -36,10 +38,13 @@ func (s *playerSystem) join(
 	chatHistory []ChatMessage,
 	snapshot func(*activePlayer) Snapshot,
 ) Session {
+	changedAreas := map[string]bool{player.AreaID: true}
 	if previous := s.live[player.ID]; previous != nil {
+		changedAreas[previous.AreaID] = true
 		closePlayer(previous, "This character connected from another session.")
 	}
 	s.place(&player)
+	changedAreas[player.AreaID] = true
 	active := &activePlayer{
 		Player:  player,
 		token:   newToken(),
@@ -52,7 +57,7 @@ func (s *playerSystem) join(
 	for _, message := range chatHistory {
 		active.chats <- message
 	}
-	s.broadcast(snapshot)
+	s.broadcastAreas(snapshot, changedAreas)
 	return Session{
 		Token: active.token, Updates: active.updates, Events: active.events,
 		Chats: active.chats, Kicked: active.kicked,
@@ -81,14 +86,26 @@ func (s *playerSystem) move(
 	id int64,
 	token string,
 	dx, dy int,
+	now time.Time,
 	broadcast func(),
 ) Player {
 	player := s.authenticated(id, token)
 	if player == nil {
 		return Player{}
 	}
+	if (dx == 0 && dy == 0) ||
+		abs(dx) > 1 || abs(dy) > 1 ||
+		now.Before(player.nextMove) {
+		return player.Player
+	}
+	player.nextMove = now.Add(playerMoveInterval)
+	previousAreaID, previousX, previousY := player.AreaID, player.X, player.Y
 	s.moveActive(player, dx, dy)
-	broadcast()
+	if player.AreaID != previousAreaID ||
+		player.X != previousX ||
+		player.Y != previousY {
+		broadcast()
+	}
 	return player.Player
 }
 
@@ -207,8 +224,21 @@ func (s *playerSystem) snapshot(
 	return snapshot
 }
 
-func (s *playerSystem) broadcast(snapshot func(*activePlayer) Snapshot) {
+func (s *playerSystem) broadcastArea(
+	snapshot func(*activePlayer) Snapshot,
+	areaID string,
+) {
+	s.broadcastAreas(snapshot, map[string]bool{areaID: true})
+}
+
+func (s *playerSystem) broadcastAreas(
+	snapshot func(*activePlayer) Snapshot,
+	areaIDs map[string]bool,
+) {
 	for _, recipient := range s.live {
+		if areaIDs != nil && !areaIDs[recipient.AreaID] {
+			continue
+		}
 		next := snapshot(recipient)
 		select {
 		case <-recipient.updates:

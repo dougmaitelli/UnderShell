@@ -97,12 +97,12 @@ func (s *enemySystem) remove(target *Enemy) {
 	}
 }
 
-func (s *enemySystem) tick(players *playerSystem, now time.Time) bool {
+func (s *enemySystem) tick(players *playerSystem, now time.Time) map[string]bool {
 	if len(players.live) == 0 {
-		return false
+		return nil
 	}
 	activeAreas := players.activeAreas()
-	changed := s.update(players, now)
+	changed := s.updateAreas(players, now)
 	for key, state := range s.spawns {
 		area := s.areas.areas[key.areaID]
 		spawn := area.EnemySpawns[key.index]
@@ -112,7 +112,9 @@ func (s *enemySystem) tick(players *playerSystem, now time.Time) bool {
 		s.nextID++
 		s.spawn(area, key.index, s.nextID)
 		state.count++
-		changed = changed || activeAreas[key.areaID]
+		if activeAreas[key.areaID] {
+			changed[key.areaID] = true
+		}
 		if state.count < spawn.MaxEnemies {
 			state.nextSpawn = now.Add(time.Duration(spawn.RespawnSeconds) * time.Second)
 		} else {
@@ -123,7 +125,14 @@ func (s *enemySystem) tick(players *playerSystem, now time.Time) bool {
 }
 
 func (s *enemySystem) update(players *playerSystem, now time.Time) bool {
-	changed := false
+	return len(s.updateAreas(players, now)) > 0
+}
+
+func (s *enemySystem) updateAreas(
+	players *playerSystem,
+	now time.Time,
+) map[string]bool {
+	changed := make(map[string]bool)
 	respawned := make(map[int64]bool)
 	directions := [...]Point{{}, {X: 1}, {X: -1}, {Y: 1}, {Y: -1}}
 	activeAreas := players.activeAreas()
@@ -143,6 +152,7 @@ func (s *enemySystem) update(players *playerSystem, now time.Time) bool {
 			if !attacked {
 				continue
 			}
+			visibleChange := actualDamage > 0
 			if actualDamage > 0 {
 				sendEvent(targetPlayer, Event{
 					Kind: EventDamage,
@@ -153,6 +163,7 @@ func (s *enemySystem) update(players *playerSystem, now time.Time) bool {
 				})
 			}
 			if targetPlayer.Health == 0 {
+				previousAreaID := targetPlayer.AreaID
 				sendEvent(targetPlayer, Event{Kind: EventDeath, Message: "You were defeated"})
 				players.respawn(targetPlayer)
 				spawnArea, _ := s.areas.Area(targetPlayer.AreaID)
@@ -160,8 +171,12 @@ func (s *enemySystem) update(players *playerSystem, now time.Time) bool {
 					Kind: EventRespawn, Message: "Respawned in " + spawnArea.Name,
 				})
 				respawned[targetPlayer.ID] = true
+				changed[previousAreaID] = true
+				changed[targetPlayer.AreaID] = true
 			}
-			changed = true
+			if visibleChange {
+				changed[current.AreaID] = true
+			}
 			continue
 		}
 
@@ -184,7 +199,7 @@ func (s *enemySystem) update(players *playerSystem, now time.Time) bool {
 			continue
 		}
 		current.move(direction)
-		changed = true
+		changed[current.AreaID] = true
 	}
 	return changed
 }

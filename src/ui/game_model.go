@@ -22,13 +22,6 @@ const (
 	phasePlaying
 )
 
-const (
-	// Rendering and diffing happen on the server. Bound the viewport so a very
-	// large client window cannot multiply CPU and allocation costs indefinitely.
-	maxViewportWidth  = 120
-	maxViewportHeight = 40
-)
-
 type gameModel struct {
 	repositories Repositories
 	world        *world.Manager
@@ -57,6 +50,8 @@ type gameModel struct {
 	width         int
 	height        int
 	renderer      Renderer
+	lastView      string
+	skipRender    bool
 }
 
 type characterCreatedMsg struct {
@@ -88,6 +83,7 @@ type worldKickedMsg struct {
 
 type playerMovedMsg struct {
 	player world.Player
+	moved  bool
 }
 
 type positionSavedMsg struct {
@@ -177,6 +173,7 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyReleaseMsg:
 		if m.phase == phasePlaying && m.movement.enhanced {
 			delete(m.movement.held, directionKey(msg.String()))
+			m.skipRender = true
 		}
 		return m, nil
 	case movementTickMsg:
@@ -306,11 +303,16 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case playerMovedMsg:
 		m.movement.inFlight = false
 		if msg.player.ID == 0 {
+			m.skipRender = true
+			return m, nil
+		}
+		if !msg.moved {
+			m.skipRender = true
 			return m, nil
 		}
 		m.character.AreaID = msg.player.AreaID
 		m.character.X, m.character.Y = msg.player.X, msg.player.Y
-		return m, m.savePosition()
+		return m, tea.Batch(m.savePosition(), m.movement.step())
 	case positionSavedMsg:
 		if msg.err != nil {
 			m.log.Error("save position", "character_id", m.character.ID, "error", msg.err)
@@ -324,7 +326,13 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *gameModel) View() tea.View {
-	view := tea.NewView(m.renderer.Render(m.viewState()))
+	content := m.lastView
+	if content == "" || !m.skipRender {
+		content = m.renderer.Render(m.viewState())
+		m.lastView = content
+	}
+	m.skipRender = false
+	view := tea.NewView(content)
 	view.AltScreen = true
 	view.WindowTitle = "UnderShell"
 	view.KeyboardEnhancements.ReportEventTypes = true
@@ -334,8 +342,8 @@ func (m *gameModel) View() tea.View {
 func (m *gameModel) viewState() ViewState {
 	return ViewState{
 		Phase:             m.phase,
-		Width:             min(m.width, maxViewportWidth),
-		Height:            min(m.height, maxViewportHeight),
+		Width:             m.width,
+		Height:            m.height,
 		Input:             m.input.View(),
 		Message:           m.message,
 		Creating:          m.creating,

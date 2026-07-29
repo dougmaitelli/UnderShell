@@ -45,10 +45,16 @@ func (m *gameModel) joinWorld() tea.Cmd {
 }
 
 func (m *gameModel) movePlayer(dx, dy int) tea.Cmd {
+	areaID, x, y := m.character.AreaID, m.character.X, m.character.Y
 	return func() tea.Msg {
-		return playerMovedMsg{player: m.world.Move(
+		player := m.world.Move(
 			m.character.ID, m.connection.session.Token, dx, dy,
-		)}
+		)
+		return playerMovedMsg{
+			player: player,
+			moved: player.ID != 0 &&
+				(player.AreaID != areaID || player.X != x || player.Y != y),
+		}
 	}
 }
 

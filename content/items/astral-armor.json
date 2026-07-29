@@ -1,0 +1,12 @@
+{
+  "id": "astral_armor",
+  "name": "Astral Armor",
+  "description": "Protective plates that bend hostile energy away.",
+  "type": "equipment",
+  "equipment_slot": "armor",
+  "stats": {
+    "defense": 4,
+    "vitality": 4
+  },
+  "max_stack": 1
+}

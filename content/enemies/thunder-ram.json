@@ -1,0 +1,16 @@
+{
+  "id": "thunder_ram",
+  "name": "Thunder Ram",
+  "description": "A territorial ram whose horns crackle before it charges.",
+  "health": 14,
+  "damage": 3,
+  "experience": 170,
+  "drops": [
+    { "item_id": "health_potion", "chance": 0.1 },
+    { "item_id": "thunder_horn", "chance": 0.55 }
+  ],
+  "visual": [
+    ".^^.",
+    "(oo)"
+  ]
+}

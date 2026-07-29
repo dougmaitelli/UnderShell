@@ -1,0 +1,7 @@
+{
+  "id": "drake_scale",
+  "name": "Drake Scale",
+  "description": "A black scale that glows along its fractured edge.",
+  "type": "material",
+  "max_stack": 50
+}

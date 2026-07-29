@@ -1,0 +1,7 @@
+{
+  "id": "ash_fragment",
+  "name": "Ash Fragment",
+  "description": "A dense shard broken from a volcanic construct.",
+  "type": "material",
+  "max_stack": 50
+}

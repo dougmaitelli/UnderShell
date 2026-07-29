@@ -1,7 +1,7 @@
 {
   "default_spawn": {
-    "area_id": "meadow",
-    "x": 7,
-    "y": 32
+    "area_id": "willowbrook",
+    "x": 8,
+    "y": 27
   }
 }

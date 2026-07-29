@@ -1,0 +1,15 @@
+{
+  "id": "frost_wraith",
+  "name": "Frost Wraith",
+  "description": "A hollow spirit drifting through blue glacial tunnels.",
+  "health": 18,
+  "damage": 4,
+  "experience": 260,
+  "drops": [
+    { "item_id": "health_potion", "chance": 0.14 }
+  ],
+  "visual": [
+    " .-. ",
+    "<~~~>"
+  ]
+}

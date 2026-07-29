@@ -1,0 +1,67 @@
+{
+  "id": "ember_depths",
+  "name": "Ember Depths",
+  "width": 192,
+  "height": 64,
+  "border_tile": "#",
+  "features": [
+    { "x": 16, "y": 8, "width": 22, "height": 2, "tile": "#" },
+    { "x": 25, "y": 20, "width": 3, "height": 13, "tile": "#" },
+    { "x": 43, "y": 15, "width": 25, "height": 2, "tile": "#" },
+    { "x": 65, "y": 25, "width": 19, "height": 2, "tile": "#" },
+    { "x": 77, "y": 7, "width": 3, "height": 12, "tile": "#" },
+    { "x": 108, "y": 10, "width": 34, "height": 2, "tile": "#" },
+    { "x": 146, "y": 31, "width": 3, "height": 21, "tile": "#" },
+    { "x": 117, "y": 53, "width": 50, "height": 2, "tile": "#" }
+  ],
+  "spawn": { "x": 96, "y": 5 },
+  "enemy_spawns": [
+    {
+      "enemy_id": "ember_imp",
+      "x": 20,
+      "y": 10,
+      "width": 44,
+      "height": 22,
+      "max_enemies": 3,
+      "respawn_seconds": 11
+    },
+    {
+      "enemy_id": "ember_imp",
+      "x": 78,
+      "y": 33,
+      "width": 44,
+      "height": 22,
+      "max_enemies": 3,
+      "respawn_seconds": 12
+    },
+    {
+      "enemy_id": "ember_imp",
+      "x": 137,
+      "y": 10,
+      "width": 36,
+      "height": 28,
+      "max_enemies": 3,
+      "respawn_seconds": 13
+    }
+  ],
+  "waypoints": [
+    {
+      "x": 95,
+      "y": 1,
+      "width": 3,
+      "height": 3,
+      "destination_area": "cavern",
+      "destination_x": 95,
+      "destination_y": 59
+    },
+    {
+      "x": 188,
+      "y": 30,
+      "width": 3,
+      "height": 3,
+      "destination_area": "ashlands",
+      "destination_x": 4,
+      "destination_y": 35
+    }
+  ]
+}

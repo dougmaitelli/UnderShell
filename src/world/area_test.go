@@ -101,6 +101,29 @@ func TestEnemySpawnValidation(t *testing.T) {
 	}
 }
 
+func TestGeneratedAreaUsesBlankWalkableFloorAndFeatures(t *testing.T) {
+	areas, err := NewAreas([]AreaDefinition{{
+		ID: "generated", Name: "Generated", Width: 7, Height: 5,
+		Spawn: Point{X: 1, Y: 1},
+		Features: []TileRect{{
+			X: 3, Y: 2, Width: 1, Height: 1, Tile: "#",
+		}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	area, _ := areas.Area("generated")
+	if floor := area.Tile(Point{X: 2, Y: 2}); floor != '.' {
+		t.Fatalf("generated floor = %q, want invisible floor tile", floor)
+	}
+	if !area.Walkable(Point{X: 2, Y: 2}) {
+		t.Fatal("generated floor is not walkable")
+	}
+	if wall := area.Tile(Point{X: 3, Y: 2}); wall != '#' {
+		t.Fatalf("generated feature = %q, want wall", wall)
+	}
+}
+
 func TestDefaultSpawnMustBeWalkableInKnownArea(t *testing.T) {
 	areas, err := NewAreas([]AreaDefinition{{
 		ID: "one", Name: "One", Layout: []string{"###", "#.#", "###"},

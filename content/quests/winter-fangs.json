@@ -1,0 +1,18 @@
+{
+  "id": "winter_fangs",
+  "name": "Winter Fangs",
+  "description": "Thin the Ice Wolf packs threatening Frostfall's travelers.",
+  "objective": {
+    "item_id": "ice_fang",
+    "quantity": 5
+  },
+  "reward": {
+    "gold": 280
+  },
+  "dialogue": {
+    "offer": "The Ice Wolves are driving travelers from the pass. Bring me five fangs as proof the pack is thinner.",
+    "in_progress": "They hunt between the redwoods and the glacier. Do not let them surround you.",
+    "ready": "Five fangs. The road should be safer for a while.",
+    "completed": "Caravans are crossing Frostfall again because of you."
+  }
+}

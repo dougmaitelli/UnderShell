@@ -1,0 +1,16 @@
+{
+  "id": "ice_wolf",
+  "name": "Ice Wolf",
+  "description": "A relentless pack hunter from the frozen mountain road.",
+  "health": 16,
+  "damage": 4,
+  "experience": 220,
+  "drops": [
+    { "item_id": "health_potion", "chance": 0.12 },
+    { "item_id": "ice_fang", "chance": 0.65 }
+  ],
+  "visual": [
+    "/\\_/\\",
+    "(o.o)"
+  ]
+}

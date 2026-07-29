@@ -1,0 +1,76 @@
+{
+  "id": "saltmarsh",
+  "name": "Saltmarsh",
+  "width": 224,
+  "height": 72,
+  "border_tile": "#",
+  "features": [
+    { "x": 12, "y": 7, "width": 3, "height": 14, "tile": "#" },
+    { "x": 24, "y": 27, "width": 21, "height": 2, "tile": "#" },
+    { "x": 38, "y": 12, "width": 22, "height": 2, "tile": "#" },
+    { "x": 61, "y": 21, "width": 3, "height": 12, "tile": "#" },
+    { "x": 74, "y": 8, "width": 13, "height": 2, "tile": "#" },
+    { "x": 113, "y": 11, "width": 38, "height": 2, "tile": "#" },
+    { "x": 158, "y": 31, "width": 3, "height": 29, "tile": "#" },
+    { "x": 176, "y": 57, "width": 34, "height": 2, "tile": "#" }
+  ],
+  "spawn": { "x": 8, "y": 35 },
+  "enemy_spawns": [
+    {
+      "enemy_id": "mire_toad",
+      "x": 18,
+      "y": 10,
+      "width": 52,
+      "height": 25,
+      "max_enemies": 3,
+      "respawn_seconds": 12
+    },
+    {
+      "enemy_id": "bog_lurker",
+      "x": 84,
+      "y": 34,
+      "width": 58,
+      "height": 28,
+      "max_enemies": 3,
+      "respawn_seconds": 13
+    },
+    {
+      "enemy_id": "bog_lurker",
+      "x": 160,
+      "y": 10,
+      "width": 45,
+      "height": 42,
+      "max_enemies": 3,
+      "respawn_seconds": 14
+    }
+  ],
+  "waypoints": [
+    {
+      "x": 1,
+      "y": 34,
+      "width": 3,
+      "height": 3,
+      "destination_area": "mistfen",
+      "destination_x": 187,
+      "destination_y": 31
+    },
+    {
+      "x": 111,
+      "y": 1,
+      "width": 3,
+      "height": 3,
+      "destination_area": "coastal_cliffs",
+      "destination_x": 96,
+      "destination_y": 59
+    },
+    {
+      "x": 220,
+      "y": 34,
+      "width": 3,
+      "height": 3,
+      "destination_area": "drowned_ruins",
+      "destination_x": 4,
+      "destination_y": 35
+    }
+  ]
+}

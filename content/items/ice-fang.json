@@ -1,0 +1,7 @@
+{
+  "id": "ice_fang",
+  "name": "Ice Fang",
+  "description": "A wolf fang that remains cold far from the mountain.",
+  "type": "material",
+  "max_stack": 50
+}

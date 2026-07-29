@@ -1,0 +1,18 @@
+{
+  "id": "sunken_insignias",
+  "name": "Sunken Insignias",
+  "description": "Recover relics from the sentinels of the Drowned Ruins.",
+  "objective": {
+    "item_id": "sentinel_relic",
+    "quantity": 4
+  },
+  "reward": {
+    "gold": 240
+  },
+  "dialogue": {
+    "offer": "Four Sentinel Relics could identify the people who built these ruins. Will you recover them?",
+    "in_progress": "The drowned guardians still patrol the flooded halls.",
+    "ready": "These markings match the oldest records in my collection.",
+    "completed": "The nameless city has a history again."
+  }
+}

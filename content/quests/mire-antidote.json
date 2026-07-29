@@ -1,0 +1,18 @@
+{
+  "id": "mire_antidote",
+  "name": "The Hermit's Antidote",
+  "description": "Gather Mire Glands for a hermit living at the edge of Mistfen.",
+  "objective": {
+    "item_id": "mire_gland",
+    "quantity": 4
+  },
+  "reward": {
+    "gold": 90
+  },
+  "dialogue": {
+    "offer": "Mistfen's vapors are worsening. Four Mire Glands will make enough antidote for both of us.",
+    "in_progress": "The largest toads carry the strongest glands. Watch the pools.",
+    "ready": "Keep your distance while I prepare these. The fumes bite.",
+    "completed": "Breathe deeply. The fen cannot poison you today."
+  }
+}

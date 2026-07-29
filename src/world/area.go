@@ -44,7 +44,6 @@ type AreaDefinition struct {
 	Layout      []string               `json:"layout"`
 	Width       int                    `json:"width"`
 	Height      int                    `json:"height"`
-	Default     string                 `json:"default_tile"`
 	Border      string                 `json:"border_tile"`
 	Features    []TileRect             `json:"features"`
 	Spawn       Point                  `json:"spawn"`
@@ -384,10 +383,6 @@ func expandLayout(definition AreaDefinition) ([]string, error) {
 	if definition.Width < 3 || definition.Height < 3 {
 		return nil, errors.New("generated layouts require width and height of at least 3")
 	}
-	defaultTile, err := singleTile(definition.Default, '.')
-	if err != nil {
-		return nil, fmt.Errorf("default tile: %w", err)
-	}
 	borderTile, err := singleTile(definition.Border, '#')
 	if err != nil {
 		return nil, fmt.Errorf("border tile: %w", err)
@@ -397,7 +392,7 @@ func expandLayout(definition AreaDefinition) ([]string, error) {
 	for y := range grid {
 		grid[y] = make([]rune, definition.Width)
 		for x := range grid[y] {
-			grid[y][x] = defaultTile
+			grid[y][x] = '.'
 			if x == 0 || y == 0 || x == definition.Width-1 || y == definition.Height-1 {
 				grid[y][x] = borderTile
 			}

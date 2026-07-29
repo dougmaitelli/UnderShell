@@ -1,0 +1,16 @@
+{
+  "id": "astral_horror",
+  "name": "Astral Horror",
+  "description": "A many-eyed thing drawn to the basin's fallen stars.",
+  "health": 26,
+  "damage": 6,
+  "experience": 500,
+  "drops": [
+    { "item_id": "health_potion", "chance": 0.18 },
+    { "item_id": "astral_shard", "chance": 0.6 }
+  ],
+  "visual": [
+    " *o* ",
+    "<:::>"
+  ]
+}

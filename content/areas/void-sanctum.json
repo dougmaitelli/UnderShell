@@ -1,0 +1,76 @@
+{
+  "id": "void_sanctum",
+  "name": "Void Sanctum",
+  "width": 256,
+  "height": 80,
+  "border_tile": "#",
+  "features": [
+    { "x": 13, "y": 7, "width": 3, "height": 25, "tile": "#" },
+    { "x": 27, "y": 12, "width": 18, "height": 2, "tile": "#" },
+    { "x": 42, "y": 25, "width": 21, "height": 2, "tile": "#" },
+    { "x": 62, "y": 8, "width": 3, "height": 14, "tile": "#" },
+    { "x": 75, "y": 29, "width": 12, "height": 2, "tile": "#" },
+    { "x": 120, "y": 9, "width": 46, "height": 2, "tile": "#" },
+    { "x": 176, "y": 34, "width": 3, "height": 33, "tile": "#" },
+    { "x": 199, "y": 67, "width": 39, "height": 2, "tile": "#" }
+  ],
+  "spawn": { "x": 8, "y": 39 },
+  "enemy_spawns": [
+    {
+      "enemy_id": "astral_horror",
+      "x": 18,
+      "y": 10,
+      "width": 62,
+      "height": 30,
+      "max_enemies": 2,
+      "respawn_seconds": 19
+    },
+    {
+      "enemy_id": "void_reaver",
+      "x": 96,
+      "y": 34,
+      "width": 64,
+      "height": 34,
+      "max_enemies": 2,
+      "respawn_seconds": 20
+    },
+    {
+      "enemy_id": "void_reaver",
+      "x": 182,
+      "y": 10,
+      "width": 56,
+      "height": 52,
+      "max_enemies": 2,
+      "respawn_seconds": 21
+    }
+  ],
+  "waypoints": [
+    {
+      "x": 1,
+      "y": 38,
+      "width": 3,
+      "height": 3,
+      "destination_area": "obsidian_caldera",
+      "destination_x": 251,
+      "destination_y": 39
+    },
+    {
+      "x": 252,
+      "y": 38,
+      "width": 3,
+      "height": 3,
+      "destination_area": "starfall_basin",
+      "destination_x": 4,
+      "destination_y": 39
+    },
+    {
+      "x": 127,
+      "y": 1,
+      "width": 3,
+      "height": 3,
+      "destination_area": "celestial_spire",
+      "destination_x": 104,
+      "destination_y": 67
+    }
+  ]
+}

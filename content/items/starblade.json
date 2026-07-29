@@ -1,0 +1,12 @@
+{
+  "id": "starblade",
+  "name": "Starblade",
+  "description": "A late-game weapon edged with condensed starlight.",
+  "type": "equipment",
+  "equipment_slot": "weapon",
+  "stats": {
+    "attack": 6,
+    "vitality": 1
+  },
+  "max_stack": 1
+}

@@ -1,0 +1,7 @@
+{
+  "id": "seraph_feather",
+  "name": "Seraph Feather",
+  "description": "A radiant feather shed by a celestial guardian.",
+  "type": "material",
+  "max_stack": 50
+}

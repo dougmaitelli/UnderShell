@@ -1,0 +1,18 @@
+{
+  "id": "fallen_starlight",
+  "name": "Fallen Starlight",
+  "description": "Recover Astral Shards for the observers at Asterwatch.",
+  "objective": {
+    "item_id": "astral_shard",
+    "quantity": 5
+  },
+  "reward": {
+    "gold": 480
+  },
+  "dialogue": {
+    "offer": "The horrors in Starfall Basin carry fragments of the sky. Bring me five Astral Shards to study.",
+    "in_progress": "Five shards should reveal whether the stars fell by chance or design.",
+    "ready": "They are resonating with the observatory lens. This is an extraordinary find.",
+    "completed": "The shards mapped a path no ordinary telescope could see."
+  }
+}

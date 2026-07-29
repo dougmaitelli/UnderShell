@@ -1,225 +1,214 @@
 # SSH Realms
 
-SSH Realms is a multiplayer RPG played entirely through a standard SSH client.
-Your SSH public key is your character identity: a new key creates a new
-character, while a known key returns directly to the shared world.
+SSH Realms is a configurable multiplayer RPG engine that runs over SSH and
+renders its interface in the terminal. Players need only a standard SSH client;
+their public-key fingerprint is their persistent identity.
+
+The engine provides:
+
+- A shared, continuously ticking world with connected areas
+- Server-authoritative movement, combat, enemies, drops, and respawning
+- Persistent characters, inventories, equipment, progression, gold, and quests
+- Shops, quest-giver NPCs, dialogue, chat, and event overlays
+- JSON-defined areas, items, enemies, quests, spawns, NPCs, and waypoints
+- Strict startup validation and resolved references between definitions
+
+The bundled content is an example game built with the engine. Its topology and
+progression are documented separately in [docs/world.md](docs/world.md).
 
 ## Requirements
 
 - Go 1.26 or newer
 - An OpenSSH-compatible client
+- Docker, optionally, for container deployment
 
-Docker is optional and is only required for the container deployment.
+## Run locally
 
-## Quick start
+Start the server:
 
 ```sh
 make run
 ```
 
-The local server listens on port 2222 by default. In another terminal, create a
-player key and connect:
+The default listener is port `2222`. Create a player key and connect from
+another terminal:
 
 ```sh
 ssh-keygen -t ed25519 -f /tmp/sshrpg-player -N ''
 ssh -p 2222 -i /tmp/sshrpg-player -o IdentitiesOnly=yes localhost
 ```
 
-Use a different SSH key to create another character.
+Each SSH key represents one character. Use another key to simulate a second
+player.
 
-## Controls
+To build a standalone binary:
 
-| Input | Action |
-|---|---|
-| WASD or arrow keys | Move |
-| X | Attack nearby enemies |
-| E | Interact with a nearby NPC or pick up an item drop |
-| I | Open or close inventory |
-| K | Open or close skills |
-| J | Open or close the quest journal |
-| T | Focus chat |
-| F1 | Open or close help |
-| Esc | Close the active menu |
-| Enter | Submit the character name |
-| Ctrl+C | Disconnect |
+```sh
+make build
+./bin/sshrpg
+```
 
-Players are rendered as stick figures with identity markers and names overhead:
-`@ Aria` identifies your yellow character, while `○ Rowan` identifies another
-player in blue. `█` is a wall, and `◇` marks a waypoint to another area.
+## Run with Docker
 
-The in-game footer stays compact and points to F1. The help window contains the
-complete shortcut list; close it with F1 or Escape.
+The Compose configuration publishes host port `22` to the game server:
+
+```sh
+docker compose up --build -d
+ssh -i ~/.ssh/id_ed25519 game.example.com
+```
+
+Port `22` must be available. Keep administrative SSH on another port or address,
+or change the published port in `compose.yaml`.
+
+The `game-data` volume persists the SQLite database and SSH host key. Rebuilding
+the image updates the engine and bundled content without replacing that runtime
+data.
 
 ## Configuration
 
-Configuration is supplied through environment variables.
+Runtime paths and listener settings are configured with environment variables:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SSH_LISTEN_ADDR` | `:2222` | Address and port used by the SSH server |
-| `SSH_HOST_KEY_PATH` | `./data/ssh_host_ed25519` | Persistent Ed25519 server host-key path |
-| `DATABASE_PATH` | `./data/game.db` | Persistent SQLite database path |
-| `GAME_CONFIG_PATH` | `./content/game.json` | JSON file containing global game settings |
-| `AREAS_PATH` | `./content/areas` | Directory containing area definitions |
-| `ITEMS_PATH` | `./content/items` | Directory containing item definitions |
-| `ENEMIES_PATH` | `./content/enemies` | Directory containing enemy definitions |
-| `QUESTS_PATH` | `./content/quests` | Directory containing quest definitions |
+| `SSH_LISTEN_ADDR` | `:2222` | SSH listener address |
+| `SSH_HOST_KEY_PATH` | `./data/ssh_host_ed25519` | Persistent server host key |
+| `DATABASE_PATH` | `./data/game.db` | SQLite database |
+| `GAME_CONFIG_PATH` | `./content/game.json` | Global game configuration |
+| `AREAS_PATH` | `./content/areas` | Area definition directory |
+| `ITEMS_PATH` | `./content/items` | Item definition directory |
+| `ENEMIES_PATH` | `./content/enemies` | Enemy definition directory |
+| `QUESTS_PATH` | `./content/quests` | Quest definition directory |
 
-Example:
+For example:
 
 ```sh
 SSH_LISTEN_ADDR=:2022 \
 DATABASE_PATH=./data/development.db \
-GAME_CONFIG_PATH=./content/game.json \
-AREAS_PATH=./content/areas \
-ITEMS_PATH=./content/items \
-ENEMIES_PATH=./content/enemies \
-QUESTS_PATH=./content/quests \
+GAME_CONFIG_PATH=./my-game/game.json \
+AREAS_PATH=./my-game/areas \
+ITEMS_PATH=./my-game/items \
+ENEMIES_PATH=./my-game/enemies \
+QUESTS_PATH=./my-game/quests \
 make run
 ```
 
-## Game configuration
+This makes it possible to run a custom game without modifying or replacing the
+engine source.
 
-The default spawn used by both new and defeated players is defined globally in
-`GAME_CONFIG_PATH`:
+## Project structure
+
+```text
+.
+├── content/             Bundled example game
+│   ├── game.json
+│   ├── areas/
+│   ├── items/
+│   ├── enemies/
+│   └── quests/
+├── data/                Runtime database and SSH host key
+├── docs/                Documentation for the bundled game
+└── src/
+    ├── config/          Environment and global configuration
+    ├── content/         Shared strict JSON directory loader
+    ├── domain/          Persistent domain types
+    ├── item/            Item definitions and validation
+    ├── enemy/           Enemy definitions and validation
+    ├── quest/           Quest definitions and validation
+    ├── npc/             NPC resolution and behavior definitions
+    ├── world/           Shared runtime state and simulation
+    ├── persistence/     SQLite/Bun setup and migrations
+    ├── repository/      Persistent data access
+    ├── ui/              Per-player terminal session and rendering
+    └── sshserver/       SSH authentication and session hosting
+```
+
+The world owns shared state that is ticked or broadcast to players. A UI session
+owns one player's input, menus, chat focus, and rendering. Repositories isolate
+persistent storage from both.
+
+## Persistence and identity
+
+The default runtime directory contains:
+
+- `game.db`: characters, roles, positions, progression, inventories, equipment,
+  gold, and quest state.
+- `ssh_host_ed25519`: the SSH server identity presented to clients.
+
+Back up both files. Replacing the host key causes returning clients to receive a
+host-identity warning.
+
+Password authentication and SSH forwarding are disabled. The SHA-256
+fingerprint of a client's public key identifies its character; the server never
+receives or stores client private keys. A newer connection using the same
+character key disconnects the older session.
+
+## Content system
+
+Each JSON file in a content directory defines exactly one object. Filenames are
+for organization; references use the object's `id`.
+
+Definitions load in dependency order:
+
+```text
+items → enemies → quests → areas
+```
+
+This lets the loader resolve IDs once and retain canonical references:
+
+- Enemy drops resolve item definitions.
+- Quest objectives resolve item definitions.
+- Area enemy spawns resolve enemy definitions.
+- Shop stock resolves item definitions.
+- Quest-giver NPCs resolve quest definitions.
+- Waypoints resolve destination areas.
+
+The server rejects unknown JSON fields, malformed definitions, duplicate IDs,
+invalid coordinates, blocked destinations, and unresolved references at
+startup. Non-JSON files in the content directories are ignored.
+
+### Create a custom game
+
+The easiest starting point is to copy the bundled directory:
+
+```sh
+cp -R content my-game
+```
+
+Then:
+
+1. Change `my-game/game.json` to select the global starting location.
+2. Add or remove one-definition JSON files in the typed directories.
+3. Keep referenced IDs consistent.
+4. Start the engine with the custom paths shown in the configuration example.
+5. Run `make test` after engine changes; start the server to validate custom
+   content as a complete dependency graph.
+
+### Global game configuration
+
+`GAME_CONFIG_PATH` selects where new and defeated players spawn. It is also the
+fallback when a saved character references an area that no longer exists.
 
 ```json
 {
   "default_spawn": {
-    "area_id": "meadow",
-    "x": 7,
-    "y": 32
+    "area_id": "starter_area",
+    "x": 8,
+    "y": 12
   }
 }
 ```
 
-The area must exist and the coordinate must be a walkable tile. Invalid game
-configuration prevents the server from starting.
+The area must exist and the coordinate must be walkable.
 
-## Content definitions
+### Items
 
-Items, enemies, quests, and areas are organized under `content/`. Each JSON
-file contains exactly one definition, and each content type has its own
-directory. Definitions are loaded in dependency order: items, enemies, quests,
-then areas.
-
-Each JSON file in `AREAS_PATH` defines one area. Layout rows must all have the
-same width. A `#` tile is a wall; every other printable character is walkable.
+Add one file per item to `ITEMS_PATH`:
 
 ```json
 {
-  "id": "meadow",
-  "name": "Green Meadow",
-  "layout": [
-    "##########",
-    "#........#",
-    "##########"
-  ],
-  "spawn": { "x": 1, "y": 1 },
-  "npcs": [
-    {
-      "id": "merchant",
-      "name": "Mira",
-      "type": "shop",
-      "x": 3,
-      "y": 1,
-      "stock": [
-        { "item_id": "health_potion", "buy_price": 10, "sell_price": 5 }
-      ]
-    },
-    {
-      "id": "alchemist",
-      "name": "Orin",
-      "type": "quest_giver",
-      "x": 5,
-      "y": 1,
-      "quests": ["slime_supplies"]
-    }
-  ],
-  "enemy_spawns": [
-    {
-      "enemy_id": "slime",
-      "x": 1,
-      "y": 1,
-      "width": 4,
-      "height": 3,
-      "max_enemies": 3,
-      "respawn_seconds": 10
-    }
-  ],
-  "waypoints": [
-    {
-      "x": 6,
-      "y": 1,
-      "width": 3,
-      "height": 3,
-      "destination_area": "cavern",
-      "destination_x": 1,
-      "destination_y": 1
-    }
-  ]
-}
-```
-
-Walking onto any tile covered by a waypoint moves the character to its
-destination area and coordinate. `x` and `y` are the region's top-left corner;
-`width` and `height` default to 1. Area IDs must be unique, and every waypoint
-destination must refer to a loaded area and a walkable tile. The server validates
-all area files during startup.
-
-Large areas can use a compact generated layout instead of listing every row:
-
-```json
-{
-  "id": "meadow",
-  "name": "Green Meadow",
-  "width": 192,
-  "height": 64,
-  "default_tile": ".",
-  "border_tile": "#",
-  "features": [
-    { "x": 21, "y": 8, "width": 27, "height": 2, "tile": "#" }
-  ],
-  "spawn": { "x": 7, "y": 32 },
-  "waypoints": []
-}
-```
-
-Features are rectangular tile regions applied over the default tile. Generated
-layouts and explicit row layouts use the same spawn and waypoint validation.
-
-Each `enemy_spawns` entry is a rectangular roaming area. The referenced
-`enemy_id` must exist in the enemy definitions. `max_enemies` controls how many
-enemies owned by that spawn may be alive at once. After one is defeated, the
-spawn creates one replacement every `respawn_seconds` until it reaches its cap.
-Enemies choose walkable steps and cannot leave their owning spawn rectangle.
-
-Area-owned NPCs are placed on walkable tiles and block player and enemy
-movement. NPC IDs must be unique across every area so persistent systems can
-refer to an NPC and resolve its current name and owning area from configuration.
-Shop NPC stock references item definitions and assigns the price a player pays
-(`buy_price`) and receives (`sell_price`). Prices must be positive, and a shop
-cannot pay more than it charges for the same item. Invalid item references
-prevent startup.
-
-Quest giver NPCs reference IDs from `QUESTS_PATH`. Each quest can be accepted
-and completed once per character. Objective items must be present in at least
-one enemy's drop table.
-
-## Items
-
-Available game items are defined in `ITEMS_PATH`. Item IDs must be unique and
-use lowercase letters, numbers, underscores, or hyphens. `max_stack` must be at
-least 1. Supported item types are `consumable`, `equipment`, and `material`.
-Equipment must use `max_stack: 1` and define an `equipment_slot` of `helmet`,
-`weapon`, `armor`, `boots`, `gloves`, or `legs`. Other item types cannot define
-an equipment slot.
-
-```json
-{
-  "id": "health_potion",
-  "name": "Health Potion",
-  "description": "Restores a small amount of health.",
+  "id": "minor_tonic",
+  "name": "Minor Tonic",
+  "description": "Restores a little health.",
   "type": "consumable",
   "effects": [
     { "type": "restore_health", "amount": 5 }
@@ -228,25 +217,47 @@ an equipment slot.
 }
 ```
 
-The server validates and loads the full item definitions during startup.
+Supported item types are:
 
-## Enemies
+- `material`: stackable inventory content without effects or equipment stats.
+- `consumable`: requires at least one supported effect. Currently,
+  `restore_health` is available.
+- `equipment`: requires `max_stack: 1` and an `equipment_slot`.
 
-Enemy types are defined in `ENEMIES_PATH`, separately from their area-owned
-spawn locations. IDs follow the same format as item IDs. `visual` contains
-between one and five rows of small ASCII art, with at most 15 characters per
-row. Leading and trailing spaces are preserved for shaping the art.
+Equipment slots are `helmet`, `weapon`, `armor`, `boots`, `gloves`, and `legs`.
+Equipment may provide non-negative `attack`, `defense`, and `vitality` stats:
 
 ```json
 {
-  "id": "slime",
-  "name": "Slime",
-  "description": "A wobbling blob that roams the meadow.",
-  "health": 3,
-  "damage": 1,
-  "experience": 25,
+  "id": "training_blade",
+  "name": "Training Blade",
+  "description": "A simple practice weapon.",
+  "type": "equipment",
+  "equipment_slot": "weapon",
+  "stats": {
+    "attack": 1
+  },
+  "max_stack": 1
+}
+```
+
+IDs must be unique and contain only lowercase letters, numbers, underscores, or
+hyphens.
+
+### Enemies
+
+Add one file per enemy to `ENEMIES_PATH`:
+
+```json
+{
+  "id": "moss_beast",
+  "name": "Moss Beast",
+  "description": "A slow creature covered in forest growth.",
+  "health": 8,
+  "damage": 2,
+  "experience": 60,
   "drops": [
-    { "item_id": "slime_gel", "chance": 0.75 }
+    { "item_id": "minor_tonic", "chance": 0.1 }
   ],
   "visual": [
     " .-. ",
@@ -255,177 +266,176 @@ row. Leading and trailing spaces are preserved for shaping the art.
 }
 ```
 
-Enemies are initially created up to each spawn's cap, appear in world snapshots,
-and roam within their configured area. Each definition's `health` controls how
-many attacks it survives. Pressing `X` plays a directional slash and damages
-enemies within melee range; enemies at zero health die and enter their spawn's
-respawn cycle.
+`visual` accepts one to five rows of printable ASCII, with at most 15 characters
+per row. Drop chances must be greater than `0` and at most `1`. Set `damage` to
+`0` for a peaceful enemy that wanders without pursuing or attacking players.
 
-Hostile enemies notice nearby living players, pursue the nearest one without
-leaving their configured spawn area, and attack when adjacent. Enemy `damage`
-is defined alongside `health`; setting it to `0` creates a peaceful enemy that
-roams without pursuing or attacking players. Player health is shown in the HUD.
-At zero health, the player immediately returns to the default area's starting
-point with full health. This default spawn currently serves as the global new
-player and death-respawn location.
+Enemy definitions describe a type. Areas decide where instances spawn.
 
-Killing an enemy grants its configured `experience` to the player who dealt the
-final hit. Characters begin at level 1. Reaching a new level grants one unspent
-skill point, and excess experience carries toward subsequent levels:
+### Quests
 
-| Current level | XP required |
-|---|---:|
-| 1 | 100 |
-| 2 | 400 |
-| 3 | 900 |
-| 4 | 1,600 |
-
-The requirement follows `100 × level²`, requiring 32,835,000 cumulative XP to
-reach level 100. There is no configured maximum level. Level, experience toward
-the next level, and unspent skill points are persisted with the character and
-displayed in the HUD.
-
-Press `K` to open the skills menu and spend points with keys `1–3`:
-
-| Attribute | Effect per rank |
-|---|---|
-| Attack | +1 damage dealt |
-| Defense | −1 damage received, down to zero |
-| Vitality | +5 maximum and current health |
-
-Attribute ranks are persistent. The skills and inventory menus are mutually
-exclusive; close the open menu with its shortcut or Escape before opening the
-other one.
-
-## Event overlay
-
-Temporary events appear in a color-coded overlay on the right side of the game.
-New messages append at the bottom and push older messages upward. The overlay
-shows at most the most recent 10 wrapped lines, and every event expires
-independently after six seconds. It remains visible while the inventory or
-skills menu is open.
-
-Events report item pickups, XP gains, level-ups, newly earned skill points,
-defeated enemies, incoming damage, player defeat, and respawning. Spending a
-skill point does not create an event.
-
-## Chat
-
-Global chat appears in a persistent overlay at the bottom-left, opposite the
-event overlay. It retains the latest 10 messages and appends new messages at the
-bottom without expiration. Newly connected players receive the current recent
-history.
-
-Press `T` to focus the chat input. While focused, gameplay shortcuts are treated
-as message text. Enter sends the message and returns focus to the game; Escape
-cancels the draft and returns focus without sending.
-
-Each drop entry references an item from `ITEMS_PATH`. `chance` is greater than
-zero and at most one, where `1` always drops and `0.25` is a 25% chance. Dropped
-items appear as the same green `◆` marker regardless of type. Press `E` within
-two tiles to collect one into the persistent inventory; normal item stack limits
-are respected. Enemies and uncollected ground drops are runtime-only.
-
-## Shops and gold
-
-Characters begin with 100 gold, which is persisted with their progression and
-shown in the HUD. Press `E` within two tiles of a shop NPC to open its menu.
-`Tab` switches between buying and selling, W/S or the arrow keys select an item,
-and `E` or Space trades one item. Press Escape to close the shop.
-
-Purchases and sales update gold and inventory in one database transaction.
-Shops buy only items listed in their configured stock, using that entry's
-`sell_price`.
-
-## Quests
-
-Quests are defined in `QUESTS_PATH`. The current quest type asks the player to
-retrieve a configured quantity of one item:
+Add one file per quest to `QUESTS_PATH`:
 
 ```json
 {
-  "id": "slime_supplies",
-  "name": "Slime Supplies",
-  "description": "Collect slime gel from the slimes roaming the meadow.",
+  "id": "supply_tonics",
+  "name": "Supply Tonics",
+  "description": "Retrieve spare tonics from creatures outside town.",
   "objective": {
-    "item_id": "slime_gel",
-    "quantity": 5
+    "item_id": "minor_tonic",
+    "quantity": 4
   },
   "reward": {
-    "gold": 30
+    "gold": 25
   },
   "dialogue": {
-    "offer": "The meadow slimes are fouling my mixtures. Bring me five portions of Slime Gel and I will pay you.",
-    "in_progress": "I still need five portions of Slime Gel.",
-    "ready": "That is enough Slime Gel. Hand it over and I will reward your work.",
-    "completed": "Your Slime Gel was exactly what I needed. Thank you again."
+    "offer": "Could you recover four spare tonics?",
+    "in_progress": "I still need those four tonics.",
+    "ready": "Excellent. Let me take those tonics.",
+    "completed": "Those supplies will help a great deal."
   }
 }
 ```
 
-Press `E` near a quest giver to begin a conversation. Quest dialogue is
-contextual to whether the quest is being offered, still in progress, ready to
-turn in, or already completed. Press `E` or Space in the dialogue to accept,
-continue, or hand over the requested items; Escape closes it.
+The current quest objective retrieves a quantity of one item. The objective item
+must be dropped by at least one loaded enemy. Quest completion and progress are
+persistent, and a character cannot complete the same quest twice.
 
-The `J` journal lists active quests in its left pane; use W/S or the arrow keys
-to select one. The right pane shows its description, objective progress, return
-NPC, readiness, and reward. Progress is derived from the persistent inventory.
-Once the required items are held, return to the original NPC and speak to them
-again. Completion consumes the items, marks the quest complete, and grants the
-configured gold reward in one database transaction.
+### Areas
 
-## Persistent data
+Add one file per area to `AREAS_PATH`. An area can use either an explicit
+`layout` or a generated rectangular layout.
 
-Runtime state is written to `./data` with the default configuration:
+An explicit layout gives direct control over every tile:
 
-- `game.db` stores characters, positions, inventories, gold, and quest progress.
-- `ssh_host_ed25519` identifies the SSH server to clients.
-
-Back up both files. If the host key changes, returning SSH clients will receive a
-host-identity warning.
-
-## Docker and port 22
-
-The included Compose configuration publishes host port 22 to the unprivileged
-game process on container port 2222:
-
-```sh
-docker compose up --build -d
-ssh -i ~/.ssh/id_ed25519 game.example.com
+```json
+{
+  "id": "starter_area",
+  "name": "Starter Area",
+  "layout": [
+    "############",
+    "#..........#",
+    "#..........#",
+    "############"
+  ],
+  "spawn": { "x": 1, "y": 1 },
+  "waypoints": []
+}
 ```
 
-Port 22 must not already be occupied. Keep administrative SSH on a different
-address or port before starting the game, or use a dedicated host.
+A generated layout is more compact for large areas:
 
-For a direct non-container deployment, set `SSH_LISTEN_ADDR=:22` and grant only
-the bind capability to the binary:
-
-```sh
-make build
-sudo setcap 'cap_net_bind_service=+ep' ./bin/sshrpg
-SSH_LISTEN_ADDR=:22 ./bin/sshrpg
+```json
+{
+  "id": "starter_area",
+  "name": "Starter Area",
+  "width": 96,
+  "height": 40,
+  "border_tile": "#",
+  "features": [
+    { "x": 20, "y": 8, "width": 3, "height": 12, "tile": "#" }
+  ],
+  "spawn": { "x": 8, "y": 19 },
+  "enemy_spawns": [],
+  "npcs": [],
+  "waypoints": []
+}
 ```
 
-## Player identity
+Generated layouts use an invisible, walkable floor. `features` are rectangles
+applied over that floor. A `#` tile is blocked; all other printable feature
+tiles are walkable. Layout rows must have equal width.
 
-- Only clients that prove possession of a public key are admitted.
-- Password authentication and SSH port forwarding are disabled.
-- The SHA-256 public-key fingerprint identifies a character.
-- User-provided names are length checked and reject terminal control characters.
-- A newer login with the same character key disconnects the older session.
-- The server never receives or stores client private keys.
+The area-level `spawn` is a local fallback when a character has valid `area_id`
+but invalid saved coordinates. It is distinct from `game.json`'s global spawn.
 
-Account/key recovery is not implemented yet. Losing a private key means losing
-access to its character until an
-administrative recovery workflow is available.
+#### Enemy spawn regions
 
-## Tests
+An enemy spawn owns a rectangular roaming region:
+
+```json
+{
+  "enemy_id": "moss_beast",
+  "x": 20,
+  "y": 8,
+  "width": 30,
+  "height": 18,
+  "max_enemies": 4,
+  "respawn_seconds": 12
+}
+```
+
+`max_enemies` limits living instances belonging to that spawn. Defeated enemies
+are replaced at the configured interval until the cap is restored.
+
+#### Waypoints
+
+A waypoint is a walkable trigger rectangle with an explicit destination:
+
+```json
+{
+  "x": 92,
+  "y": 18,
+  "width": 3,
+  "height": 3,
+  "destination_area": "next_area",
+  "destination_x": 4,
+  "destination_y": 19
+}
+```
+
+Walking onto any trigger tile moves the player directly to the destination.
+Waypoint arrival does not use the destination area's `spawn`. Define a return
+waypoint when travel should be bidirectional.
+
+#### NPCs
+
+NPCs are positioned inside an area. IDs must be globally unique.
+
+A shop references items and defines both trade prices:
+
+```json
+{
+  "id": "town_shop",
+  "name": "Merchant",
+  "type": "shop",
+  "x": 12,
+  "y": 18,
+  "stock": [
+    { "item_id": "minor_tonic", "buy_price": 10, "sell_price": 5 }
+  ]
+}
+```
+
+A quest giver references loaded quests:
+
+```json
+{
+  "id": "town_researcher",
+  "name": "Researcher",
+  "type": "quest_giver",
+  "x": 18,
+  "y": 18,
+  "quests": ["supply_tonics"]
+}
+```
+
+NPC coordinates must be walkable and cannot overlap the relevant spawn
+positions.
+
+## Development
+
+Run the complete test suite:
 
 ```sh
 make test
 ```
 
-Tests cover key-to-character persistence, case-insensitive name uniqueness,
-name sanitization, movement boundaries, shared snapshots, and duplicate-session
-replacement.
+Run static checks:
+
+```sh
+go vet ./...
+```
+
+The repository tests engine behavior and validation rather than asserting that
+specific bundled areas, enemies, items, or quests exist.

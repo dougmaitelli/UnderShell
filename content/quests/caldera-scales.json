@@ -1,0 +1,18 @@
+{
+  "id": "caldera_scales",
+  "name": "Caldera Scales",
+  "description": "Collect heatproof scales from Lava Drakes in the caldera.",
+  "objective": {
+    "item_id": "drake_scale",
+    "quantity": 4
+  },
+  "reward": {
+    "gold": 450
+  },
+  "dialogue": {
+    "offer": "I can line my shelter against the lava winds with four Drake Scales. The caldera is crawling with them.",
+    "in_progress": "Look near the molten channels, but keep solid ground behind you.",
+    "ready": "These scales are broad enough to cover the whole western wall.",
+    "completed": "For the first time, the caldera wind cannot reach me."
+  }
+}

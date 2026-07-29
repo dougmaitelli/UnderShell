@@ -1,0 +1,13 @@
+{
+  "id": "ancient_stag",
+  "name": "Ancient Stag",
+  "description": "A peaceful old guardian wandering beneath giant redwoods.",
+  "health": 12,
+  "damage": 0,
+  "experience": 110,
+  "drops": [],
+  "visual": [
+    "\\Y/",
+    "/V\\"
+  ]
+}

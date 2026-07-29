@@ -1,0 +1,18 @@
+{
+  "id": "bottled_thunder",
+  "name": "Bottled Thunder",
+  "description": "Collect charged horns from Thunder Rams on the Ancient Steppe.",
+  "objective": {
+    "item_id": "thunder_horn",
+    "quantity": 4
+  },
+  "reward": {
+    "gold": 210
+  },
+  "dialogue": {
+    "offer": "Four Thunder Horns could power my new bellows without coal. The rams roam the Ancient Steppe.",
+    "in_progress": "Listen for thunder without clouds. That will lead you to the rams.",
+    "ready": "The charge in these horns is remarkable. Stand back while I ground them.",
+    "completed": "The new bellows roar like a summer storm."
+  }
+}

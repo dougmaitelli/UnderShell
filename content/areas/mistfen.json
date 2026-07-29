@@ -1,0 +1,84 @@
+{
+  "id": "mistfen",
+  "name": "Mistfen",
+  "width": 192,
+  "height": 64,
+  "border_tile": "#",
+  "features": [
+    { "x": 13, "y": 8, "width": 18, "height": 2, "tile": "#" },
+    { "x": 22, "y": 23, "width": 3, "height": 10, "tile": "#" },
+    { "x": 41, "y": 13, "width": 20, "height": 2, "tile": "#" },
+    { "x": 62, "y": 25, "width": 22, "height": 2, "tile": "#" },
+    { "x": 76, "y": 8, "width": 3, "height": 11, "tile": "#" },
+    { "x": 108, "y": 9, "width": 31, "height": 2, "tile": "#" },
+    { "x": 146, "y": 28, "width": 3, "height": 23, "tile": "#" },
+    { "x": 118, "y": 53, "width": 48, "height": 2, "tile": "#" },
+    { "x": 5, "y": 25, "width": 9, "height": 2, "tile": "#" },
+    { "x": 5, "y": 27, "width": 1, "height": 8, "tile": "#" },
+    { "x": 13, "y": 27, "width": 1, "height": 8, "tile": "#" },
+    { "x": 16, "y": 31, "width": 1, "height": 1, "tile": "^" },
+    { "x": 16, "y": 32, "width": 3, "height": 1, "tile": "=" }
+  ],
+  "spawn": { "x": 96, "y": 5 },
+  "npcs": [
+    {
+      "id": "mistfen_hermit",
+      "name": "Fen",
+      "type": "quest_giver",
+      "x": 8,
+      "y": 30,
+      "quests": [
+        "mire_antidote"
+      ]
+    }
+  ],
+  "enemy_spawns": [
+    {
+      "enemy_id": "mire_toad",
+      "x": 24,
+      "y": 10,
+      "width": 40,
+      "height": 22,
+      "max_enemies": 3,
+      "respawn_seconds": 11
+    },
+    {
+      "enemy_id": "mire_toad",
+      "x": 78,
+      "y": 33,
+      "width": 44,
+      "height": 22,
+      "max_enemies": 3,
+      "respawn_seconds": 12
+    },
+    {
+      "enemy_id": "mire_toad",
+      "x": 137,
+      "y": 10,
+      "width": 36,
+      "height": 28,
+      "max_enemies": 3,
+      "respawn_seconds": 13
+    }
+  ],
+  "waypoints": [
+    {
+      "x": 95,
+      "y": 1,
+      "width": 3,
+      "height": 3,
+      "destination_area": "whispering_woods",
+      "destination_x": 96,
+      "destination_y": 59
+    },
+    {
+      "x": 188,
+      "y": 30,
+      "width": 3,
+      "height": 3,
+      "destination_area": "saltmarsh",
+      "destination_x": 4,
+      "destination_y": 35
+    }
+  ]
+}

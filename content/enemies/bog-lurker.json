@@ -1,0 +1,15 @@
+{
+  "id": "bog_lurker",
+  "name": "Bog Lurker",
+  "description": "A patient marsh predator disguised as a mossy hummock.",
+  "health": 12,
+  "damage": 3,
+  "experience": 145,
+  "drops": [
+    { "item_id": "health_potion", "chance": 0.12 }
+  ],
+  "visual": [
+    " .-. ",
+    "{# #}"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "bramble_sprite",
+  "name": "Bramble Sprite",
+  "description": "A thorny woodland spirit guarding the old trails.",
+  "health": 5,
+  "damage": 1,
+  "experience": 35,
+  "drops": [
+    { "item_id": "health_potion", "chance": 0.08 },
+    { "item_id": "bramble_leaf", "chance": 0.7 }
+  ],
+  "visual": [
+    "{*}",
+    "/|\\"
+  ]
+}

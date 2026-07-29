@@ -1,0 +1,58 @@
+{
+  "id": "celestial_spire",
+  "name": "Celestial Spire",
+  "width": 208,
+  "height": 72,
+  "border_tile": "#",
+  "features": [
+    { "x": 16, "y": 9, "width": 18, "height": 2, "tile": "#" },
+    { "x": 25, "y": 21, "width": 3, "height": 12, "tile": "#" },
+    { "x": 40, "y": 14, "width": 26, "height": 2, "tile": "#" },
+    { "x": 67, "y": 23, "width": 3, "height": 10, "tile": "#" },
+    { "x": 75, "y": 8, "width": 12, "height": 2, "tile": "#" },
+    { "x": 109, "y": 10, "width": 35, "height": 2, "tile": "#" },
+    { "x": 151, "y": 31, "width": 3, "height": 29, "tile": "#" },
+    { "x": 169, "y": 58, "width": 26, "height": 2, "tile": "#" }
+  ],
+  "spawn": { "x": 104, "y": 66 },
+  "enemy_spawns": [
+    {
+      "enemy_id": "void_reaver",
+      "x": 18,
+      "y": 10,
+      "width": 70,
+      "height": 40,
+      "max_enemies": 1,
+      "respawn_seconds": 22
+    },
+    {
+      "enemy_id": "seraph_guardian",
+      "x": 112,
+      "y": 12,
+      "width": 76,
+      "height": 24,
+      "max_enemies": 1,
+      "respawn_seconds": 24
+    },
+    {
+      "enemy_id": "seraph_guardian",
+      "x": 112,
+      "y": 42,
+      "width": 76,
+      "height": 22,
+      "max_enemies": 1,
+      "respawn_seconds": 25
+    }
+  ],
+  "waypoints": [
+    {
+      "x": 103,
+      "y": 68,
+      "width": 3,
+      "height": 3,
+      "destination_area": "void_sanctum",
+      "destination_x": 128,
+      "destination_y": 4
+    }
+  ]
+}

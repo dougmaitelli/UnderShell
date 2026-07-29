@@ -1,0 +1,18 @@
+{
+  "id": "banked_embers",
+  "name": "Banked Embers",
+  "description": "Gather Ember Cores to keep Ironhaven's furnaces burning.",
+  "objective": {
+    "item_id": "ember_core",
+    "quantity": 6
+  },
+  "reward": {
+    "gold": 180
+  },
+  "dialogue": {
+    "offer": "Ironhaven's deep furnaces need six Ember Cores. The imps below Cavern carry the hottest ones.",
+    "in_progress": "Six cores will keep every forge in town burning through the night.",
+    "ready": "I can feel their heat from here. The smiths will put them to good use.",
+    "completed": "The furnaces have not burned this cleanly in years."
+  }
+}

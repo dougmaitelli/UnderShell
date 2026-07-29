@@ -1,0 +1,7 @@
+{
+  "id": "mire_gland",
+  "name": "Mire Gland",
+  "description": "A pungent gland used in potent marsh remedies.",
+  "type": "material",
+  "max_stack": 50
+}

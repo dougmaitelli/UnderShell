@@ -1,0 +1,16 @@
+{
+  "id": "ember_imp",
+  "name": "Ember Imp",
+  "description": "A gleeful fire spirit born in the cavern's hot depths.",
+  "health": 10,
+  "damage": 2,
+  "experience": 105,
+  "drops": [
+    { "item_id": "health_potion", "chance": 0.1 },
+    { "item_id": "ember_core", "chance": 0.6 }
+  ],
+  "visual": [
+    " /^\\ ",
+    "(>.<)"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "id": "boar_tusk",
+  "name": "Boar Tusk",
+  "description": "A curved tusk taken from a highland boar.",
+  "type": "material",
+  "max_stack": 50
+}

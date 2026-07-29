@@ -1,0 +1,18 @@
+{
+  "id": "delvers_wings",
+  "name": "A Delver's Charm",
+  "description": "Retrieve Cave Bat wings for Willowbrook's superstitious miners.",
+  "objective": {
+    "item_id": "bat_wing",
+    "quantity": 3
+  },
+  "reward": {
+    "gold": 65
+  },
+  "dialogue": {
+    "offer": "Our miners swear three Cave Bat Wings woven together ward off cave-ins. Could you fetch them?",
+    "in_progress": "The Cavern east of Meadow is thick with bats. I still need three wings.",
+    "ready": "Perfect. The miners will descend with steadier hands tomorrow.",
+    "completed": "Your charm hangs above the mine entrance now."
+  }
+}

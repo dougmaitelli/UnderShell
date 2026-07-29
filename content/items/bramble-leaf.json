@@ -1,0 +1,7 @@
+{
+  "id": "bramble_leaf",
+  "name": "Bramble Leaf",
+  "description": "A resilient leaf cut from an animated bramble.",
+  "type": "material",
+  "max_stack": 50
+}

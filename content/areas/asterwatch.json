@@ -1,0 +1,104 @@
+{
+  "id": "asterwatch",
+  "name": "Asterwatch",
+  "width": 160,
+  "height": 56,
+  "border_tile": "#",
+  "features": [
+    { "x": 12, "y": 8, "width": 28, "height": 2, "tile": "#" },
+    { "x": 12, "y": 8, "width": 2, "height": 12, "tile": "#" },
+    { "x": 50, "y": 7, "width": 28, "height": 2, "tile": "#" },
+    { "x": 88, "y": 8, "width": 28, "height": 2, "tile": "#" },
+    { "x": 126, "y": 7, "width": 22, "height": 2, "tile": "#" },
+    { "x": 146, "y": 7, "width": 2, "height": 13, "tile": "#" },
+    { "x": 15, "y": 40, "width": 32, "height": 2, "tile": "#" },
+    { "x": 64, "y": 43, "width": 32, "height": 2, "tile": "#" },
+    { "x": 113, "y": 40, "width": 32, "height": 2, "tile": "#" },
+    { "x": 22, "y": 22, "width": 17, "height": 2, "tile": "#" },
+    { "x": 22, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 38, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 25, "y": 31, "width": 4, "height": 1, "tile": "=" },
+    { "x": 32, "y": 31, "width": 4, "height": 1, "tile": "=" },
+    { "x": 54, "y": 22, "width": 17, "height": 2, "tile": "#" },
+    { "x": 54, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 70, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 86, "y": 22, "width": 17, "height": 2, "tile": "#" },
+    { "x": 86, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 102, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 118, "y": 22, "width": 17, "height": 2, "tile": "#" },
+    { "x": 118, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 134, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 76, "y": 34, "width": 1, "height": 1, "tile": "^" },
+    { "x": 80, "y": 34, "width": 1, "height": 1, "tile": "^" },
+    { "x": 78, "y": 17, "width": 2, "height": 2, "tile": "O" },
+    { "x": 15, "y": 42, "width": 2, "height": 9, "tile": "#" },
+    { "x": 45, "y": 42, "width": 2, "height": 9, "tile": "#" },
+    { "x": 15, "y": 49, "width": 32, "height": 2, "tile": "#" },
+    { "x": 29, "y": 49, "width": 4, "height": 2, "tile": "." },
+    { "x": 64, "y": 45, "width": 2, "height": 8, "tile": "#" },
+    { "x": 94, "y": 45, "width": 2, "height": 8, "tile": "#" },
+    { "x": 64, "y": 51, "width": 32, "height": 2, "tile": "#" },
+    { "x": 78, "y": 51, "width": 4, "height": 2, "tile": "." },
+    { "x": 113, "y": 42, "width": 2, "height": 9, "tile": "#" },
+    { "x": 143, "y": 42, "width": 2, "height": 9, "tile": "#" },
+    { "x": 113, "y": 49, "width": 32, "height": 2, "tile": "#" },
+    { "x": 127, "y": 49, "width": 4, "height": 2, "tile": "." }
+  ],
+  "spawn": { "x": 8, "y": 27 },
+  "npcs": [
+    {
+      "id": "asterwatch_merchant",
+      "name": "Selene",
+      "type": "shop",
+      "x": 30,
+      "y": 28,
+      "stock": [
+        { "item_id": "greater_health_potion", "buy_price": 35, "sell_price": 15 },
+        { "item_id": "starblade", "buy_price": 900, "sell_price": 380 },
+        { "item_id": "astral_armor", "buy_price": 1100, "sell_price": 460 }
+      ]
+    },
+    {
+      "id": "asterwatch_astronomer",
+      "name": "Ilya",
+      "type": "quest_giver",
+      "x": 62,
+      "y": 28,
+      "quests": [
+        "fallen_starlight"
+      ]
+    },
+    {
+      "id": "asterwatch_warden",
+      "name": "Nyx",
+      "type": "quest_giver",
+      "x": 94,
+      "y": 28,
+      "quests": [
+        "seal_the_void"
+      ]
+    },
+    {
+      "id": "asterwatch_cantor",
+      "name": "Aurelia",
+      "type": "quest_giver",
+      "x": 126,
+      "y": 28,
+      "quests": [
+        "radiant_proof"
+      ]
+    }
+  ],
+  "enemy_spawns": [],
+  "waypoints": [
+    {
+      "x": 79,
+      "y": 52,
+      "width": 3,
+      "height": 3,
+      "destination_area": "starfall_basin",
+      "destination_x": 128,
+      "destination_y": 4
+    }
+  ]
+}

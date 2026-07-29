@@ -3,7 +3,6 @@
   "name": "Green Meadow",
   "width": 192,
   "height": 64,
-  "default_tile": ".",
   "border_tile": "#",
   "features": [
     { "x": 21, "y": 8, "width": 27, "height": 2, "tile": "#" },
@@ -16,51 +15,54 @@
     { "x": 157, "y": 23, "width": 4, "height": 13, "tile": "#" }
   ],
   "spawn": { "x": 7, "y": 32 },
-  "npcs": [
-    {
-      "id": "meadow_merchant",
-      "name": "Mira",
-      "type": "shop",
-      "x": 11,
-      "y": 32,
-      "stock": [
-        { "item_id": "health_potion", "buy_price": 10, "sell_price": 5 },
-        { "item_id": "rusty_sword", "buy_price": 50, "sell_price": 20 }
-      ]
-    },
-    {
-      "id": "meadow_alchemist",
-      "name": "Orin",
-      "type": "quest_giver",
-      "x": 24,
-      "y": 32,
-      "quests": [
-        "slime_supplies"
-      ]
-    },
-    {
-      "id": "meadow_scholar",
-      "name": "Lyra",
-      "type": "quest_giver",
-      "x": 37,
-      "y": 32,
-      "quests": [
-        "bat_wing_samples"
-      ]
-    }
-  ],
   "enemy_spawns": [
     {
       "enemy_id": "slime",
-      "x": 40,
-      "y": 18,
-      "width": 20,
-      "height": 12,
-      "max_enemies": 4,
+      "x": 25,
+      "y": 12,
+      "width": 38,
+      "height": 18,
+      "max_enemies": 3,
       "respawn_seconds": 10
+    },
+    {
+      "enemy_id": "slime",
+      "x": 78,
+      "y": 34,
+      "width": 42,
+      "height": 20,
+      "max_enemies": 3,
+      "respawn_seconds": 11
+    },
+    {
+      "enemy_id": "slime",
+      "x": 135,
+      "y": 12,
+      "width": 35,
+      "height": 25,
+      "max_enemies": 3,
+      "respawn_seconds": 12
     }
   ],
   "waypoints": [
+    {
+      "x": 1,
+      "y": 30,
+      "width": 3,
+      "height": 3,
+      "destination_area": "whispering_woods",
+      "destination_x": 187,
+      "destination_y": 31
+    },
+    {
+      "x": 95,
+      "y": 1,
+      "width": 3,
+      "height": 3,
+      "destination_area": "sunlit_highlands",
+      "destination_x": 96,
+      "destination_y": 59
+    },
     {
       "x": 188,
       "y": 31,
@@ -69,6 +71,15 @@
       "destination_area": "cavern",
       "destination_x": 5,
       "destination_y": 32
+    },
+    {
+      "x": 95,
+      "y": 60,
+      "width": 3,
+      "height": 3,
+      "destination_area": "willowbrook",
+      "destination_x": 80,
+      "destination_y": 4
     }
   ]
 }

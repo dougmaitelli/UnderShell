@@ -1,0 +1,7 @@
+{
+  "id": "sentinel_relic",
+  "name": "Sentinel Relic",
+  "description": "A corroded insignia from a drowned guardian.",
+  "type": "material",
+  "max_stack": 50
+}

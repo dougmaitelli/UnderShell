@@ -1,0 +1,67 @@
+{
+  "id": "coastal_cliffs",
+  "name": "Coastal Cliffs",
+  "width": 192,
+  "height": 64,
+  "border_tile": "#",
+  "features": [
+    { "x": 17, "y": 7, "width": 3, "height": 25, "tile": "#" },
+    { "x": 34, "y": 10, "width": 23, "height": 2, "tile": "#" },
+    { "x": 48, "y": 25, "width": 28, "height": 2, "tile": "#" },
+    { "x": 72, "y": 7, "width": 3, "height": 13, "tile": "#" },
+    { "x": 82, "y": 29, "width": 7, "height": 2, "tile": "#" },
+    { "x": 111, "y": 8, "width": 3, "height": 24, "tile": "#" },
+    { "x": 128, "y": 39, "width": 38, "height": 2, "tile": "#" },
+    { "x": 158, "y": 12, "width": 20, "height": 2, "tile": "#" }
+  ],
+  "spawn": { "x": 8, "y": 31 },
+  "enemy_spawns": [
+    {
+      "enemy_id": "cliff_harpy",
+      "x": 22,
+      "y": 10,
+      "width": 42,
+      "height": 22,
+      "max_enemies": 3,
+      "respawn_seconds": 12
+    },
+    {
+      "enemy_id": "cliff_harpy",
+      "x": 78,
+      "y": 33,
+      "width": 44,
+      "height": 22,
+      "max_enemies": 3,
+      "respawn_seconds": 13
+    },
+    {
+      "enemy_id": "cliff_harpy",
+      "x": 137,
+      "y": 10,
+      "width": 36,
+      "height": 28,
+      "max_enemies": 3,
+      "respawn_seconds": 14
+    }
+  ],
+  "waypoints": [
+    {
+      "x": 1,
+      "y": 30,
+      "width": 3,
+      "height": 3,
+      "destination_area": "sunlit_highlands",
+      "destination_x": 187,
+      "destination_y": 31
+    },
+    {
+      "x": 95,
+      "y": 60,
+      "width": 3,
+      "height": 3,
+      "destination_area": "saltmarsh",
+      "destination_x": 112,
+      "destination_y": 4
+    }
+  ]
+}

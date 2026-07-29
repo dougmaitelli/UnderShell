@@ -1,0 +1,18 @@
+{
+  "id": "seal_the_void",
+  "name": "Seal the Void",
+  "description": "Collect Void Essence for Asterwatch's protective wards.",
+  "objective": {
+    "item_id": "void_essence",
+    "quantity": 4
+  },
+  "reward": {
+    "gold": 600
+  },
+  "dialogue": {
+    "offer": "Our wards are failing. Four sealed traces of Void Essence would let me renew them.",
+    "in_progress": "The Reavers beyond the basin are dangerous, but their essence is exactly what the wards require.",
+    "ready": "The seals held. Quickly, place the vessels inside the warding circle.",
+    "completed": "Asterwatch is protected from the void once more."
+  }
+}

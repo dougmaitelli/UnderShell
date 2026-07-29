@@ -1,0 +1,15 @@
+{
+  "id": "cliff_harpy",
+  "name": "Cliff Harpy",
+  "description": "A shrieking hunter that rides the coastal updrafts.",
+  "health": 10,
+  "damage": 2,
+  "experience": 105,
+  "drops": [
+    { "item_id": "health_potion", "chance": 0.1 }
+  ],
+  "visual": [
+    "\\^/",
+    " v "
+  ]
+}

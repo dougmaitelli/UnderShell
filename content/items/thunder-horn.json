@@ -1,0 +1,7 @@
+{
+  "id": "thunder_horn",
+  "name": "Thunder Horn",
+  "description": "A broken horn that still hums with distant thunder.",
+  "type": "material",
+  "max_stack": 50
+}

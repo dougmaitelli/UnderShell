@@ -1,0 +1,11 @@
+{
+  "id": "steel_sword",
+  "name": "Steel Sword",
+  "description": "A balanced blade forged for experienced travelers.",
+  "type": "equipment",
+  "equipment_slot": "weapon",
+  "stats": {
+    "attack": 3
+  },
+  "max_stack": 1
+}

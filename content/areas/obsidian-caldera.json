@@ -1,0 +1,84 @@
+{
+  "id": "obsidian_caldera",
+  "name": "Obsidian Caldera",
+  "width": 256,
+  "height": 80,
+  "border_tile": "#",
+  "features": [
+    { "x": 14, "y": 8, "width": 3, "height": 22, "tile": "#" },
+    { "x": 27, "y": 12, "width": 21, "height": 2, "tile": "#" },
+    { "x": 42, "y": 24, "width": 25, "height": 2, "tile": "#" },
+    { "x": 64, "y": 7, "width": 3, "height": 14, "tile": "#" },
+    { "x": 75, "y": 29, "width": 12, "height": 2, "tile": "#" },
+    { "x": 119, "y": 10, "width": 48, "height": 2, "tile": "#" },
+    { "x": 177, "y": 34, "width": 3, "height": 33, "tile": "#" },
+    { "x": 198, "y": 67, "width": 41, "height": 2, "tile": "#" },
+    { "x": 224, "y": 51, "width": 17, "height": 2, "tile": "#" },
+    { "x": 224, "y": 53, "width": 1, "height": 10, "tile": "#" },
+    { "x": 240, "y": 53, "width": 1, "height": 10, "tile": "#" },
+    { "x": 220, "y": 58, "width": 1, "height": 1, "tile": "^" },
+    { "x": 219, "y": 59, "width": 3, "height": 1, "tile": "o" }
+  ],
+  "spawn": { "x": 8, "y": 39 },
+  "npcs": [
+    {
+      "id": "caldera_tamer",
+      "name": "Kesh",
+      "type": "quest_giver",
+      "x": 232,
+      "y": 57,
+      "quests": [
+        "caldera_scales"
+      ]
+    }
+  ],
+  "enemy_spawns": [
+    {
+      "enemy_id": "ash_golem",
+      "x": 18,
+      "y": 10,
+      "width": 62,
+      "height": 30,
+      "max_enemies": 2,
+      "respawn_seconds": 17
+    },
+    {
+      "enemy_id": "lava_drake",
+      "x": 96,
+      "y": 34,
+      "width": 64,
+      "height": 34,
+      "max_enemies": 2,
+      "respawn_seconds": 18
+    },
+    {
+      "enemy_id": "lava_drake",
+      "x": 182,
+      "y": 10,
+      "width": 56,
+      "height": 38,
+      "max_enemies": 2,
+      "respawn_seconds": 19
+    }
+  ],
+  "waypoints": [
+    {
+      "x": 1,
+      "y": 38,
+      "width": 3,
+      "height": 3,
+      "destination_area": "ashlands",
+      "destination_x": 219,
+      "destination_y": 35
+    },
+    {
+      "x": 252,
+      "y": 38,
+      "width": 3,
+      "height": 3,
+      "destination_area": "void_sanctum",
+      "destination_x": 4,
+      "destination_y": 39
+    }
+  ]
+}

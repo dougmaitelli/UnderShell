@@ -1,0 +1,15 @@
+{
+  "id": "crystal_crawler",
+  "name": "Crystal Crawler",
+  "description": "A cave predator armored in jagged living crystal.",
+  "health": 9,
+  "damage": 2,
+  "experience": 90,
+  "drops": [
+    { "item_id": "health_potion", "chance": 0.1 }
+  ],
+  "visual": [
+    "/\\_/\\",
+    "<o_o>"
+  ]
+}

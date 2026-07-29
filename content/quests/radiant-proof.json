@@ -1,0 +1,18 @@
+{
+  "id": "radiant_proof",
+  "name": "Radiant Proof",
+  "description": "Bring back Seraph Feathers from the summit beyond the Void Sanctum.",
+  "objective": {
+    "item_id": "seraph_feather",
+    "quantity": 3
+  },
+  "reward": {
+    "gold": 850
+  },
+  "dialogue": {
+    "offer": "Some call the Celestial Spire a myth. Three Seraph Feathers would prove the summit is real.",
+    "in_progress": "The path rises beyond the Void Sanctum. Few who attempt it return.",
+    "ready": "Even in shadow, these feathers shine. No skeptic can deny this evidence.",
+    "completed": "Your ascent has changed everything we understand about the heavens."
+  }
+}

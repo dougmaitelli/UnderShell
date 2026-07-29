@@ -1,0 +1,17 @@
+{
+  "id": "seraph_guardian",
+  "name": "Seraph Guardian",
+  "description": "A radiant sentinel barring the summit of the final spire.",
+  "health": 36,
+  "damage": 8,
+  "experience": 900,
+  "drops": [
+    { "item_id": "health_potion", "chance": 0.25 },
+    { "item_id": "seraph_feather", "chance": 0.5 }
+  ],
+  "visual": [
+    "\\ | /",
+    "- O -",
+    "/ | \\"
+  ]
+}

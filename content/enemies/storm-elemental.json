@@ -1,0 +1,15 @@
+{
+  "id": "storm_elemental",
+  "name": "Storm Elemental",
+  "description": "A knot of wind and lightning roaming the highest peaks.",
+  "health": 22,
+  "damage": 5,
+  "experience": 370,
+  "drops": [
+    { "item_id": "health_potion", "chance": 0.16 }
+  ],
+  "visual": [
+    ".-*-.",
+    "(~~~)"
+  ]
+}

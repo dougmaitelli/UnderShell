@@ -1,0 +1,18 @@
+{
+  "id": "highland_rations",
+  "name": "Highland Rations",
+  "description": "Bring back tusks from Ridge Boars roaming the Sunlit Highlands.",
+  "objective": {
+    "item_id": "boar_tusk",
+    "quantity": 4
+  },
+  "reward": {
+    "gold": 55
+  },
+  "dialogue": {
+    "offer": "The cooks trade carved Ridge Boar tusks for winter provisions. Bring me four from the highlands.",
+    "in_progress": "The boars graze north of Meadow. Four tusks will secure our supplies.",
+    "ready": "These are fine tusks. The provisioners will honor their bargain.",
+    "completed": "The town stores are full, and no one will go hungry this season."
+  }
+}

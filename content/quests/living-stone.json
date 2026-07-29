@@ -1,0 +1,18 @@
+{
+  "id": "living_stone",
+  "name": "Living Stone",
+  "description": "Recover dense fragments from Ash Golems near Ironhaven.",
+  "objective": {
+    "item_id": "ash_fragment",
+    "quantity": 5
+  },
+  "reward": {
+    "gold": 240
+  },
+  "dialogue": {
+    "offer": "I need five Ash Fragments to reinforce the town gate. Ordinary stone cracks in this heat.",
+    "in_progress": "The Ash Golems beyond our northern road hold the fragments together.",
+    "ready": "Dense, even, and still warm. These will anchor the gate.",
+    "completed": "Ironhaven's gate now stands as firm as the mountain."
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "ridge_boar",
+  "name": "Ridge Boar",
+  "description": "A stubborn boar accustomed to the exposed highlands.",
+  "health": 6,
+  "damage": 1,
+  "experience": 45,
+  "drops": [
+    { "item_id": "health_potion", "chance": 0.08 },
+    { "item_id": "boar_tusk", "chance": 0.65 }
+  ],
+  "visual": [
+    "^..^",
+    "(oo)"
+  ]
+}

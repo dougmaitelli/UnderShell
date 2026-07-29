@@ -1,0 +1,16 @@
+{
+  "id": "void_reaver",
+  "name": "Void Reaver",
+  "description": "A silent executioner guarding the roads beyond reality.",
+  "health": 30,
+  "damage": 7,
+  "experience": 650,
+  "drops": [
+    { "item_id": "health_potion", "chance": 0.2 },
+    { "item_id": "void_essence", "chance": 0.55 }
+  ],
+  "visual": [
+    " /V\\ ",
+    "<x_x>"
+  ]
+}

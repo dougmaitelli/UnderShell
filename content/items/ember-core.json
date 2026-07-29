@@ -1,0 +1,7 @@
+{
+  "id": "ember_core",
+  "name": "Ember Core",
+  "description": "A warm coal left behind when an ember spirit fades.",
+  "type": "material",
+  "max_stack": 50
+}

@@ -1,0 +1,12 @@
+{
+  "id": "iron_armor",
+  "name": "Iron Armor",
+  "description": "Heavy plate made to withstand the volcanic roads.",
+  "type": "equipment",
+  "equipment_slot": "armor",
+  "stats": {
+    "defense": 2,
+    "vitality": 1
+  },
+  "max_stack": 1
+}

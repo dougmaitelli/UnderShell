@@ -222,6 +222,73 @@ func TestEnemiesSpawnToCapAndRespawnInsideTheirArea(t *testing.T) {
 	}
 }
 
+func TestMultipleEnemySpawnRegionsPopulateIndependently(t *testing.T) {
+	enemies, err := enemy.NewEnemies([]enemy.Definition{
+		{
+			ID: "slime", Name: "Slime", Visual: []string{"s"},
+			Health: 1, Experience: 1,
+		},
+		{
+			ID: "bat", Name: "Bat", Visual: []string{"b"},
+			Health: 1, Experience: 1,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	areas, err := NewAreas([]AreaDefinition{{
+		ID: "field", Name: "Field",
+		Layout: []string{"###########", "#.........#", "###########"},
+		Spawn:  Point{X: 5, Y: 1},
+		EnemySpawns: []EnemySpawnDefinition{
+			{
+				EnemyID: "slime", X: 1, Y: 1, Width: 3, Height: 1,
+				MaxEnemies: 2, RespawnSeconds: 1,
+			},
+			{
+				EnemyID: "bat", X: 7, Y: 1, Width: 3, Height: 1,
+				MaxEnemies: 1, RespawnSeconds: 1,
+			},
+		},
+	}}, References{Enemies: enemies})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := New(areas, nil, enemies, nil)
+	defer manager.Close()
+
+	session := manager.Join(Player{
+		ID: 1, Name: "Aria", AreaID: "field", X: 5, Y: 1,
+	})
+	snapshot := receiveSnapshot(t, session.Updates)
+	if len(snapshot.Enemies) != 3 {
+		t.Fatalf("enemy count = %d, want 3", len(snapshot.Enemies))
+	}
+
+	counts := map[string]int{}
+	for _, current := range snapshot.Enemies {
+		if current.Definition == nil {
+			t.Fatalf("enemy has no definition: %#v", current)
+		}
+		counts[current.Definition.ID]++
+		switch current.Definition.ID {
+		case "slime":
+			if current.X < 1 || current.X > 3 || current.Y != 1 {
+				t.Fatalf("slime outside its spawn region: %#v", current)
+			}
+		case "bat":
+			if current.X < 7 || current.X > 9 || current.Y != 1 {
+				t.Fatalf("bat outside its spawn region: %#v", current)
+			}
+		default:
+			t.Fatalf("unexpected enemy definition: %#v", current.Definition)
+		}
+	}
+	if counts["slime"] != 2 || counts["bat"] != 1 {
+		t.Fatalf("enemy counts = %#v, want 2 slimes and 1 bat", counts)
+	}
+}
+
 func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
 	items, err := item.NewItems([]item.Definition{{
 		ID: "slime_gel", Name: "Slime Gel",

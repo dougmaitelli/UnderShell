@@ -3,7 +3,6 @@
   "name": "Echoing Cavern",
   "width": 192,
   "height": 64,
-  "default_tile": ".",
   "border_tile": "#",
   "features": [
     { "x": 19, "y": 7, "width": 40, "height": 3, "tile": "#" },
@@ -19,12 +18,30 @@
   "enemy_spawns": [
     {
       "enemy_id": "cave_bat",
-      "x": 110,
-      "y": 24,
-      "width": 24,
-      "height": 14,
-      "max_enemies": 5,
+      "x": 25,
+      "y": 10,
+      "width": 42,
+      "height": 20,
+      "max_enemies": 3,
       "respawn_seconds": 15
+    },
+    {
+      "enemy_id": "cave_bat",
+      "x": 80,
+      "y": 26,
+      "width": 40,
+      "height": 25,
+      "max_enemies": 3,
+      "respawn_seconds": 16
+    },
+    {
+      "enemy_id": "cave_bat",
+      "x": 140,
+      "y": 12,
+      "width": 35,
+      "height": 35,
+      "max_enemies": 3,
+      "respawn_seconds": 17
     }
   ],
   "waypoints": [
@@ -36,6 +53,24 @@
       "destination_area": "meadow",
       "destination_x": 187,
       "destination_y": 32
+    },
+    {
+      "x": 95,
+      "y": 1,
+      "width": 3,
+      "height": 3,
+      "destination_area": "crystal_grotto",
+      "destination_x": 96,
+      "destination_y": 59
+    },
+    {
+      "x": 95,
+      "y": 60,
+      "width": 3,
+      "height": 3,
+      "destination_area": "ember_depths",
+      "destination_x": 96,
+      "destination_y": 4
     }
   ]
 }

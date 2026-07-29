@@ -1,0 +1,7 @@
+{
+  "id": "astral_shard",
+  "name": "Astral Shard",
+  "description": "A splinter of cold light from a fallen star creature.",
+  "type": "material",
+  "max_stack": 50
+}

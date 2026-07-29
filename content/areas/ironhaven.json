@@ -1,0 +1,107 @@
+{
+  "id": "ironhaven",
+  "name": "Ironhaven",
+  "width": 160,
+  "height": 56,
+  "border_tile": "#",
+  "features": [
+    { "x": 11, "y": 7, "width": 30, "height": 3, "tile": "#" },
+    { "x": 11, "y": 7, "width": 3, "height": 13, "tile": "#" },
+    { "x": 49, "y": 8, "width": 30, "height": 3, "tile": "#" },
+    { "x": 87, "y": 7, "width": 30, "height": 3, "tile": "#" },
+    { "x": 125, "y": 8, "width": 24, "height": 3, "tile": "#" },
+    { "x": 146, "y": 8, "width": 3, "height": 12, "tile": "#" },
+    { "x": 15, "y": 40, "width": 34, "height": 3, "tile": "#" },
+    { "x": 63, "y": 43, "width": 34, "height": 3, "tile": "#" },
+    { "x": 111, "y": 40, "width": 34, "height": 3, "tile": "#" },
+    { "x": 22, "y": 22, "width": 17, "height": 2, "tile": "#" },
+    { "x": 22, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 38, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 25, "y": 31, "width": 4, "height": 1, "tile": "=" },
+    { "x": 32, "y": 31, "width": 4, "height": 1, "tile": "=" },
+    { "x": 54, "y": 22, "width": 17, "height": 2, "tile": "#" },
+    { "x": 54, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 70, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 86, "y": 22, "width": 17, "height": 2, "tile": "#" },
+    { "x": 86, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 102, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 118, "y": 22, "width": 17, "height": 2, "tile": "#" },
+    { "x": 118, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 134, "y": 24, "width": 1, "height": 9, "tile": "#" },
+    { "x": 77, "y": 34, "width": 3, "height": 1, "tile": "o" },
+    { "x": 78, "y": 33, "width": 1, "height": 3, "tile": "o" },
+    { "x": 78, "y": 34, "width": 1, "height": 1, "tile": "^" },
+    { "x": 74, "y": 35, "width": 1, "height": 1, "tile": "T" },
+    { "x": 82, "y": 35, "width": 1, "height": 1, "tile": "T" },
+    { "x": 15, "y": 43, "width": 3, "height": 9, "tile": "#" },
+    { "x": 46, "y": 43, "width": 3, "height": 9, "tile": "#" },
+    { "x": 15, "y": 49, "width": 34, "height": 3, "tile": "#" },
+    { "x": 30, "y": 49, "width": 4, "height": 3, "tile": "." },
+    { "x": 63, "y": 46, "width": 3, "height": 7, "tile": "#" },
+    { "x": 94, "y": 46, "width": 3, "height": 7, "tile": "#" },
+    { "x": 63, "y": 50, "width": 34, "height": 3, "tile": "#" },
+    { "x": 78, "y": 50, "width": 4, "height": 3, "tile": "." },
+    { "x": 111, "y": 43, "width": 3, "height": 9, "tile": "#" },
+    { "x": 142, "y": 43, "width": 3, "height": 9, "tile": "#" },
+    { "x": 111, "y": 49, "width": 34, "height": 3, "tile": "#" },
+    { "x": 126, "y": 49, "width": 4, "height": 3, "tile": "." }
+  ],
+  "spawn": { "x": 8, "y": 27 },
+  "npcs": [
+    {
+      "id": "ironhaven_merchant",
+      "name": "Doran",
+      "type": "shop",
+      "x": 30,
+      "y": 28,
+      "stock": [
+        { "item_id": "health_potion", "buy_price": 10, "sell_price": 5 },
+        { "item_id": "greater_health_potion", "buy_price": 35, "sell_price": 15 },
+        { "item_id": "steel_sword", "buy_price": 240, "sell_price": 100 },
+        { "item_id": "iron_armor", "buy_price": 320, "sell_price": 140 }
+      ]
+    },
+    {
+      "id": "ironhaven_smith",
+      "name": "Kael",
+      "type": "quest_giver",
+      "x": 62,
+      "y": 28,
+      "quests": [
+        "banked_embers"
+      ]
+    },
+    {
+      "id": "ironhaven_mason",
+      "name": "Rhea",
+      "type": "quest_giver",
+      "x": 94,
+      "y": 28,
+      "quests": [
+        "living_stone"
+      ]
+    },
+    {
+      "id": "ironhaven_artificer",
+      "name": "Vek",
+      "type": "quest_giver",
+      "x": 126,
+      "y": 28,
+      "quests": [
+        "bottled_thunder"
+      ]
+    }
+  ],
+  "enemy_spawns": [],
+  "waypoints": [
+    {
+      "x": 79,
+      "y": 1,
+      "width": 3,
+      "height": 3,
+      "destination_area": "ashlands",
+      "destination_x": 112,
+      "destination_y": 67
+    }
+  ]
+}

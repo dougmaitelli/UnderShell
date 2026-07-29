@@ -1,0 +1,85 @@
+{
+  "id": "starfall_basin",
+  "name": "Starfall Basin",
+  "width": 256,
+  "height": 80,
+  "border_tile": "#",
+  "features": [
+    { "x": 13, "y": 9, "width": 17, "height": 2, "tile": "#" },
+    { "x": 27, "y": 21, "width": 3, "height": 12, "tile": "#" },
+    { "x": 41, "y": 15, "width": 23, "height": 2, "tile": "#" },
+    { "x": 62, "y": 27, "width": 22, "height": 2, "tile": "#" },
+    { "x": 77, "y": 7, "width": 3, "height": 13, "tile": "#" },
+    { "x": 121, "y": 12, "width": 45, "height": 2, "tile": "#" },
+    { "x": 176, "y": 35, "width": 3, "height": 31, "tile": "#" },
+    { "x": 198, "y": 67, "width": 40, "height": 2, "tile": "#" }
+  ],
+  "spawn": { "x": 128, "y": 74 },
+  "enemy_spawns": [
+    {
+      "enemy_id": "drowned_sentinel",
+      "x": 18,
+      "y": 10,
+      "width": 62,
+      "height": 30,
+      "max_enemies": 2,
+      "respawn_seconds": 18
+    },
+    {
+      "enemy_id": "astral_horror",
+      "x": 96,
+      "y": 34,
+      "width": 64,
+      "height": 34,
+      "max_enemies": 2,
+      "respawn_seconds": 19
+    },
+    {
+      "enemy_id": "astral_horror",
+      "x": 182,
+      "y": 10,
+      "width": 56,
+      "height": 52,
+      "max_enemies": 2,
+      "respawn_seconds": 20
+    }
+  ],
+  "waypoints": [
+    {
+      "x": 127,
+      "y": 76,
+      "width": 3,
+      "height": 3,
+      "destination_area": "drowned_ruins",
+      "destination_x": 112,
+      "destination_y": 4
+    },
+    {
+      "x": 1,
+      "y": 38,
+      "width": 3,
+      "height": 3,
+      "destination_area": "stormbreak_peaks",
+      "destination_x": 251,
+      "destination_y": 39
+    },
+    {
+      "x": 252,
+      "y": 38,
+      "width": 3,
+      "height": 3,
+      "destination_area": "void_sanctum",
+      "destination_x": 4,
+      "destination_y": 39
+    },
+    {
+      "x": 127,
+      "y": 1,
+      "width": 3,
+      "height": 3,
+      "destination_area": "asterwatch",
+      "destination_x": 80,
+      "destination_y": 51
+    }
+  ]
+}

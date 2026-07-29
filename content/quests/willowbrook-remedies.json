@@ -1,0 +1,18 @@
+{
+  "id": "willowbrook_remedies",
+  "name": "Willowbrook Remedies",
+  "description": "Collect fresh leaves from Bramble Sprites in the Whispering Woods.",
+  "objective": {
+    "item_id": "bramble_leaf",
+    "quantity": 5
+  },
+  "reward": {
+    "gold": 45
+  },
+  "dialogue": {
+    "offer": "Our healer is running low on Bramble Leaves. Five fresh leaves from the Whispering Woods should be enough.",
+    "in_progress": "The Bramble Sprites west of Meadow carry the leaves we need.",
+    "ready": "Those leaves are still green and strong. Let me bundle them for the healer.",
+    "completed": "Willowbrook's medicine stores are healthy again thanks to you."
+  }
+}

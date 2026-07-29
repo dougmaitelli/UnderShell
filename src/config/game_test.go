@@ -6,14 +6,21 @@ import (
 	"testing"
 )
 
-func TestLoadBundledGameConfig(t *testing.T) {
-	game, err := LoadGame(filepath.Join("..", "..", "content", "game.json"))
+func TestLoadGame(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.json")
+	if err := os.WriteFile(path, []byte(`{
+		"default_spawn":{"area_id":"test_area","x":12,"y":34}
+	}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	game, err := LoadGame(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if game.DefaultSpawn.AreaID != "meadow" ||
-		game.DefaultSpawn.X != 7 ||
-		game.DefaultSpawn.Y != 32 {
+	if game.DefaultSpawn.AreaID != "test_area" ||
+		game.DefaultSpawn.X != 12 ||
+		game.DefaultSpawn.Y != 34 {
 		t.Fatalf("unexpected default spawn: %#v", game.DefaultSpawn)
 	}
 }

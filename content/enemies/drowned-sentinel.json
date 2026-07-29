@@ -1,0 +1,16 @@
+{
+  "id": "drowned_sentinel",
+  "name": "Drowned Sentinel",
+  "description": "An ancient guard still patrolling halls claimed by the sea.",
+  "health": 15,
+  "damage": 3,
+  "experience": 195,
+  "drops": [
+    { "item_id": "health_potion", "chance": 0.12 },
+    { "item_id": "sentinel_relic", "chance": 0.5 }
+  ],
+  "visual": [
+    "[o_o]",
+    "/|#|\\"
+  ]
+}

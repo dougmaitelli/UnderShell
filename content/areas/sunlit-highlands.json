@@ -1,0 +1,76 @@
+{
+  "id": "sunlit_highlands",
+  "name": "Sunlit Highlands",
+  "width": 192,
+  "height": 64,
+  "border_tile": "#",
+  "features": [
+    { "x": 14, "y": 10, "width": 19, "height": 2, "tile": "#" },
+    { "x": 27, "y": 22, "width": 3, "height": 11, "tile": "#" },
+    { "x": 43, "y": 16, "width": 25, "height": 2, "tile": "#" },
+    { "x": 68, "y": 7, "width": 3, "height": 10, "tile": "#" },
+    { "x": 72, "y": 29, "width": 14, "height": 2, "tile": "#" },
+    { "x": 111, "y": 12, "width": 34, "height": 2, "tile": "#" },
+    { "x": 137, "y": 31, "width": 3, "height": 20, "tile": "#" },
+    { "x": 151, "y": 50, "width": 26, "height": 2, "tile": "#" }
+  ],
+  "spawn": { "x": 96, "y": 58 },
+  "enemy_spawns": [
+    {
+      "enemy_id": "ridge_boar",
+      "x": 20,
+      "y": 10,
+      "width": 44,
+      "height": 22,
+      "max_enemies": 3,
+      "respawn_seconds": 10
+    },
+    {
+      "enemy_id": "ridge_boar",
+      "x": 78,
+      "y": 33,
+      "width": 44,
+      "height": 22,
+      "max_enemies": 3,
+      "respawn_seconds": 11
+    },
+    {
+      "enemy_id": "ridge_boar",
+      "x": 137,
+      "y": 10,
+      "width": 36,
+      "height": 28,
+      "max_enemies": 3,
+      "respawn_seconds": 12
+    }
+  ],
+  "waypoints": [
+    {
+      "x": 95,
+      "y": 60,
+      "width": 3,
+      "height": 3,
+      "destination_area": "meadow",
+      "destination_x": 96,
+      "destination_y": 4
+    },
+    {
+      "x": 188,
+      "y": 30,
+      "width": 3,
+      "height": 3,
+      "destination_area": "coastal_cliffs",
+      "destination_x": 4,
+      "destination_y": 31
+    },
+    {
+      "x": 95,
+      "y": 1,
+      "width": 3,
+      "height": 3,
+      "destination_area": "ancient_steppe",
+      "destination_x": 112,
+      "destination_y": 67
+    }
+  ]
+}

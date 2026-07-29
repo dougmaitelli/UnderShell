@@ -75,6 +75,10 @@ func (m *gameModel) updateGameplayInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd
 }
 
 func (m *gameModel) openInputMode(mode inputMode) (tea.Model, tea.Cmd) {
+	if mode == inputModeJournal {
+		m.quests.journalTab = journalTabActive
+		m.quests.journalSelected = 0
+	}
 	m.mode = mode
 	m.movement.stop()
 	return m, nil

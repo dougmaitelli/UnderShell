@@ -561,7 +561,7 @@ func (JournalRenderer) RenderOver(
 	body := lipgloss.JoinVertical(
 		lipgloss.Left,
 		journalTitleStyle.Render("QUEST JOURNAL"),
-		journalTabStyle.Render(tabLabels),
+		tabLabels,
 		"",
 		strings.Join(paneRows, "\n"),
 		"",
@@ -615,8 +615,6 @@ var (
 	journalSelectedStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(lipgloss.Color("#FDE68A"))
-	journalTabStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FBBF24"))
 	journalDividerStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#475569"))
 	questDialogueNameStyle = lipgloss.NewStyle().

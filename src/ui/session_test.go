@@ -636,6 +636,23 @@ func TestJournalInputMovesAndWrapsSelection(t *testing.T) {
 			model.quests.journalSelected,
 		)
 	}
+
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyTab}))
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "j", Code: 'j'}))
+	if model.mode != inputModeGame {
+		t.Fatal("J did not close the completed journal tab")
+	}
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "j", Code: 'j'}))
+	if model.mode != inputModeJournal ||
+		model.quests.journalTab != journalTabActive ||
+		model.quests.journalSelected != 0 {
+		t.Fatalf(
+			"reopened journal = mode %d tab %d selected %d",
+			model.mode,
+			model.quests.journalTab,
+			model.quests.journalSelected,
+		)
+	}
 }
 
 func TestJournalWrappedDetailsStayInRightPaneAtSupportedWidths(t *testing.T) {

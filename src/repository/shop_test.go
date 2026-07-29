@@ -39,6 +39,15 @@ func TestShopBuyAndSellUpdatesInventoryAndGoldAtomically(t *testing.T) {
 		bought.Inventory.Items[0].Quantity != 1 {
 		t.Fatalf("unexpected purchase: %#v", bought)
 	}
+	stacked, err := shops.BuyItem(ctx, character.ID, "health_potion", 10, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stacked.Gold != domain.DefaultStartingGold-20 ||
+		len(stacked.Inventory.Items) != 1 ||
+		stacked.Inventory.Items[0].Quantity != 2 {
+		t.Fatalf("unexpected stacked purchase: %#v", stacked)
+	}
 	characters := NewCharacterRepository(database.ORM())
 	if err := characters.UpdateProgress(ctx, character.ID, 2, 25, 1, 1, 0, 0); err != nil {
 		t.Fatal(err)
@@ -47,16 +56,18 @@ func TestShopBuyAndSellUpdatesInventoryAndGoldAtomically(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reloaded.Gold != bought.Gold {
-		t.Fatalf("progress save changed gold from %d to %d", bought.Gold, reloaded.Gold)
+	if reloaded.Gold != stacked.Gold {
+		t.Fatalf("progress save changed gold from %d to %d", stacked.Gold, reloaded.Gold)
 	}
 	sold, err := shops.SellItem(
-		ctx, character.ID, bought.Inventory.Items[0].Slot, "health_potion", 5,
+		ctx, character.ID, stacked.Inventory.Items[0].Slot, "health_potion", 5,
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sold.Gold != domain.DefaultStartingGold-5 || len(sold.Inventory.Items) != 0 {
+	if sold.Gold != domain.DefaultStartingGold-15 ||
+		len(sold.Inventory.Items) != 1 ||
+		sold.Inventory.Items[0].Quantity != 1 {
 		t.Fatalf("unexpected sale: %#v", sold)
 	}
 }

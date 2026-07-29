@@ -185,6 +185,27 @@ func TestOnlyAdminsPromoteAndModeratorsCanRunOtherCommands(t *testing.T) {
 	); err != nil {
 		t.Fatalf("moderator command failed: %v", err)
 	}
+	message, err = handler.ExecuteChat(
+		context.Background(),
+		userPlayer.ID,
+		userSession.Token,
+		userPlayer.Name,
+		"/m Maintenance begins soon",
+	)
+	if err != nil {
+		t.Fatalf("moderator server message failed: %v", err)
+	}
+	if message != "Server message sent." {
+		t.Fatalf("server message response = %q", message)
+	}
+	for _, session := range []world.Session{adminSession, userSession} {
+		announcement := <-session.Chats
+		if announcement.Type != world.ChatMessageServer ||
+			announcement.PlayerName != "Server" ||
+			announcement.Message != "Maintenance begins soon" {
+			t.Fatalf("server announcement = %#v", announcement)
+		}
+	}
 	if _, err := handler.ExecuteChat(
 		context.Background(),
 		userPlayer.ID,
@@ -307,6 +328,92 @@ func TestAdminBanDisconnectsPersistsAndUnbanWorksOffline(t *testing.T) {
 	}
 }
 
+func TestMaintenanceModeAllowsOnlyStaffConnections(t *testing.T) {
+	handler, manager, _, _, adminPlayer, userPlayer := testHandler(t)
+	adminSession := manager.Join(world.Player{
+		ID: adminPlayer.ID, Name: adminPlayer.Name, Role: domain.CharacterRoleAdmin,
+		AreaID: "meadow", X: 1, Y: 1, Level: 1,
+	})
+	userSession := manager.Join(world.Player{
+		ID: userPlayer.ID, Name: userPlayer.Name, Role: domain.CharacterRoleUser,
+		AreaID: "meadow", X: 2, Y: 1, Level: 1,
+	})
+
+	if _, err := handler.ExecuteChat(
+		context.Background(),
+		userPlayer.ID,
+		userSession.Token,
+		userPlayer.Name,
+		"/maintenance on",
+	); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("user maintenance command error = %v", err)
+	}
+	if _, err := handler.ExecuteChat(
+		context.Background(),
+		adminPlayer.ID,
+		adminSession.Token,
+		adminPlayer.Name,
+		`/promote "Target Player"`,
+	); err != nil {
+		t.Fatal(err)
+	}
+	message, err := handler.ExecuteChat(
+		context.Background(),
+		userPlayer.ID,
+		userSession.Token,
+		userPlayer.Name,
+		"/maintenance on",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if message != "Maintenance mode enabled." || !handler.MaintenanceEnabled() {
+		t.Fatalf(
+			"maintenance response = %q, enabled = %v",
+			message, handler.MaintenanceEnabled(),
+		)
+	}
+	for _, session := range []world.Session{adminSession, userSession} {
+		announcement := <-session.Chats
+		if announcement.Type != world.ChatMessageServer ||
+			announcement.Message !=
+				"Maintenance mode enabled. New player connections are paused." {
+			t.Fatalf("maintenance announcement = %#v", announcement)
+		}
+	}
+	if handler.AllowsConnection(nil) {
+		t.Fatal("maintenance allowed character creation")
+	}
+	if handler.AllowsConnection(&domain.Character{
+		Role: domain.CharacterRoleUser,
+	}) {
+		t.Fatal("maintenance allowed a user connection")
+	}
+	for _, role := range []domain.CharacterRole{
+		domain.CharacterRoleModerator,
+		domain.CharacterRoleAdmin,
+	} {
+		if !handler.AllowsConnection(&domain.Character{Role: role}) {
+			t.Fatalf("maintenance rejected %s connection", role)
+		}
+	}
+
+	message, err = handler.ExecuteConsole(
+		context.Background(), "/maintenance off",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if message != "Maintenance mode disabled." ||
+		handler.MaintenanceEnabled() ||
+		!handler.AllowsConnection(nil) {
+		t.Fatalf(
+			"disabled maintenance response = %q, enabled = %v",
+			message, handler.MaintenanceEnabled(),
+		)
+	}
+}
+
 func TestConsoleReportsEachLineAndRequiresSlashPrefix(t *testing.T) {
 	handler, manager, _, _, adminPlayer, _ := testHandler(t)
 	manager.Join(world.Player{
@@ -318,7 +425,8 @@ func TestConsoleReportsEachLineAndRequiresSlashPrefix(t *testing.T) {
 		context.Background(),
 		strings.NewReader(
 			"lvl 1 \"Admin Player\"\n"+
-				"/lvl 1 \"Admin Player\"\n",
+				"/lvl 1 \"Admin Player\"\n"+
+				"/m Welcome to the realm\n",
 		),
 		&output,
 	)
@@ -326,7 +434,8 @@ func TestConsoleReportsEachLineAndRequiresSlashPrefix(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.Contains(output.String(), "commands must begin with /") ||
-		!strings.Contains(output.String(), "Granted 1 level(s) to Admin Player.") {
+		!strings.Contains(output.String(), "Granted 1 level(s) to Admin Player.") ||
+		!strings.Contains(output.String(), "Server message sent.") {
 		t.Fatalf("console output = %q", output.String())
 	}
 }

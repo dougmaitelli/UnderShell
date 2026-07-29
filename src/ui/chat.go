@@ -103,6 +103,9 @@ func renderChatMessage(message world.ChatMessage, shimmerFrame int) string {
 		fmt.Sprintf("[%s] %s", message.PlayerName, message.Message),
 		chatTextWidth,
 	)
+	if message.Type == world.ChatMessageServer {
+		return serverChatMessageStyle.Render(text)
+	}
 	runes := []rune(text)
 	if len(runes) < 2 {
 		return chatMessageStyle.Render(text)
@@ -145,6 +148,9 @@ var (
 			BorderForeground(lipgloss.Color("#475569"))
 	chatMessageStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#CBD5E1"))
+	serverChatMessageStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("#FACC15"))
 	chatInputStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#38BDF8"))
 )

@@ -65,3 +65,25 @@ func TestChatNamesUsePlayerRoleColors(t *testing.T) {
 		t.Fatal("admin chat name shimmer did not advance")
 	}
 }
+
+func TestServerChatMessageRendersEntireLineInYellow(t *testing.T) {
+	message := world.ChatMessage{
+		Type: world.ChatMessageServer, PlayerName: "Server",
+		Message: "Maintenance begins soon",
+	}
+	plain := truncateChatLine(
+		"[Server] Maintenance begins soon",
+		chatTextWidth,
+	)
+	rendered := renderChatMessage(message, 0)
+	if ansi.Strip(rendered) != plain {
+		t.Fatalf("server chat text = %q", ansi.Strip(rendered))
+	}
+	if rendered != serverChatMessageStyle.Render(plain) {
+		t.Fatalf("server chat line did not use one complete yellow style: %q", rendered)
+	}
+	red, green, blue, _ := serverChatMessageStyle.GetForeground().RGBA()
+	if red <= blue || green <= blue {
+		t.Fatalf("server chat color is not yellow: (%x, %x, %x)", red, green, blue)
+	}
+}

@@ -23,6 +23,7 @@ type Identity struct {
 }
 
 const bannedAccountMessage = "This account has been permanently banned."
+const maintenanceModeMessage = "The server is currently in maintenance mode. Please try again later."
 
 type Repositories struct {
 	Characters  repository.CharacterRepository
@@ -67,6 +68,10 @@ func (r *Runner) Run(session ssh.Session, identity Identity) {
 	}
 	if char != nil && char.Banned {
 		_, _ = io.WriteString(session, bannedAccountMessage+"\n")
+		return
+	}
+	if r.admin != nil && !r.admin.AllowsConnection(char) {
+		_, _ = io.WriteString(session, maintenanceModeMessage+"\n")
 		return
 	}
 	var inventory *domain.Inventory

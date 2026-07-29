@@ -24,9 +24,32 @@ func (s *chatSystem) send(
 		return false
 	}
 	chat := ChatMessage{
+		Type:     ChatMessagePlayer,
 		PlayerID: player.ID, PlayerName: player.Name,
 		PlayerRole: player.Role, Message: message,
 	}
+	s.broadcast(chat, players)
+	return true
+}
+
+func (s *chatSystem) sendServer(
+	players map[int64]*activePlayer,
+	value string,
+) bool {
+	message, ok := validateChatMessage(value)
+	if !ok {
+		return false
+	}
+	s.broadcast(ChatMessage{
+		Type: ChatMessageServer, PlayerName: "Server", Message: message,
+	}, players)
+	return true
+}
+
+func (s *chatSystem) broadcast(
+	chat ChatMessage,
+	players map[int64]*activePlayer,
+) {
 	s.history = append(s.history, chat)
 	if len(s.history) > chatHistoryLimit {
 		s.history = s.history[len(s.history)-chatHistoryLimit:]
@@ -37,7 +60,6 @@ func (s *chatSystem) send(
 		default:
 		}
 	}
-	return true
 }
 
 func validateChatMessage(value string) (string, bool) {

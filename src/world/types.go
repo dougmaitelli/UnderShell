@@ -61,11 +61,19 @@ type Session struct {
 }
 
 type ChatMessage struct {
+	Type       ChatMessageType
 	PlayerID   int64
 	PlayerName string
 	PlayerRole domain.CharacterRole
 	Message    string
 }
+
+type ChatMessageType string
+
+const (
+	ChatMessagePlayer ChatMessageType = ""
+	ChatMessageServer ChatMessageType = "server"
+)
 
 type EventKind string
 

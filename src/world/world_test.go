@@ -479,6 +479,45 @@ func TestGlobalChatBroadcastsAndPreloadsLatestTenMessages(t *testing.T) {
 	}
 }
 
+func TestServerChatBroadcastsGloballyAndIsStoredInHistory(t *testing.T) {
+	manager := New(testAreas(t), nil, nil, nil)
+	defer manager.Close()
+	first := manager.Join(Player{
+		ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1,
+	})
+	second := manager.Join(Player{
+		ID: 2, Name: "Rowan", AreaID: "cavern", X: 1, Y: 1,
+	})
+	receiveSnapshot(t, first.Updates)
+	receiveSnapshot(t, second.Updates)
+
+	if manager.ServerMessage("") {
+		t.Fatal("empty server message was accepted")
+	}
+	if !manager.ServerMessage("The realm will restart soon.") {
+		t.Fatal("valid server message was rejected")
+	}
+	for _, session := range []Session{first, second} {
+		message := receiveChat(t, session.Chats)
+		if message.Type != ChatMessageServer ||
+			message.PlayerName != "Server" ||
+			message.PlayerID != 0 ||
+			message.Message != "The realm will restart soon." {
+			t.Fatalf("server chat = %#v", message)
+		}
+	}
+
+	third := manager.Join(Player{
+		ID: 3, Name: "Mira", AreaID: "meadow", X: 1, Y: 1,
+	})
+	receiveSnapshot(t, third.Updates)
+	message := receiveChat(t, third.Chats)
+	if message.Type != ChatMessageServer ||
+		message.Message != "The realm will restart soon." {
+		t.Fatalf("server message missing from history: %#v", message)
+	}
+}
+
 func TestEnemyPursuesAndAttacksNearestPlayer(t *testing.T) {
 	areas, err := NewAreas([]AreaDefinition{{
 		ID: "meadow", Name: "Meadow",

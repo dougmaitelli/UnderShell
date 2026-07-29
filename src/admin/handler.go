@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"sshrpg/src/domain"
 	"sshrpg/src/item"
@@ -25,6 +26,7 @@ type Handler struct {
 	inventories repository.InventoryRepository
 	items       *item.Items
 	world       *world.Manager
+	maintenance atomic.Bool
 }
 
 func New(
@@ -109,9 +111,65 @@ func (h *Handler) execute(
 			return "", ErrAdminRequired
 		}
 		return h.unban(ctx, args)
+	case "m":
+		return h.serverMessage(args)
+	case "maintenance":
+		return h.setMaintenance(args)
 	default:
 		return "", fmt.Errorf("unknown command %q", fields[0])
 	}
+}
+
+func (h *Handler) MaintenanceEnabled() bool {
+	return h.maintenance.Load()
+}
+
+func (h *Handler) AllowsConnection(character *domain.Character) bool {
+	if !h.MaintenanceEnabled() {
+		return true
+	}
+	if character == nil {
+		return false
+	}
+	return character.Role == domain.CharacterRoleModerator ||
+		character.Role == domain.CharacterRoleAdmin
+}
+
+func (h *Handler) setMaintenance(args []string) (string, error) {
+	if len(args) != 1 {
+		return "", errors.New("usage: /maintenance <on|off>")
+	}
+	switch strings.ToLower(args[0]) {
+	case "on":
+		changed := !h.maintenance.Swap(true)
+		if changed {
+			h.world.ServerMessage(
+				"Maintenance mode enabled. New player connections are paused.",
+			)
+		}
+		return "Maintenance mode enabled.", nil
+	case "off":
+		changed := h.maintenance.Swap(false)
+		if changed {
+			h.world.ServerMessage(
+				"Maintenance mode disabled. Player connections are open.",
+			)
+		}
+		return "Maintenance mode disabled.", nil
+	default:
+		return "", errors.New("usage: /maintenance <on|off>")
+	}
+}
+
+func (h *Handler) serverMessage(args []string) (string, error) {
+	message := strings.TrimSpace(strings.Join(args, " "))
+	if message == "" {
+		return "", errors.New("usage: /m <message>")
+	}
+	if !h.world.ServerMessage(message) {
+		return "", errors.New("server message must be printable and at most 200 characters")
+	}
+	return "Server message sent.", nil
 }
 
 func (h *Handler) kick(

@@ -105,6 +105,8 @@ func (s *runtimeState) handle(event any) {
 		request.reply <- s.chat.send(
 			s.players.authenticated(request.id, request.token), s.players.live, request.message,
 		)
+	case serverChatRequest:
+		request.reply <- s.chat.sendServer(s.players.live, request.message)
 	case adminAuthorizeRequest:
 		player := s.players.authenticated(request.id, request.token)
 		if player == nil {

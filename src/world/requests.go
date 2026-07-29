@@ -68,6 +68,11 @@ type chatRequest struct {
 	reply   chan bool
 }
 
+type serverChatRequest struct {
+	message string
+	reply   chan bool
+}
+
 type adminAuthorizeRequest struct {
 	id    int64
 	token string

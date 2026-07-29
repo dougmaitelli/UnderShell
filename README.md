@@ -65,6 +65,8 @@ Every command must begin with `/`.
 | `/kick <player>` | Disconnect an online player |
 | `/ban <player>` | Permanently ban an account; admin-only |
 | `/unban <player>` | Remove a permanent account ban; admin-only |
+| `/m <message>` | Broadcast a yellow Server message |
+| `/maintenance <on\|off>` | Allow new connections from staff only |
 
 The final `player` argument can be omitted in chat, in which case the command
 targets its sender. It is required in the server console. Commands currently
@@ -79,7 +81,13 @@ names containing spaces must be quoted:
 Item and area IDs can be used instead of their display names. Moderators can
 run the gameplay commands and `/kick`, but cannot kick administrators. Only
 administrators and the trusted server console can use `/promote`, `/ban`, and
-`/unban`.
+`/unban`. Both staff roles and the console can use `/m`; announcements appear
+in every player's chat as a fully yellow `Server` line.
+
+Both staff roles and the console can toggle maintenance mode. Enabling it keeps
+current sessions connected but refuses new user and character-creation
+sessions. Moderator and administrator accounts can still connect. Maintenance
+mode is runtime state and starts disabled after a server restart.
 
 Bans are stored against the character account identified by its SSH key and
 survive disconnects and server restarts. `/ban` and `/unban` accept offline

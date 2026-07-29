@@ -140,6 +140,16 @@ func (m *Manager) Chat(id int64, token, message string) bool {
 	}
 }
 
+func (m *Manager) ServerMessage(message string) bool {
+	reply := make(chan bool)
+	select {
+	case m.events <- serverChatRequest{message: message, reply: reply}:
+		return <-reply
+	case <-m.done:
+		return false
+	}
+}
+
 func (m *Manager) AuthenticatedRole(
 	id int64,
 	token string,

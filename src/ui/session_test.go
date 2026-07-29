@@ -203,20 +203,32 @@ func TestChatFocusCapturesTypingUntilEnter(t *testing.T) {
 }
 
 func TestAttackKeyStartsSlashAnimation(t *testing.T) {
-	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{
-		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
-	}, nil)
-	model.phase = phasePlaying
-	model.movement.setFacing(-1, 0)
-	model.movement.setFacing(0, -1)
-	_, command := model.Update(tea.KeyPressMsg(tea.Key{Text: "x", Code: 'x'}))
-	if command == nil || !model.actions.attackInFlight ||
-		model.actions.attackFrame != 1 || model.actions.attackDirection != -1 {
-		t.Fatalf(
-			"attack state = in-flight %v, frame %d, direction %d, command %v",
-			model.actions.attackInFlight, model.actions.attackFrame,
-			model.actions.attackDirection, command != nil,
-		)
+	for name, key := range map[string]tea.Key{
+		"x":     {Text: "x", Code: 'x'},
+		"space": {Code: tea.KeySpace},
+	} {
+		t.Run(name, func(t *testing.T) {
+			model := newGameModel(
+				Repositories{}, nil, nil, Identity{},
+				&domain.Character{
+					ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
+				},
+				nil,
+			)
+			model.phase = phasePlaying
+			model.movement.setFacing(-1, 0)
+			model.movement.setFacing(0, -1)
+			_, command := model.Update(tea.KeyPressMsg(key))
+			if command == nil || !model.actions.attackInFlight ||
+				model.actions.attackFrame != 1 ||
+				model.actions.attackDirection != -1 {
+				t.Fatalf(
+					"attack state = in-flight %v, frame %d, direction %d, command %v",
+					model.actions.attackInFlight, model.actions.attackFrame,
+					model.actions.attackDirection, command != nil,
+				)
+			}
+		})
 	}
 }
 

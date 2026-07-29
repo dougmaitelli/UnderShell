@@ -612,18 +612,19 @@ func equipmentRows(slots []EquipmentSlotView, width int) []string {
 		cells := make([]string, 0, 2)
 		for offset := 0; offset < 2 && index+offset < len(slots); offset++ {
 			slot := slots[index+offset]
-			name := slot.ItemName
+			label := fmt.Sprintf(
+				"%-7s ", titleInventoryValue(string(slot.Slot))+":",
+			)
+			nameWidth := max(cellWidth-lipgloss.Width(label), 1)
+			name := truncateJournalText(slot.ItemName, nameWidth)
 			if name == "" {
 				name = "Empty"
+			} else {
+				name = equipmentItemNameStyle.Render(name)
 			}
-			value := fmt.Sprintf(
-				"%-7s %s",
-				titleInventoryValue(string(slot.Slot))+":",
-				name,
-			)
+			value := label + name
 			cells = append(cells, padJournalCell(
-				truncateJournalText(value, cellWidth),
-				cellWidth,
+				value, cellWidth,
 			))
 		}
 		rows = append(rows, strings.Join(cells, "  "))
@@ -656,4 +657,6 @@ var (
 				Foreground(lipgloss.Color("#475569"))
 	inventoryStatusStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#FDE68A"))
+	equipmentItemNameStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#FACC15"))
 )

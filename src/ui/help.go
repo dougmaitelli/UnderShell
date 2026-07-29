@@ -23,7 +23,7 @@ func (HelpRenderer) RenderOver(game string, width, height int) string {
 		helpTitleStyle.Render("HELP"),
 		"",
 		"WASD / arrows   Move",
-		"X               Attack nearby enemies",
+		"X / Space       Attack nearby enemies",
 		"E               Interact or confirm selected action",
 		"Space           Confirm shop or inventory action",
 		"I               Open inventory (W/S selects items)",

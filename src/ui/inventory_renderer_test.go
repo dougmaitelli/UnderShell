@@ -60,9 +60,16 @@ func TestInventoryRendererShowsResolvedDetailsAndEquipment(t *testing.T) {
 	}
 	background := strings.Repeat(strings.Repeat(" ", 80)+"\n", 23) +
 		strings.Repeat(" ", 80)
-	output := ansi.Strip(InventoryRenderer{}.RenderOver(
+	rendered := InventoryRenderer{}.RenderOver(
 		background, 80, 24, inventory, view,
-	))
+	)
+	if !strings.Contains(
+		rendered,
+		equipmentItemNameStyle.Render("Rusty Sword"),
+	) {
+		t.Fatalf("equipped item name is not yellow: %q", rendered)
+	}
+	output := ansi.Strip(rendered)
 	for _, expected := range []string{
 		"Rusty Sword", "Type: Equipment", "Slot: Weapon",
 		"Status: Equipped", "Attack: +1", "Weapon: Rusty Sword",

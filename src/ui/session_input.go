@@ -63,7 +63,7 @@ func (m *gameModel) updateGameplayInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd
 		return m, m.chat.input.Focus()
 	case "f1":
 		return m.openInputMode(inputModeHelp)
-	case "x", "e":
+	case "x", "space", "e":
 		return m.updateActionInput(msg)
 	default:
 		if m.movement.enhanced && msg.IsRepeat &&

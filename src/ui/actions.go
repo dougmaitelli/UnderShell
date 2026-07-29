@@ -51,7 +51,7 @@ func (s *actionState) finishPickup() {
 
 func (m *gameModel) updateActionInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "x":
+	case "x", "space":
 		if m.actions.beginAttack(m.movement.horizontalFacing) {
 			return m, tea.Batch(m.attack(), attackAnimationTick(2))
 		}

@@ -29,6 +29,7 @@ func (HelpRenderer) RenderOver(game string, width, height int) string {
 		"I               Open inventory (W/S selects items)",
 		"K               Open skills",
 		"J               Open quest journal",
+		"Tab             Switch shop or journal tab",
 		"T               Focus chat",
 		"Enter           Send focused chat message",
 		"/...            Run a staff command",

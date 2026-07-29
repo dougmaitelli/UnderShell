@@ -21,12 +21,21 @@ type questState struct {
 	progress        map[string]domain.CharacterQuest
 	inFlight        bool
 	dialogue        questDialogueState
+	journalTab      journalTab
 	journalSelected int
 }
+
+type journalTab uint8
+
+const (
+	journalTabActive journalTab = iota
+	journalTabCompleted
+)
 
 type QuestView struct {
 	Name        string
 	Description string
+	Status      domain.QuestStatus
 	ItemName    string
 	Current     int
 	Required    int
@@ -39,6 +48,7 @@ type QuestView struct {
 type JournalView struct {
 	Quests   []QuestView
 	Selected int
+	Tab      journalTab
 }
 
 type questDialogueKind uint8
@@ -93,24 +103,30 @@ func (s *questState) setProgress(progress []domain.CharacterQuest) {
 	}
 }
 
-func (s *questState) views(inventory *domain.Inventory) []QuestView {
+func (s *questState) views(
+	inventory *domain.Inventory,
+	status domain.QuestStatus,
+) []QuestView {
 	if s.definitions == nil {
 		return nil
 	}
 	views := make([]QuestView, 0, len(s.progress))
 	for _, definition := range s.definitions.All() {
 		progress, ok := s.progress[definition.ID]
-		if !ok || progress.Status != domain.QuestActive {
+		if !ok || progress.Status != status {
 			continue
+		}
+		current := min(
+			inventoryQuantity(inventory, definition.Objective.Item.ID),
+			definition.Objective.Quantity,
+		)
+		if status == domain.QuestCompleted {
+			current = definition.Objective.Quantity
 		}
 		itemName := definition.Objective.Item.Name
 		views = append(views, QuestView{
 			Name: definition.Name, Description: definition.Description,
-			ItemName: itemName,
-			Current: min(
-				inventoryQuantity(inventory, definition.Objective.Item.ID),
-				definition.Objective.Quantity,
-			),
+			Status: status, ItemName: itemName, Current: current,
 			Required:   definition.Objective.Quantity,
 			GiverID:    progress.GiverID,
 			RewardGold: definition.Reward.Gold,
@@ -123,7 +139,11 @@ func (s *questState) journalView(
 	inventory *domain.Inventory,
 	resolveGiver func(string) (string, string),
 ) JournalView {
-	quests := s.views(inventory)
+	status := domain.QuestActive
+	if s.journalTab == journalTabCompleted {
+		status = domain.QuestCompleted
+	}
+	quests := s.views(inventory, status)
 	for index := range quests {
 		quests[index].GiverName, quests[index].GiverArea =
 			resolveGiver(quests[index].GiverID)
@@ -133,7 +153,9 @@ func (s *questState) journalView(
 	} else if s.journalSelected >= len(quests) {
 		s.journalSelected = len(quests) - 1
 	}
-	return JournalView{Quests: quests, Selected: s.journalSelected}
+	return JournalView{
+		Quests: quests, Selected: s.journalSelected, Tab: s.journalTab,
+	}
 }
 
 func (m *gameModel) questGiver(giverID string) (string, string) {
@@ -169,14 +191,21 @@ func (m *gameModel) updateJournalInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 	switch strings.ToLower(msg.String()) {
 	case "j", "esc":
 		m.mode = inputModeGame
+	case "tab":
+		if m.quests.journalTab == journalTabActive {
+			m.quests.journalTab = journalTabCompleted
+		} else {
+			m.quests.journalTab = journalTabActive
+		}
+		m.quests.journalSelected = 0
 	case "up", "w":
-		count := len(m.quests.views(m.inventory))
+		count := len(m.quests.journalView(m.inventory, m.questGiver).Quests)
 		if count > 0 {
 			m.quests.journalSelected =
 				(m.quests.journalSelected - 1 + count) % count
 		}
 	case "down", "s":
-		count := len(m.quests.views(m.inventory))
+		count := len(m.quests.journalView(m.inventory, m.questGiver).Quests)
 		if count > 0 {
 			m.quests.journalSelected =
 				(m.quests.journalSelected + 1) % count
@@ -441,6 +470,11 @@ func (JournalRenderer) RenderOver(
 	detailWidth := max(contentWidth-listWidth-1-detailGap, 12)
 
 	listRows := []string{mutedStyle.Render("No active quests")}
+	tabLabels := "[ACTIVE]  COMPLETED"
+	if journal.Tab == journalTabCompleted {
+		listRows = []string{mutedStyle.Render("No completed quests")}
+		tabLabels = "ACTIVE  [COMPLETED]"
+	}
 	if len(journal.Quests) > 0 {
 		listRows = make([]string, len(journal.Quests))
 		for index, quest := range journal.Quests {
@@ -464,6 +498,13 @@ func (JournalRenderer) RenderOver(
 		if quest.Current >= quest.Required {
 			status = "Ready to return"
 		}
+		giverLabel := "Return to: "
+		if quest.Status == domain.QuestCompleted {
+			status = fmt.Sprintf(
+				"Completed — %d of %d", quest.Required, quest.Required,
+			)
+			giverLabel = "Quest giver: "
+		}
 		detailRows = []string{
 			journalQuestTitleStyle.Render(
 				truncateJournalText(quest.Name, detailWidth),
@@ -486,7 +527,7 @@ func (JournalRenderer) RenderOver(
 		detailRows = append(
 			detailRows,
 			wrapEventText(
-				"Return to: "+questGiverLocation(quest), detailWidth,
+				giverLabel+questGiverLocation(quest), detailWidth,
 			)...,
 		)
 		if quest.RewardGold > 0 {
@@ -513,13 +554,14 @@ func (JournalRenderer) RenderOver(
 			padJournalCell(right, detailWidth)
 	}
 
-	controls := "↑/↓ select • J/Esc close"
+	controls := "Tab switch • ↑/↓ select • J/Esc close"
 	if contentWidth >= 46 {
-		controls = "W/S or ↑/↓ to select • J or Esc to close"
+		controls = "Tab: active/completed • W/S or ↑/↓ select • J/Esc close"
 	}
 	body := lipgloss.JoinVertical(
 		lipgloss.Left,
 		journalTitleStyle.Render("QUEST JOURNAL"),
+		journalTabStyle.Render(tabLabels),
 		"",
 		strings.Join(paneRows, "\n"),
 		"",
@@ -573,6 +615,8 @@ var (
 	journalSelectedStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(lipgloss.Color("#FDE68A"))
+	journalTabStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FBBF24"))
 	journalDividerStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#475569"))
 	questDialogueNameStyle = lipgloss.NewStyle().

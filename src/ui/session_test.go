@@ -537,6 +537,18 @@ func TestJournalInputMovesAndWrapsSelection(t *testing.T) {
 			},
 			Dialogue: dialogue,
 		},
+		{
+			ID: "finished", Name: "Finished Quest",
+			Description: "A completed quest with retained details.",
+			Objective: quest.Objective{
+				Item: &item.Definition{
+					ID: "finished_item", Name: "Finished Item", MaxStack: 1,
+				},
+				Quantity: 3,
+			},
+			Reward:   quest.Reward{Gold: 25},
+			Dialogue: dialogue,
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -551,6 +563,10 @@ func TestJournalInputMovesAndWrapsSelection(t *testing.T) {
 	model.quests.setProgress([]domain.CharacterQuest{
 		{QuestID: "first", Status: domain.QuestActive},
 		{QuestID: "second", Status: domain.QuestActive},
+		{
+			QuestID: "finished", GiverID: "archivist",
+			Status: domain.QuestCompleted,
+		},
 	})
 
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyDown}))
@@ -564,6 +580,49 @@ func TestJournalInputMovesAndWrapsSelection(t *testing.T) {
 	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyUp}))
 	if model.quests.journalSelected != 1 {
 		t.Fatalf("up wrap selected %d, want 1", model.quests.journalSelected)
+	}
+
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyTab}))
+	if model.quests.journalTab != journalTabCompleted ||
+		model.quests.journalSelected != 0 {
+		t.Fatalf(
+			"completed tab state = tab %d selected %d",
+			model.quests.journalTab,
+			model.quests.journalSelected,
+		)
+	}
+	journal := model.quests.journalView(model.inventory, model.questGiver)
+	if len(journal.Quests) != 1 ||
+		journal.Quests[0].Name != "Finished Quest" ||
+		journal.Quests[0].Status != domain.QuestCompleted ||
+		journal.Quests[0].Current != 3 ||
+		journal.Quests[0].Required != 3 ||
+		journal.Quests[0].RewardGold != 25 {
+		t.Fatalf("completed journal = %#v", journal)
+	}
+	model.width, model.height = 80, 24
+	plain := ansi.Strip(model.View().Content)
+	for _, expected := range []string{
+		"ACTIVE  [COMPLETED]",
+		"> Finished Quest",
+		"completed quest with retained details",
+		"Completed — 3 of 3",
+		"Quest giver: archivist",
+		"Reward: 25 gold",
+	} {
+		if !strings.Contains(plain, expected) {
+			t.Fatalf("completed journal is missing %q: %q", expected, plain)
+		}
+	}
+
+	_, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyTab}))
+	if model.quests.journalTab != journalTabActive ||
+		model.quests.journalSelected != 0 {
+		t.Fatalf(
+			"active tab state = tab %d selected %d",
+			model.quests.journalTab,
+			model.quests.journalSelected,
+		)
 	}
 }
 
@@ -666,7 +725,7 @@ func TestHelpWindowListsCommandsAndBlocksGameplayInput(t *testing.T) {
 	plain := ansi.Strip(model.View().Content)
 	for _, command := range []string{
 		"HELP", "WASD / arrows", "Attack nearby", "Open inventory",
-		"Open skills", "Focus chat", "Ctrl+C",
+		"Open skills", "Focus chat", "Switch shop or journal tab", "Ctrl+C",
 	} {
 		if !strings.Contains(plain, command) {
 			t.Fatalf("help is missing %q: %q", command, plain)

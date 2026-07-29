@@ -6,7 +6,7 @@
   "damage": 5,
   "experience": 370,
   "drops": [
-    { "item_id": "health_potion", "chance": 0.16 }
+    { "item_id": "greater_health_potion", "chance": 0.16 }
   ],
   "visual": [
     ".-*-.",

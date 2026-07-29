@@ -6,7 +6,7 @@
   "damage": 2,
   "experience": 70,
   "drops": [
-    { "item_id": "health_potion", "chance": 0.1 },
+    { "item_id": "minor_health_potion", "chance": 0.1 },
     { "item_id": "mire_gland", "chance": 0.65 }
   ],
   "visual": [

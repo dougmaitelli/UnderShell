@@ -6,7 +6,7 @@
   "damage": 8,
   "experience": 900,
   "drops": [
-    { "item_id": "health_potion", "chance": 0.25 },
+    { "item_id": "major_health_potion", "chance": 0.25 },
     { "item_id": "seraph_feather", "chance": 0.5 }
   ],
   "visual": [

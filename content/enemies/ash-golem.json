@@ -6,7 +6,7 @@
   "damage": 4,
   "experience": 310,
   "drops": [
-    { "item_id": "health_potion", "chance": 0.14 },
+    { "item_id": "greater_health_potion", "chance": 0.14 },
     { "item_id": "ash_fragment", "chance": 0.65 }
   ],
   "visual": [

@@ -6,7 +6,7 @@
   "damage": 2,
   "experience": 40,
   "drops": [
-    { "item_id": "health_potion", "chance": 0.1 },
+    { "item_id": "minor_health_potion", "chance": 0.1 },
     { "item_id": "bat_wing", "chance": 0.75 }
   ],
   "visual": [

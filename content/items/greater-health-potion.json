@@ -1,10 +1,10 @@
 {
   "id": "greater_health_potion",
   "name": "Greater Health Potion",
-  "description": "Restores a substantial amount of health.",
+  "description": "Restores a large amount of health.",
   "type": "consumable",
   "effects": [
-    { "type": "restore_health", "amount": 20 }
+    { "type": "restore_health", "amount": 50 }
   ],
   "max_stack": 10
 }

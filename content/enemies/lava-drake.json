@@ -6,7 +6,7 @@
   "damage": 5,
   "experience": 420,
   "drops": [
-    { "item_id": "health_potion", "chance": 0.16 },
+    { "item_id": "greater_health_potion", "chance": 0.16 },
     { "item_id": "drake_scale", "chance": 0.5 }
   ],
   "visual": [

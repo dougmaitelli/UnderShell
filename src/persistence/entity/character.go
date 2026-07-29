@@ -12,7 +12,7 @@ type Character struct {
 	KeyFingerprint string `bun:"key_fingerprint,notnull,unique"`
 	PublicKeyType  string `bun:"public_key_type,notnull"`
 	PublicKey      string `bun:"public_key,notnull"`
-	Name           string `bun:"name,notnull,unique,type:TEXT COLLATE NOCASE"`
+	Name           string `bun:"name,notnull"`
 	Role           string `bun:"role,notnull,default:'user',type:TEXT CHECK (role IN ('user', 'moderator', 'admin'))"`
 	Banned         bool   `bun:"banned,notnull,default:false"`
 	CreatedAt      string `bun:"created_at,notnull"`

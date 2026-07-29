@@ -1,11 +1,32 @@
 services:
+  database:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-undershell}
+      POSTGRES_USER: ${POSTGRES_USER:-undershell}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - database-data:/var/lib/postgresql/data
+
   game:
     build: .
     restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-undershell}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB:-undershell}?sslmode=disable
     ports:
       - "22:2222"
     volumes:
       - game-data:/app/data
 
 volumes:
+  database-data:
   game-data:

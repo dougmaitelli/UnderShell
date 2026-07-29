@@ -3,10 +3,18 @@ package persistence
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"sshrpg/src/persistence/entity"
 )
+
+func TestOpenRejectsUnsupportedDatabaseURL(t *testing.T) {
+	_, err := Open("mysql://localhost/game")
+	if err == nil || !strings.Contains(err.Error(), "unsupported database URL scheme") {
+		t.Fatalf("unsupported database error = %v", err)
+	}
+}
 
 func TestOpenCreatesAndReopensCurrentSchema(t *testing.T) {
 	ctx := context.Background()

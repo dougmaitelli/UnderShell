@@ -102,6 +102,8 @@ be online.
 The Compose configuration publishes host port `22` to the game server:
 
 ```sh
+cp .env.example .env
+# Edit .env before starting the server.
 docker compose up --build -d
 ssh -i ~/.ssh/id_ed25519 game.example.com
 ```
@@ -109,9 +111,15 @@ ssh -i ~/.ssh/id_ed25519 game.example.com
 Port `22` must be available. Keep administrative SSH on another port or address,
 or change the published port in `compose.yaml`.
 
-The `game-data` volume persists the SQLite database and SSH host key. Rebuilding
-the image updates the engine and bundled content without replacing that runtime
-data.
+Compose runs PostgreSQL alongside the game. The `database-data` volume persists
+player data and the `game-data` volume persists the SSH host key. Rebuilding the
+images updates the engine and bundled content without replacing either volume.
+Neither named volume is a backup; regularly back up PostgreSQL and the SSH host
+key separately.
+
+Compose reads the PostgreSQL database, user, and password from `.env`. The real
+file is ignored by Git; `.env.example` documents the required variables. Use a
+URL-safe password because Compose also uses it to construct `DATABASE_URL`.
 
 ## Configuration
 
@@ -121,7 +129,8 @@ Runtime paths and listener settings are configured with environment variables:
 |---|---|---|
 | `SSH_LISTEN_ADDR` | `:2222` | SSH listener address |
 | `SSH_HOST_KEY_PATH` | `./data/ssh_host_ed25519` | Persistent server host key |
-| `DATABASE_PATH` | `./data/game.db` | SQLite database |
+| `DATABASE_URL` | unset | PostgreSQL connection URL; takes precedence over `DATABASE_PATH` |
+| `DATABASE_PATH` | `./data/game.db` | SQLite fallback for local development and tests |
 | `GAME_CONFIG_PATH` | `./content/game.json` | Global game configuration |
 | `AREAS_PATH` | `./content/areas` | Area definition directory |
 | `ITEMS_PATH` | `./content/items` | Item definition directory |
@@ -165,7 +174,7 @@ engine source.
     ├── quest/           Quest definitions and validation
     ├── npc/             NPC resolution and behavior definitions
     ├── world/           Shared runtime state and simulation
-    ├── persistence/     SQLite/Bun setup and migrations
+    ├── persistence/     SQLite/PostgreSQL Bun setup and migrations
     ├── repository/      Persistent data access
     ├── ui/              Per-player terminal session and rendering
     └── sshserver/       SSH authentication and session hosting
@@ -177,14 +186,14 @@ persistent storage from both.
 
 ## Persistence and identity
 
-The default runtime directory contains:
+Local development uses `data/game.db`, while the Compose production deployment
+uses PostgreSQL through `DATABASE_URL`. Both backends run the same Bun
+migrations and repositories. Persistent state includes characters, roles,
+positions, progression, inventories, equipment, gold, bans, and quests.
 
-- `game.db`: characters, roles, positions, progression, inventories, equipment,
-  gold, and quest state.
-- `ssh_host_ed25519`: the SSH server identity presented to clients.
-
-Back up both files. Replacing the host key causes returning clients to receive a
-host-identity warning.
+The default runtime directory also contains `ssh_host_ed25519`, the SSH server
+identity presented to clients. Back up the database and host key. Replacing the
+host key causes returning clients to receive a host-identity warning.
 
 Password authentication and SSH forwarding are disabled. The SHA-256
 fingerprint of a client's public key identifies its character; the server never

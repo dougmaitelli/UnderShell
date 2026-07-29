@@ -3,10 +3,18 @@ package persistence
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
+	"github.com/uptrace/bun/driver/pgdriver"
 	"github.com/uptrace/bun/driver/sqliteshim"
 	"github.com/uptrace/bun/migrate"
 
@@ -18,7 +26,25 @@ type Database struct {
 	orm *bun.DB
 }
 
-func Open(path string) (*Database, error) {
+// Open connects to PostgreSQL when source is a postgres:// or postgresql://
+// URL. Every other source is treated as a SQLite filesystem path.
+func Open(source string) (*Database, error) {
+	if source == "" {
+		return nil, errors.New("database source is required")
+	}
+	if isPostgreSQLURL(source) {
+		return openPostgreSQL(source)
+	}
+	if strings.Contains(source, "://") {
+		return nil, fmt.Errorf("unsupported database URL scheme %q", databaseScheme(source))
+	}
+	return openSQLite(source)
+}
+
+func openSQLite(path string) (*Database, error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return nil, fmt.Errorf("create SQLite data directory: %w", err)
+	}
 	sqlDB, err := sql.Open(
 		sqliteshim.ShimName,
 		path+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)",
@@ -41,6 +67,41 @@ func Open(path string) (*Database, error) {
 		return nil, err
 	}
 	return database, nil
+}
+
+func openPostgreSQL(dsn string) (*Database, error) {
+	sqlDB := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
+	sqlDB.SetMaxOpenConns(20)
+	sqlDB.SetMaxIdleConns(5)
+	sqlDB.SetConnMaxIdleTime(5 * time.Minute)
+	sqlDB.SetConnMaxLifetime(30 * time.Minute)
+	if err := sqlDB.Ping(); err != nil {
+		sqlDB.Close()
+		return nil, fmt.Errorf("ping PostgreSQL: %w", err)
+	}
+
+	database := &Database{
+		sql: sqlDB,
+		orm: bun.NewDB(sqlDB, pgdialect.New()),
+	}
+	if err := database.applyMigrations(context.Background()); err != nil {
+		database.Close()
+		return nil, err
+	}
+	return database, nil
+}
+
+func isPostgreSQLURL(source string) bool {
+	scheme := databaseScheme(source)
+	return scheme == "postgres" || scheme == "postgresql"
+}
+
+func databaseScheme(source string) string {
+	parsed, err := url.Parse(source)
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(parsed.Scheme)
 }
 
 func (d *Database) ORM() bun.IDB {

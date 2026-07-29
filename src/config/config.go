@@ -12,6 +12,7 @@ import (
 type Config struct {
 	ListenAddr   string
 	HostKeyPath  string
+	DatabaseURL  string
 	DatabasePath string
 	GamePath     string
 	AreasPath    string
@@ -24,6 +25,7 @@ func Load() Config {
 	return Config{
 		ListenAddr:   env("SSH_LISTEN_ADDR", ":2222"),
 		HostKeyPath:  env("SSH_HOST_KEY_PATH", "./data/ssh_host_ed25519"),
+		DatabaseURL:  os.Getenv("DATABASE_URL"),
 		DatabasePath: env("DATABASE_PATH", "./data/game.db"),
 		GamePath:     env("GAME_CONFIG_PATH", "./content/game.json"),
 		AreasPath:    env("AREAS_PATH", "./content/areas"),
@@ -31,6 +33,16 @@ func Load() Config {
 		EnemiesPath:  env("ENEMIES_PATH", "./content/enemies"),
 		QuestsPath:   env("QUESTS_PATH", "./content/quests"),
 	}
+}
+
+// DatabaseSource returns the PostgreSQL URL when configured, otherwise the
+// local SQLite path. DATABASE_URL intentionally takes precedence so production
+// deployments cannot accidentally open the fallback file.
+func (c Config) DatabaseSource() string {
+	if c.DatabaseURL != "" {
+		return c.DatabaseURL
+	}
+	return c.DatabasePath
 }
 
 type Spawn struct {

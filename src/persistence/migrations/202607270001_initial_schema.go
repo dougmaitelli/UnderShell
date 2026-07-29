@@ -37,6 +37,18 @@ func init() {
 				Exec(ctx); err != nil {
 				return fmt.Errorf("create initial character equipment schema: %w", err)
 			}
+			if _, err := db.NewCreateIndex().
+				Index("characters_name_ci_unique").
+				Table("characters").
+				ColumnExpr("LOWER(name)").
+				Unique().
+				IfNotExists().
+				Exec(ctx); err != nil {
+				return fmt.Errorf(
+					"create case-insensitive character name index: %w",
+					err,
+				)
+			}
 			return nil
 		},
 		nil,

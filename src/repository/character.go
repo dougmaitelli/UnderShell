@@ -105,9 +105,11 @@ func (r *BunCharacterRepository) Create(
 	if err != nil {
 		lower := strings.ToLower(err.Error())
 		switch {
-		case strings.Contains(lower, "characters.name"):
+		case strings.Contains(lower, "characters_name_ci_unique"),
+			strings.Contains(lower, "characters.name"):
 			return nil, ErrCharacterNameTaken
-		case strings.Contains(lower, "characters.key_fingerprint"):
+		case strings.Contains(lower, "characters_key_fingerprint_key"),
+			strings.Contains(lower, "characters.key_fingerprint"):
 			return nil, ErrCharacterKeyExists
 		default:
 			return nil, fmt.Errorf("create character: %w", err)
@@ -147,11 +149,11 @@ func (r *BunCharacterRepository) SetBanned(
 	name string,
 	banned bool,
 ) (*domain.Character, error) {
-	name = strings.TrimSpace(name)
+	name = strings.ToLower(strings.TrimSpace(name))
 	record := new(entity.Character)
 	err := r.db.NewSelect().
 		Model(record).
-		Where("name = ? COLLATE NOCASE", name).
+		Where("LOWER(name) = ?", name).
 		Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrCharacterNotFound

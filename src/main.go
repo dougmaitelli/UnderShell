@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -26,11 +25,7 @@ func main() {
 	cfg := config.Load()
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
-	if err := os.MkdirAll(filepath.Dir(cfg.DatabasePath), 0700); err != nil {
-		log.Error("create data directory", "error", err)
-		os.Exit(1)
-	}
-	database, err := persistence.Open(cfg.DatabasePath)
+	database, err := persistence.Open(cfg.DatabaseSource())
 	if err != nil {
 		log.Error("open database", "error", err)
 		os.Exit(1)

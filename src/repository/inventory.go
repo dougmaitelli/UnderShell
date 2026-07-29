@@ -64,12 +64,9 @@ func (r *BunInventoryRepository) AddItems(
 			Scan(ctx)
 		if err == nil {
 			added := min(quantity, maxStack-stack.Quantity)
-			if _, err := tx.NewUpdate().
-				Model(stack).
-				Column("quantity").
-				Set("quantity = quantity + ?", added).
-				WherePK().
-				Exec(ctx); err != nil {
+			if _, err := incrementInventoryStack(
+				tx, characterID, stack.Slot, added,
+			).Exec(ctx); err != nil {
 				return nil, fmt.Errorf("increase inventory item: %w", err)
 			}
 			quantity -= added
@@ -100,6 +97,19 @@ func (r *BunInventoryRepository) AddItems(
 		return nil, fmt.Errorf("commit inventory items: %w", err)
 	}
 	return r.FindOrCreate(ctx, characterID)
+}
+
+func incrementInventoryStack(
+	db bun.IDB,
+	characterID int64,
+	slot int,
+	quantity int,
+) *bun.UpdateQuery {
+	return db.NewUpdate().
+		Table("inventory_items").
+		Set("quantity = quantity + ?", quantity).
+		Where("character_id = ?", characterID).
+		Where("slot = ?", slot)
 }
 
 type BunInventoryRepository struct {

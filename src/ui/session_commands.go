@@ -118,6 +118,11 @@ func (m *gameModel) storePickup(drop world.GroundItem) tea.Cmd {
 		inventory, err := m.repositories.Inventories.AddItem(
 			context.Background(), m.character.ID, drop.Item.ID, drop.Item.MaxStack,
 		)
+		if err != nil {
+			m.world.RestorePickup(
+				m.character.ID, m.connection.session.Token, drop,
+			)
+		}
 		return itemStoredMsg{
 			inventory: inventory, itemName: drop.Item.Name, err: err,
 		}

@@ -81,6 +81,20 @@ func (m *Manager) Pickup(id int64, token string) PickupResult {
 	}
 }
 
+// RestorePickup returns a claimed item to the world when inventory persistence
+// fails, preventing a transient database error from destroying loot.
+func (m *Manager) RestorePickup(id int64, token string, item GroundItem) bool {
+	reply := make(chan bool)
+	select {
+	case m.events <- restorePickupRequest{
+		id: id, token: token, item: item, reply: reply,
+	}:
+		return <-reply
+	case <-m.done:
+		return false
+	}
+}
+
 func (m *Manager) UseConsumable(
 	id int64,
 	token string,

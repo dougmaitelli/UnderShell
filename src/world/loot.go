@@ -51,3 +51,19 @@ func (s *lootSystem) pickup(player *activePlayer, broadcast func()) PickupResult
 	}
 	return result
 }
+
+func (s *lootSystem) restore(
+	player *activePlayer,
+	item GroundItem,
+	broadcast func(),
+) bool {
+	if player == nil || item.ID == 0 || item.Item == nil {
+		return false
+	}
+	if _, exists := s.live[item.ID]; exists {
+		return false
+	}
+	s.live[item.ID] = &item
+	broadcast()
+	return true
+}

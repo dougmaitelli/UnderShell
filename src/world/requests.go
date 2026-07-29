@@ -40,6 +40,13 @@ type pickupRequest struct {
 	reply chan PickupResult
 }
 
+type restorePickupRequest struct {
+	id    int64
+	token string
+	item  GroundItem
+	reply chan bool
+}
+
 type useConsumableRequest struct {
 	id         int64
 	token      string

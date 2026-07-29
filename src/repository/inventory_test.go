@@ -2,9 +2,15 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
+	"github.com/uptrace/bun/driver/pgdriver"
 
 	"sshrpg/src/persistence"
 )
@@ -86,6 +92,30 @@ func TestAddItemStacksToLimitThenUsesNextSlot(t *testing.T) {
 		third.Items[1].Quantity != 1 ||
 		third.Items[1].Slot != 2 {
 		t.Fatalf("third pickup = %#v", third.Items)
+	}
+}
+
+func TestInventoryStackIncrementFormatsForPostgreSQL(t *testing.T) {
+	sqlDB := sql.OpenDB(pgdriver.NewConnector(
+		pgdriver.WithDSN("postgres://test:test@localhost/test?sslmode=disable"),
+	))
+	db := bun.NewDB(sqlDB, pgdialect.New())
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("close database: %v", err)
+		}
+	})
+
+	query := incrementInventoryStack(db, 7, 3, 2).String()
+	for _, expected := range []string{
+		`UPDATE "inventory_items"`,
+		`SET quantity = quantity + 2`,
+		`character_id = 7`,
+		`slot = 3`,
+	} {
+		if !strings.Contains(query, expected) {
+			t.Fatalf("PostgreSQL stack increment lacks %q: %s", expected, query)
+		}
 	}
 }
 

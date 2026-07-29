@@ -73,6 +73,11 @@ func (s *runtimeState) handle(event any) {
 		request.reply <- s.loot.pickup(
 			s.players.authenticated(request.id, request.token), s.broadcast,
 		)
+	case restorePickupRequest:
+		request.reply <- s.loot.restore(
+			s.players.authenticated(request.id, request.token),
+			request.item, s.broadcast,
+		)
 	case useConsumableRequest:
 		player := s.players.authenticated(request.id, request.token)
 		if player == nil {

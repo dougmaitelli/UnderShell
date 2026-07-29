@@ -386,6 +386,16 @@ func TestAttackDamagesAndDefeatsNearbyEnemy(t *testing.T) {
 	if len(snapshot.Drops) != 0 {
 		t.Fatalf("picked-up drop remains in snapshot: %#v", snapshot.Drops)
 	}
+	if manager.RestorePickup(1, "wrong token", pickedUp.Item) {
+		t.Fatal("unauthenticated pickup restore succeeded")
+	}
+	if !manager.RestorePickup(1, session.Token, pickedUp.Item) {
+		t.Fatal("authenticated pickup restore failed")
+	}
+	snapshot = receiveSnapshot(t, session.Updates)
+	if len(snapshot.Drops) != 1 || snapshot.Drops[0].ID != dropID {
+		t.Fatalf("restored drop missing from snapshot: %#v", snapshot.Drops)
+	}
 }
 
 func TestExperienceCurveSupportsMultipleLevels(t *testing.T) {

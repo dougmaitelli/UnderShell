@@ -25,7 +25,7 @@ func Load() Config {
 	return Config{
 		ListenAddr:   env("SSH_LISTEN_ADDR", ":2222"),
 		HostKeyPath:  env("SSH_HOST_KEY_PATH", "./data/ssh_host_ed25519"),
-		DatabaseURL:  os.Getenv("DATABASE_URL"),
+		DatabaseURL:  env("DATABASE_URL"),
 		DatabasePath: env("DATABASE_PATH", "./data/game.db"),
 		GamePath:     env("GAME_CONFIG_PATH", "./content/game.json"),
 		AreasPath:    env("AREAS_PATH", "./content/areas"),
@@ -80,9 +80,12 @@ func LoadGame(path string) (Game, error) {
 	return game, nil
 }
 
-func env(key, fallback string) string {
+func env(key string, fallback ...string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
-	return fallback
+	if len(fallback) > 0 {
+		return fallback[0]
+	}
+	return ""
 }

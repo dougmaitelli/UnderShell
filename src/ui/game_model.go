@@ -22,6 +22,13 @@ const (
 	phasePlaying
 )
 
+const (
+	// Rendering and diffing happen on the server. Bound the viewport so a very
+	// large client window cannot multiply CPU and allocation costs indefinitely.
+	maxViewportWidth  = 120
+	maxViewportHeight = 40
+)
+
 type gameModel struct {
 	repositories Repositories
 	world        *world.Manager
@@ -327,8 +334,8 @@ func (m *gameModel) View() tea.View {
 func (m *gameModel) viewState() ViewState {
 	return ViewState{
 		Phase:             m.phase,
-		Width:             m.width,
-		Height:            m.height,
+		Width:             min(m.width, maxViewportWidth),
+		Height:            min(m.height, maxViewportHeight),
 		Input:             m.input.View(),
 		Message:           m.message,
 		Creating:          m.creating,

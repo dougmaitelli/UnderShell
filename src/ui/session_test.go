@@ -741,6 +741,35 @@ func TestGameRenderSanitizesViewportByConstruction(t *testing.T) {
 	}
 }
 
+func TestGameViewCapsLargeTerminalViewport(t *testing.T) {
+	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{
+		ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
+	}, nil)
+	model.phase = phasePlaying
+	model.width, model.height = 320, 100
+	model.connection.snapshot = world.Snapshot{
+		Players: []world.Player{{
+			ID: 1, Name: "Aria", AreaID: "meadow", X: 2, Y: 1,
+		}},
+	}
+
+	state := model.viewState()
+	if state.Width != maxViewportWidth || state.Height != maxViewportHeight {
+		t.Fatalf(
+			"large terminal rendered at %dx%d, want %dx%d",
+			state.Width, state.Height, maxViewportWidth, maxViewportHeight,
+		)
+	}
+	rendered := model.View().Content
+	if width, height := lipgloss.Size(rendered); width > maxViewportWidth ||
+		height > maxViewportHeight {
+		t.Fatalf(
+			"large terminal produced %dx%d output, maximum is %dx%d",
+			width, height, maxViewportWidth, maxViewportHeight,
+		)
+	}
+}
+
 func TestHelpWindowListsCommandsAndBlocksGameplayInput(t *testing.T) {
 	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{
 		ID: 1, Name: "Aria", Level: 1,

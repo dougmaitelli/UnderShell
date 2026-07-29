@@ -98,6 +98,10 @@ func (s *enemySystem) remove(target *Enemy) {
 }
 
 func (s *enemySystem) tick(players *playerSystem, now time.Time) bool {
+	if len(players.live) == 0 {
+		return false
+	}
+	activeAreas := players.activeAreas()
 	changed := s.update(players, now)
 	for key, state := range s.spawns {
 		area := s.areas.areas[key.areaID]
@@ -108,7 +112,7 @@ func (s *enemySystem) tick(players *playerSystem, now time.Time) bool {
 		s.nextID++
 		s.spawn(area, key.index, s.nextID)
 		state.count++
-		changed = true
+		changed = changed || activeAreas[key.areaID]
 		if state.count < spawn.MaxEnemies {
 			state.nextSpawn = now.Add(time.Duration(spawn.RespawnSeconds) * time.Second)
 		} else {
@@ -122,7 +126,11 @@ func (s *enemySystem) update(players *playerSystem, now time.Time) bool {
 	changed := false
 	respawned := make(map[int64]bool)
 	directions := [...]Point{{}, {X: 1}, {X: -1}, {Y: 1}, {Y: -1}}
+	activeAreas := players.activeAreas()
 	for _, current := range s.live {
+		if !activeAreas[current.AreaID] {
+			continue
+		}
 		area := s.areas.areas[current.AreaID]
 		spawn := area.EnemySpawns[current.spawnIndex]
 		var targetPlayer *activePlayer

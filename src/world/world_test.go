@@ -623,6 +623,60 @@ func TestPeacefulEnemyDoesNotAggroOrAttackPlayer(t *testing.T) {
 	}
 }
 
+func TestEnemiesOnlyUpdateInOccupiedAreas(t *testing.T) {
+	areas, err := NewAreas([]AreaDefinition{
+		{
+			ID: "occupied", Name: "Occupied",
+			Layout: []string{"#####", "#...#", "#####"},
+			Spawn:  Point{X: 1, Y: 1},
+		},
+		{
+			ID: "empty", Name: "Empty",
+			Layout: []string{"#####", "#...#", "#####"},
+			Spawn:  Point{X: 1, Y: 1},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition := &enemy.Definition{Name: "Bat", Damage: 1}
+	for _, areaID := range []string{"occupied", "empty"} {
+		area, _ := areas.Area(areaID)
+		area.EnemySpawns = []EnemySpawn{{
+			Enemy: definition, X: 1, Y: 1, Width: 3, Height: 1,
+			MaxEnemies: 1, RespawnSeconds: 10,
+		}}
+	}
+	players := &playerSystem{
+		areas: areas,
+		live: map[int64]*activePlayer{1: {
+			Player: Player{
+				ID: 1, AreaID: "occupied", X: 1, Y: 1,
+				Health: 10, MaxHealth: 10,
+			},
+			events: make(chan Event, 1),
+		}},
+	}
+	live := map[uint64]*Enemy{
+		1: {
+			ID: 1, Definition: definition, AreaID: "occupied",
+			X: 2, Y: 1, spawnIndex: 0,
+		},
+		2: {
+			ID: 2, Definition: definition, AreaID: "empty",
+			X: 2, Y: 1, spawnIndex: 0,
+		},
+	}
+	system := enemySystem{areas: areas, live: live}
+
+	if !system.update(players, time.Now()) {
+		t.Fatal("enemy in occupied area did not update")
+	}
+	if live[2].X != 2 || live[2].Y != 1 {
+		t.Fatalf("enemy in empty area moved to (%d, %d)", live[2].X, live[2].Y)
+	}
+}
+
 func assertEnemiesInSpawn(t *testing.T, snapshot Snapshot, count int) {
 	t.Helper()
 	if len(snapshot.Enemies) != count {

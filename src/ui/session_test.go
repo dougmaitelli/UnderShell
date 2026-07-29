@@ -983,6 +983,14 @@ func TestPlayerNameShimmerRunsOnlyWhileAdminNameIsShown(t *testing.T) {
 	if command := state.advance(generation); command == nil || state.frame != 1 {
 		t.Fatal("active shimmer did not advance and reschedule")
 	}
+	for range len(adminPlayerNameStyles) - 2 {
+		if command := state.advance(generation); command == nil {
+			t.Fatal("shimmer stopped before completing one sweep")
+		}
+	}
+	if command := state.advance(generation); command != nil {
+		t.Fatal("shimmer continued scheduling redraws after one sweep")
+	}
 	if command := state.setNeeded([]world.Player{{
 		ID: 1, Role: domain.CharacterRoleUser,
 	}}, nil); command != nil || state.active || state.frame != 0 {

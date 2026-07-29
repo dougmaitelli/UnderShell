@@ -23,6 +23,14 @@ type playerSystem struct {
 	live  map[int64]*activePlayer
 }
 
+func (s *playerSystem) activeAreas() map[string]bool {
+	areas := make(map[string]bool, len(s.live))
+	for _, player := range s.live {
+		areas[player.AreaID] = true
+	}
+	return areas
+}
+
 func (s *playerSystem) join(
 	player Player,
 	chatHistory []ChatMessage,

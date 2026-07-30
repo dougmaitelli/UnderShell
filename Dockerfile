@@ -17,6 +17,7 @@ ENV SSH_HOST_KEY_PATH=/app/data/ssh_host_ed25519
 ENV DATABASE_PATH=/app/data/game.db
 ENV GAME_CONFIG_PATH=/app/content/game.json
 ENV AREAS_PATH=/app/content/areas
+ENV OBJECTS_PATH=/app/content/objects
 ENV ITEMS_PATH=/app/content/items
 ENV ENEMIES_PATH=/app/content/enemies
 ENV QUESTS_PATH=/app/content/quests

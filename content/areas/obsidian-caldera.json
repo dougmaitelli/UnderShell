@@ -1,23 +1,25 @@
 {
   "id": "obsidian_caldera",
   "name": "Obsidian Caldera",
+  "palette": "ember",
   "width": 256,
   "height": 80,
   "border_tile": "#",
   "features": [
     { "x": 14, "y": 8, "width": 3, "height": 22, "tile": "#" },
-    { "x": 27, "y": 12, "width": 21, "height": 2, "tile": "#" },
+    { "x": 27, "y": 12, "width": 21, "height": 2, "tile": "≈" },
     { "x": 42, "y": 24, "width": 25, "height": 2, "tile": "#" },
-    { "x": 64, "y": 7, "width": 3, "height": 14, "tile": "#" },
+    { "x": 64, "y": 7, "width": 3, "height": 14, "tile": "≈" },
     { "x": 75, "y": 29, "width": 12, "height": 2, "tile": "#" },
-    { "x": 119, "y": 10, "width": 48, "height": 2, "tile": "#" },
+    { "x": 119, "y": 10, "width": 48, "height": 2, "tile": "≈" },
     { "x": 177, "y": 34, "width": 3, "height": 33, "tile": "#" },
-    { "x": 198, "y": 67, "width": 41, "height": 2, "tile": "#" },
+    { "x": 198, "y": 67, "width": 41, "height": 2, "tile": "≈" },
     { "x": 224, "y": 51, "width": 17, "height": 2, "tile": "#" },
     { "x": 224, "y": 53, "width": 1, "height": 10, "tile": "#" },
-    { "x": 240, "y": 53, "width": 1, "height": 10, "tile": "#" },
-    { "x": 220, "y": 58, "width": 1, "height": 1, "tile": "^" },
-    { "x": 219, "y": 59, "width": 3, "height": 1, "tile": "o" }
+    { "x": 240, "y": 53, "width": 1, "height": 10, "tile": "#" }
+  ],
+  "objects": [
+    { "object_id": "campfire", "x": 219, "y": 57 }
   ],
   "spawn": { "x": 8, "y": 39 },
   "npcs": [

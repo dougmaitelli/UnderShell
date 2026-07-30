@@ -1,18 +1,19 @@
 {
   "id": "crystal_grotto",
   "name": "Crystal Grotto",
+  "palette": "crystal",
   "width": 192,
   "height": 64,
   "border_tile": "#",
   "features": [
-    { "x": 13, "y": 8, "width": 4, "height": 13, "tile": "#" },
+    { "x": 13, "y": 8, "width": 4, "height": 13, "tile": "*" },
     { "x": 26, "y": 27, "width": 22, "height": 2, "tile": "#" },
-    { "x": 39, "y": 9, "width": 18, "height": 2, "tile": "#" },
-    { "x": 63, "y": 18, "width": 4, "height": 15, "tile": "#" },
+    { "x": 39, "y": 9, "width": 18, "height": 2, "tile": "*" },
+    { "x": 63, "y": 18, "width": 4, "height": 15, "tile": "*" },
     { "x": 73, "y": 7, "width": 13, "height": 2, "tile": "#" },
-    { "x": 109, "y": 11, "width": 31, "height": 2, "tile": "#" },
+    { "x": 109, "y": 11, "width": 31, "height": 2, "tile": "*" },
     { "x": 143, "y": 29, "width": 4, "height": 23, "tile": "#" },
-    { "x": 119, "y": 53, "width": 49, "height": 2, "tile": "#" }
+    { "x": 119, "y": 53, "width": 49, "height": 2, "tile": "*" }
   ],
   "spawn": { "x": 96, "y": 58 },
   "enemy_spawns": [

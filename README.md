@@ -133,6 +133,7 @@ Runtime paths and listener settings are configured with environment variables:
 | `DATABASE_PATH` | `./data/game.db` | SQLite fallback for local development and tests |
 | `GAME_CONFIG_PATH` | `./content/game.json` | Global game configuration |
 | `AREAS_PATH` | `./content/areas` | Area definition directory |
+| `OBJECTS_PATH` | `./content/objects` | Reusable map-object definition directory |
 | `ITEMS_PATH` | `./content/items` | Item definition directory |
 | `ENEMIES_PATH` | `./content/enemies` | Enemy definition directory |
 | `QUESTS_PATH` | `./content/quests` | Quest definition directory |
@@ -144,6 +145,7 @@ SSH_LISTEN_ADDR=:2022 \
 DATABASE_PATH=./data/development.db \
 GAME_CONFIG_PATH=./my-game/game.json \
 AREAS_PATH=./my-game/areas \
+OBJECTS_PATH=./my-game/objects \
 ITEMS_PATH=./my-game/items \
 ENEMIES_PATH=./my-game/enemies \
 QUESTS_PATH=./my-game/quests \
@@ -160,6 +162,7 @@ engine source.
 ├── content/             Bundled example game
 │   ├── game.json
 │   ├── areas/
+│   ├── objects/
 │   ├── items/
 │   ├── enemies/
 │   └── quests/
@@ -374,6 +377,7 @@ An explicit layout gives direct control over every tile:
 {
   "id": "starter_area",
   "name": "Starter Area",
+  "palette": "verdant",
   "layout": [
     "############",
     "#..........#",
@@ -391,6 +395,7 @@ A generated layout is more compact for large areas:
 {
   "id": "starter_area",
   "name": "Starter Area",
+  "palette": "verdant",
   "width": 96,
   "height": 40,
   "border_tile": "#",
@@ -405,8 +410,61 @@ A generated layout is more compact for large areas:
 ```
 
 Generated layouts use an invisible, walkable floor. `features` are rectangles
-applied over that floor. A `#` tile is blocked; all other printable feature
-tiles are walkable. Layout rows must have equal width.
+applied over that floor. Terrain tiles have consistent visual and movement
+semantics:
+
+| Tile | Terrain | Movement |
+|---|---|---|
+| `#` | Regional wall or rock | Blocked |
+| `T` | Tree or dense vegetation | Blocked |
+| `~` | Water | Blocked |
+| `≈` | Lava | Blocked |
+| `*` | Ice or crystal | Blocked |
+| `f` | Campfire, rendered as an orange flame | Blocked |
+| `W` | Stone town well | Blocked |
+| `=` | Bridge, gate, or door | Walkable |
+| `^` | Landmark | Walkable |
+| `.` | Invisible ground | Walkable |
+
+Other printable feature tiles are walkable and use the regional accent.
+Layout rows must have equal width. `palette` controls the regional wall and
+accent colors and can be `stone`, `verdant`, `redwood`, `marsh`, `coastal`,
+`frost`, `ember`, `sunlit`, `crystal`, `astral`, `village`, or `iron`. An
+omitted or unknown palette uses `stone`.
+
+#### Reusable map objects
+
+Static multi-tile assets can be defined once in `OBJECTS_PATH` and stamped
+into any generated or explicit area layout. Spaces in an object layout are
+transparent:
+
+```json
+{
+  "id": "campfire",
+  "layout": [
+    " = ",
+    "=f=",
+    " = "
+  ]
+}
+```
+
+Areas place an object using the top-left coordinate of its layout:
+
+```json
+{
+  "objects": [
+    { "object_id": "campfire", "x": 77, "y": 33 }
+  ]
+}
+```
+
+Objects are applied after area `features`, in placement order. Every object
+must fit entirely within the area. Unknown IDs, malformed layouts, and
+out-of-bounds placements prevent the server from starting. Stamping happens
+once while loading content, so map objects add no rendering or tick overhead.
+The bundled definitions include campfires, braziers, a multi-tile town well,
+horizontal and vertical bridges, irregular lakes, and two forest-grove sizes.
 
 The area-level `spawn` is a local fallback when a character has valid `area_id`
 but invalid saved coordinates. It is distinct from `game.json`'s global spawn.

@@ -1,18 +1,23 @@
 {
   "id": "cavern",
   "name": "Echoing Cavern",
+  "palette": "stone",
   "width": 192,
   "height": 64,
   "border_tile": "#",
   "features": [
     { "x": 19, "y": 7, "width": 40, "height": 3, "tile": "#" },
     { "x": 107, "y": 6, "width": 48, "height": 3, "tile": "#" },
-    { "x": 48, "y": 17, "width": 5, "height": 23, "tile": "#" },
+    { "x": 48, "y": 17, "width": 5, "height": 34, "tile": "~" },
     { "x": 80, "y": 16, "width": 48, "height": 3, "tile": "#" },
-    { "x": 144, "y": 21, "width": 7, "height": 21, "tile": "#" },
-    { "x": 24, "y": 48, "width": 53, "height": 3, "tile": "#" },
+    { "x": 144, "y": 21, "width": 7, "height": 21, "tile": "*" },
+    { "x": 24, "y": 48, "width": 65, "height": 4, "tile": "~" },
     { "x": 96, "y": 44, "width": 7, "height": 16, "tile": "#" },
     { "x": 125, "y": 52, "width": 43, "height": 3, "tile": "#" }
+  ],
+  "objects": [
+    { "object_id": "bridge_horizontal", "x": 47, "y": 31 },
+    { "object_id": "bridge_vertical", "x": 62, "y": 47 }
   ],
   "spawn": { "x": 7, "y": 32 },
   "enemy_spawns": [

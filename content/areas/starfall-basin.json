@@ -1,17 +1,18 @@
 {
   "id": "starfall_basin",
   "name": "Starfall Basin",
+  "palette": "astral",
   "width": 256,
   "height": 80,
   "border_tile": "#",
   "features": [
-    { "x": 13, "y": 9, "width": 17, "height": 2, "tile": "#" },
+    { "x": 13, "y": 9, "width": 17, "height": 2, "tile": "*" },
     { "x": 27, "y": 21, "width": 3, "height": 12, "tile": "#" },
-    { "x": 41, "y": 15, "width": 23, "height": 2, "tile": "#" },
+    { "x": 41, "y": 15, "width": 23, "height": 2, "tile": "*" },
     { "x": 62, "y": 27, "width": 22, "height": 2, "tile": "#" },
-    { "x": 77, "y": 7, "width": 3, "height": 13, "tile": "#" },
+    { "x": 77, "y": 7, "width": 3, "height": 13, "tile": "*" },
     { "x": 121, "y": 12, "width": 45, "height": 2, "tile": "#" },
-    { "x": 176, "y": 35, "width": 3, "height": 31, "tile": "#" },
+    { "x": 176, "y": 35, "width": 3, "height": 31, "tile": "*" },
     { "x": 198, "y": 67, "width": 40, "height": 2, "tile": "#" }
   ],
   "spawn": { "x": 128, "y": 74 },

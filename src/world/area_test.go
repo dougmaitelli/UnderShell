@@ -14,7 +14,7 @@ import (
 func TestLoadAreasValidatesInterAreaWaypoints(t *testing.T) {
 	directory := t.TempDir()
 	writeArea(t, directory, "one.json", `{
-		"id":"one","name":"One","layout":["###","#.#","###"],
+		"id":"one","name":"One","palette":"verdant","layout":["###","#.#","###"],
 		"spawn":{"x":1,"y":1},
 		"waypoints":[{"x":1,"y":1,"destination_area":"two","destination_x":1,"destination_y":1}]
 	}`)
@@ -28,7 +28,8 @@ func TestLoadAreasValidatesInterAreaWaypoints(t *testing.T) {
 		t.Fatal(err)
 	}
 	one, ok := areas.Area("one")
-	if !ok || one.Name != "One" || one.Width != 3 || one.Height != 3 {
+	if !ok || one.Name != "One" || one.Palette != "verdant" ||
+		one.Width != 3 || one.Height != 3 {
 		t.Fatalf("unexpected area: %#v", one)
 	}
 	two, _ := areas.Area("two")
@@ -70,9 +71,17 @@ func TestBundledConfigurationIsValid(t *testing.T) {
 	if err := quests.ValidateObjectives(enemies); err != nil {
 		t.Fatal(err)
 	}
+	objects, err := LoadMapObjects(
+		filepath.Join("..", "..", "content", "objects"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
 	areas, err := LoadAreas(
 		filepath.Join("..", "..", "content", "areas"),
-		References{Items: items, Enemies: enemies, Quests: quests},
+		References{
+			Items: items, Enemies: enemies, Quests: quests, Objects: objects,
+		},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -121,6 +130,24 @@ func TestGeneratedAreaUsesBlankWalkableFloorAndFeatures(t *testing.T) {
 	}
 	if wall := area.Tile(Point{X: 3, Y: 2}); wall != '#' {
 		t.Fatalf("generated feature = %q, want wall", wall)
+	}
+}
+
+func TestSemanticTerrainTilesControlMovement(t *testing.T) {
+	area := &Area{
+		Layout: []string{"#T~≈*fW=.^"},
+		Width:  10, Height: 1,
+	}
+	for x, tile := range []rune("#T~≈*fW") {
+		if area.Walkable(Point{X: x, Y: 0}) {
+			t.Fatalf("tile %q should block movement", tile)
+		}
+	}
+	for x, tile := range []rune("=.^") {
+		point := Point{X: x + 7, Y: 0}
+		if !area.Walkable(point) {
+			t.Fatalf("tile %q should allow movement", tile)
+		}
 	}
 }
 

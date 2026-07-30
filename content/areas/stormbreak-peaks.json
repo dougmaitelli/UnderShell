@@ -1,18 +1,19 @@
 {
   "id": "stormbreak_peaks",
   "name": "Stormbreak Peaks",
+  "palette": "frost",
   "width": 256,
   "height": 80,
   "border_tile": "#",
   "features": [
     { "x": 12, "y": 7, "width": 3, "height": 15, "tile": "#" },
-    { "x": 25, "y": 26, "width": 20, "height": 2, "tile": "#" },
+    { "x": 25, "y": 26, "width": 20, "height": 2, "tile": "*" },
     { "x": 39, "y": 11, "width": 25, "height": 2, "tile": "#" },
-    { "x": 63, "y": 20, "width": 3, "height": 13, "tile": "#" },
+    { "x": 63, "y": 20, "width": 3, "height": 13, "tile": "*" },
     { "x": 75, "y": 7, "width": 12, "height": 2, "tile": "#" },
-    { "x": 119, "y": 11, "width": 46, "height": 2, "tile": "#" },
+    { "x": 119, "y": 11, "width": 46, "height": 2, "tile": "*" },
     { "x": 174, "y": 35, "width": 3, "height": 31, "tile": "#" },
-    { "x": 196, "y": 67, "width": 43, "height": 2, "tile": "#" }
+    { "x": 196, "y": 67, "width": 43, "height": 2, "tile": "*" }
   ],
   "spawn": { "x": 128, "y": 74 },
   "enemy_spawns": [

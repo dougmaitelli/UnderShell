@@ -1,6 +1,7 @@
 {
   "id": "willowbrook",
   "name": "Willowbrook",
+  "palette": "village",
   "width": 160,
   "height": 56,
   "border_tile": "#",
@@ -28,10 +29,6 @@
     { "x": 118, "y": 22, "width": 17, "height": 2, "tile": "#" },
     { "x": 118, "y": 24, "width": 1, "height": 9, "tile": "#" },
     { "x": 134, "y": 24, "width": 1, "height": 9, "tile": "#" },
-    { "x": 77, "y": 34, "width": 3, "height": 1, "tile": "o" },
-    { "x": 78, "y": 33, "width": 1, "height": 3, "tile": "o" },
-    { "x": 78, "y": 34, "width": 1, "height": 1, "tile": "^" },
-    { "x": 78, "y": 17, "width": 2, "height": 2, "tile": "O" },
     { "x": 15, "y": 42, "width": 2, "height": 9, "tile": "#" },
     { "x": 45, "y": 42, "width": 2, "height": 9, "tile": "#" },
     { "x": 15, "y": 49, "width": 32, "height": 2, "tile": "#" },
@@ -44,6 +41,10 @@
     { "x": 143, "y": 42, "width": 2, "height": 9, "tile": "#" },
     { "x": 113, "y": 49, "width": 32, "height": 2, "tile": "#" },
     { "x": 127, "y": 40, "width": 4, "height": 2, "tile": "." }
+  ],
+  "objects": [
+    { "object_id": "campfire", "x": 77, "y": 33 },
+    { "object_id": "town_well", "x": 78, "y": 16 }
   ],
   "spawn": { "x": 8, "y": 27 },
   "npcs": [

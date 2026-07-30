@@ -16,7 +16,6 @@ const playerNameShimmerInterval = 140 * time.Millisecond
 type playerNameShimmerState struct {
 	active     bool
 	frame      int
-	remaining  int
 	generation uint64
 }
 
@@ -50,10 +49,8 @@ func (s *playerNameShimmerState) setNeeded(
 	s.generation++
 	if !needed {
 		s.frame = 0
-		s.remaining = 0
 		return nil
 	}
-	s.remaining = len(adminPlayerNameStyles)
 	return playerNameShimmerTick(s.generation)
 }
 
@@ -76,10 +73,6 @@ func (s *playerNameShimmerState) advance(generation uint64) tea.Cmd {
 		return nil
 	}
 	s.frame = (s.frame + 1) % len(adminPlayerNameStyles)
-	s.remaining--
-	if s.remaining <= 0 {
-		return nil
-	}
 	return playerNameShimmerTick(s.generation)
 }
 

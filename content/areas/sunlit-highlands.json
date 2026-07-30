@@ -1,18 +1,25 @@
 {
   "id": "sunlit_highlands",
   "name": "Sunlit Highlands",
+  "palette": "sunlit",
   "width": 192,
   "height": 64,
   "border_tile": "#",
   "features": [
-    { "x": 14, "y": 10, "width": 19, "height": 2, "tile": "#" },
     { "x": 27, "y": 22, "width": 3, "height": 11, "tile": "#" },
-    { "x": 43, "y": 16, "width": 25, "height": 2, "tile": "#" },
-    { "x": 68, "y": 7, "width": 3, "height": 10, "tile": "#" },
-    { "x": 72, "y": 29, "width": 14, "height": 2, "tile": "#" },
     { "x": 111, "y": 12, "width": 34, "height": 2, "tile": "#" },
-    { "x": 137, "y": 31, "width": 3, "height": 20, "tile": "#" },
-    { "x": 151, "y": 50, "width": 26, "height": 2, "tile": "#" }
+    { "x": 150, "y": 35, "width": 4, "height": 17, "tile": "~" },
+    { "x": 120, "y": 48, "width": 65, "height": 4, "tile": "~" }
+  ],
+  "objects": [
+    { "object_id": "forest_grove", "x": 12, "y": 9 },
+    { "object_id": "forest_thicket", "x": 40, "y": 15 },
+    { "object_id": "forest_grove", "x": 72, "y": 27 },
+    { "object_id": "forest_thicket", "x": 133, "y": 31 },
+    { "object_id": "forest_grove", "x": 140, "y": 42 },
+    { "object_id": "lake", "x": 64, "y": 7 },
+    { "object_id": "bridge_horizontal", "x": 148, "y": 41 },
+    { "object_id": "bridge_vertical", "x": 165, "y": 47 }
   ],
   "spawn": { "x": 96, "y": 58 },
   "enemy_spawns": [

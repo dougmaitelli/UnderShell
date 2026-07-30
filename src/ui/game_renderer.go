@@ -14,10 +14,20 @@ import (
 
 type cellStyle uint8
 type playerNamePalette uint8
+type terrainTheme uint8
 
 const (
 	cellStylePlain cellStyle = iota
 	cellStyleWall
+	cellStyleTerrainAccent
+	cellStyleTerrainWoodwork
+	cellStyleTerrainVegetation
+	cellStyleTerrainWater
+	cellStyleTerrainLava
+	cellStyleTerrainIce
+	cellStyleTerrainFire
+	cellStyleTerrainWell
+	cellStyleTerrainLandmark
 	cellStyleWaypoint
 	cellStyleGroundItem
 	cellStyleEnemy
@@ -33,9 +43,25 @@ const (
 	playerNamePaletteAdmin
 )
 
+const (
+	terrainThemeStone terrainTheme = iota
+	terrainThemeVerdant
+	terrainThemeRedwood
+	terrainThemeMarsh
+	terrainThemeCoastal
+	terrainThemeFrost
+	terrainThemeEmber
+	terrainThemeSunlit
+	terrainThemeCrystal
+	terrainThemeAstral
+	terrainThemeVillage
+	terrainThemeIron
+)
+
 type gameCell struct {
 	glyph       rune
 	style       cellStyle
+	terrain     terrainTheme
 	namePalette playerNamePalette
 	nameStyle   uint8
 }
@@ -195,22 +221,17 @@ func (renderer *GameRenderer) terrainGrid(
 
 	grid := newGameGrid(width, height)
 	if area != nil {
+		theme := terrainThemeForArea(area)
 		for screenY := 0; screenY < height; screenY++ {
 			for screenX := 0; screenX < width; screenX++ {
 				point := world.Point{X: left + screenX, Y: top + screenY}
 				if !area.InBounds(point) {
 					continue
 				}
-				switch tile := area.Tile(point); tile {
-				case '#':
-					grid.set(screenX, screenY, gameCell{
-						glyph: '█', style: cellStyleWall,
-					})
-				case '.':
-				// The zero-value cell is already an unstyled space.
-				default:
-					grid.set(screenX, screenY, gameCell{glyph: tile})
-				}
+				grid.set(
+					screenX, screenY,
+					terrainCell(area.Tile(point), theme),
+				)
 				if _, ok := area.Waypoint(point); ok {
 					grid.set(screenX, screenY, gameCell{
 						glyph: '◇', style: cellStyleWaypoint,
@@ -227,6 +248,71 @@ func (renderer *GameRenderer) terrainGrid(
 	cache.cells = append(cache.cells[:0], grid.cells...)
 	cache.initialized = true
 	return grid
+}
+
+func terrainCell(tile rune, theme terrainTheme) gameCell {
+	switch tile {
+	case '#':
+		return gameCell{
+			glyph: '█', style: cellStyleWall, terrain: theme,
+		}
+	case '.':
+		// Ground stays blank so entities remain readable and large open areas
+		// remain cheap for terminals to draw.
+		return gameCell{}
+	case '=':
+		return gameCell{glyph: tile, style: cellStyleTerrainWoodwork}
+	case 'T':
+		return gameCell{glyph: tile, style: cellStyleTerrainVegetation}
+	case '~':
+		return gameCell{glyph: tile, style: cellStyleTerrainWater}
+	case '≈':
+		return gameCell{glyph: tile, style: cellStyleTerrainLava}
+	case '*':
+		return gameCell{glyph: tile, style: cellStyleTerrainIce}
+	case 'f':
+		return gameCell{glyph: '▲', style: cellStyleTerrainFire}
+	case 'W':
+		return gameCell{glyph: '◉', style: cellStyleTerrainWell}
+	case '^':
+		return gameCell{glyph: tile, style: cellStyleTerrainLandmark}
+	default:
+		return gameCell{
+			glyph: tile, style: cellStyleTerrainAccent, terrain: theme,
+		}
+	}
+}
+
+func terrainThemeForArea(area *world.Area) terrainTheme {
+	if area == nil {
+		return terrainThemeStone
+	}
+	switch area.Palette {
+	case "verdant":
+		return terrainThemeVerdant
+	case "redwood":
+		return terrainThemeRedwood
+	case "marsh":
+		return terrainThemeMarsh
+	case "coastal":
+		return terrainThemeCoastal
+	case "frost":
+		return terrainThemeFrost
+	case "ember":
+		return terrainThemeEmber
+	case "sunlit":
+		return terrainThemeSunlit
+	case "crystal":
+		return terrainThemeCrystal
+	case "astral":
+		return terrainThemeAstral
+	case "village":
+		return terrainThemeVillage
+	case "iron":
+		return terrainThemeIron
+	default:
+		return terrainThemeStone
+	}
 }
 
 func newGameGrid(width, height int) *gameGrid {
@@ -296,6 +382,10 @@ func sameCellStyle(left, right gameCell) bool {
 	if left.style != right.style {
 		return false
 	}
+	if left.style == cellStyleWall ||
+		left.style == cellStyleTerrainAccent {
+		return left.terrain == right.terrain
+	}
 	if left.style != cellStylePlayerName {
 		return true
 	}
@@ -306,7 +396,25 @@ func sameCellStyle(left, right gameCell) bool {
 func renderCellRun(cell gameCell, run string) string {
 	switch cell.style {
 	case cellStyleWall:
-		return wallStyle.Render(run)
+		return terrainStylesFor(cell.terrain).wall.Render(run)
+	case cellStyleTerrainAccent:
+		return terrainStylesFor(cell.terrain).accent.Render(run)
+	case cellStyleTerrainWoodwork:
+		return terrainWoodworkStyle.Render(run)
+	case cellStyleTerrainVegetation:
+		return terrainVegetationStyle.Render(run)
+	case cellStyleTerrainWater:
+		return terrainWaterStyle.Render(run)
+	case cellStyleTerrainLava:
+		return terrainLavaStyle.Render(run)
+	case cellStyleTerrainIce:
+		return terrainIceStyle.Render(run)
+	case cellStyleTerrainFire:
+		return terrainFireStyle.Render(run)
+	case cellStyleTerrainWell:
+		return terrainWellStyle.Render(run)
+	case cellStyleTerrainLandmark:
+		return terrainLandmarkStyle.Render(run)
 	case cellStyleWaypoint:
 		return waypointStyle.Render(run)
 	case cellStyleGroundItem:
@@ -324,6 +432,18 @@ func renderCellRun(cell gameCell, run string) string {
 	default:
 		return run
 	}
+}
+
+type terrainStyles struct {
+	wall   lipgloss.Style
+	accent lipgloss.Style
+}
+
+func terrainStylesFor(theme terrainTheme) terrainStyles {
+	if int(theme) >= len(terrainThemeStyles) {
+		return terrainThemeStyles[terrainThemeStone]
+	}
+	return terrainThemeStyles[theme]
 }
 
 func drawNPC(grid *gameGrid, x, baseY int, definition npc.Definition) {
@@ -541,9 +661,81 @@ var (
 	npcStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#F59E0B"))
-	wallStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#334155"))
+	terrainWoodworkStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("#D6A45B"))
+	terrainVegetationStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("#4ADE80"))
+	terrainWaterStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("#38BDF8"))
+	terrainLavaStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("#FB5A3C"))
+	terrainIceStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#A5F3FC"))
+	terrainFireStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("#FF713D"))
+	terrainWellStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("#94A3B8"))
+	terrainLandmarkStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("#FDE68A"))
 	waypointStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#A78BFA"))
+	terrainThemeStyles = [...]terrainStyles{
+		terrainThemeStone: {
+			wall:   lipgloss.NewStyle().Foreground(lipgloss.Color("#475569")),
+			accent: lipgloss.NewStyle().Foreground(lipgloss.Color("#94A3B8")),
+		},
+		terrainThemeVerdant: {
+			wall:   lipgloss.NewStyle().Foreground(lipgloss.Color("#287052")),
+			accent: lipgloss.NewStyle().Foreground(lipgloss.Color("#86C96F")),
+		},
+		terrainThemeRedwood: {
+			wall:   lipgloss.NewStyle().Foreground(lipgloss.Color("#714634")),
+			accent: lipgloss.NewStyle().Foreground(lipgloss.Color("#D18B5B")),
+		},
+		terrainThemeMarsh: {
+			wall:   lipgloss.NewStyle().Foreground(lipgloss.Color("#316B62")),
+			accent: lipgloss.NewStyle().Foreground(lipgloss.Color("#79C6A3")),
+		},
+		terrainThemeCoastal: {
+			wall:   lipgloss.NewStyle().Foreground(lipgloss.Color("#326B85")),
+			accent: lipgloss.NewStyle().Foreground(lipgloss.Color("#67D4E8")),
+		},
+		terrainThemeFrost: {
+			wall:   lipgloss.NewStyle().Foreground(lipgloss.Color("#4D7896")),
+			accent: lipgloss.NewStyle().Foreground(lipgloss.Color("#9DE4F2")),
+		},
+		terrainThemeEmber: {
+			wall:   lipgloss.NewStyle().Foreground(lipgloss.Color("#833E35")),
+			accent: lipgloss.NewStyle().Foreground(lipgloss.Color("#FB8351")),
+		},
+		terrainThemeSunlit: {
+			wall:   lipgloss.NewStyle().Foreground(lipgloss.Color("#80633A")),
+			accent: lipgloss.NewStyle().Foreground(lipgloss.Color("#F2C66D")),
+		},
+		terrainThemeCrystal: {
+			wall:   lipgloss.NewStyle().Foreground(lipgloss.Color("#55549A")),
+			accent: lipgloss.NewStyle().Foreground(lipgloss.Color("#8BE2E5")),
+		},
+		terrainThemeAstral: {
+			wall:   lipgloss.NewStyle().Foreground(lipgloss.Color("#5D4B8A")),
+			accent: lipgloss.NewStyle().Foreground(lipgloss.Color("#C4A7FF")),
+		},
+		terrainThemeVillage: {
+			wall:   lipgloss.NewStyle().Foreground(lipgloss.Color("#76583B")),
+			accent: lipgloss.NewStyle().Foreground(lipgloss.Color("#62C7B7")),
+		},
+		terrainThemeIron: {
+			wall:   lipgloss.NewStyle().Foreground(lipgloss.Color("#586474")),
+			accent: lipgloss.NewStyle().Foreground(lipgloss.Color("#E59A45")),
+		},
+	}
 )

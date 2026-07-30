@@ -1,18 +1,29 @@
 {
   "id": "saltmarsh",
   "name": "Saltmarsh",
+  "palette": "marsh",
   "width": 224,
   "height": 72,
   "border_tile": "#",
   "features": [
-    { "x": 12, "y": 7, "width": 3, "height": 14, "tile": "#" },
-    { "x": 24, "y": 27, "width": 21, "height": 2, "tile": "#" },
-    { "x": 38, "y": 12, "width": 22, "height": 2, "tile": "#" },
-    { "x": 61, "y": 21, "width": 3, "height": 12, "tile": "#" },
-    { "x": 74, "y": 8, "width": 13, "height": 2, "tile": "#" },
-    { "x": 113, "y": 11, "width": 38, "height": 2, "tile": "#" },
-    { "x": 158, "y": 31, "width": 3, "height": 29, "tile": "#" },
-    { "x": 176, "y": 57, "width": 34, "height": 2, "tile": "#" }
+    { "x": 12, "y": 7, "width": 4, "height": 25, "tile": "~" },
+    { "x": 12, "y": 28, "width": 70, "height": 4, "tile": "~" },
+    { "x": 78, "y": 15, "width": 4, "height": 17, "tile": "~" },
+    { "x": 78, "y": 15, "width": 80, "height": 4, "tile": "~" },
+    { "x": 154, "y": 15, "width": 4, "height": 46, "tile": "~" },
+    { "x": 154, "y": 57, "width": 60, "height": 4, "tile": "~" }
+  ],
+  "objects": [
+    { "object_id": "forest_grove", "x": 24, "y": 25 },
+    { "object_id": "forest_thicket", "x": 58, "y": 21 },
+    { "object_id": "forest_thicket", "x": 110, "y": 10 },
+    { "object_id": "forest_grove", "x": 128, "y": 20 },
+    { "object_id": "forest_thicket", "x": 175, "y": 48 },
+    { "object_id": "forest_grove", "x": 194, "y": 51 },
+    { "object_id": "bridge_horizontal", "x": 10, "y": 18 },
+    { "object_id": "bridge_vertical", "x": 50, "y": 27 },
+    { "object_id": "bridge_horizontal", "x": 152, "y": 35 },
+    { "object_id": "bridge_vertical", "x": 190, "y": 56 }
   ],
   "spawn": { "x": 8, "y": 35 },
   "enemy_spawns": [

@@ -1,23 +1,26 @@
 {
   "id": "frostfall_pass",
   "name": "Frostfall Pass",
+  "palette": "frost",
   "width": 224,
   "height": 72,
   "border_tile": "#",
   "features": [
-    { "x": 14, "y": 7, "width": 16, "height": 2, "tile": "#" },
-    { "x": 25, "y": 19, "width": 3, "height": 14, "tile": "#" },
-    { "x": 40, "y": 12, "width": 25, "height": 2, "tile": "#" },
+    { "x": 40, "y": 12, "width": 25, "height": 2, "tile": "*" },
     { "x": 63, "y": 25, "width": 22, "height": 2, "tile": "#" },
-    { "x": 78, "y": 8, "width": 3, "height": 12, "tile": "#" },
-    { "x": 112, "y": 9, "width": 40, "height": 2, "tile": "#" },
+    { "x": 112, "y": 9, "width": 40, "height": 2, "tile": "*" },
     { "x": 155, "y": 32, "width": 3, "height": 27, "tile": "#" },
-    { "x": 175, "y": 58, "width": 35, "height": 2, "tile": "#" },
+    { "x": 175, "y": 58, "width": 35, "height": 2, "tile": "*" },
     { "x": 4, "y": 49, "width": 10, "height": 2, "tile": "#" },
     { "x": 4, "y": 51, "width": 1, "height": 8, "tile": "#" },
-    { "x": 13, "y": 51, "width": 1, "height": 8, "tile": "#" },
-    { "x": 17, "y": 55, "width": 1, "height": 1, "tile": "^" },
-    { "x": 16, "y": 56, "width": 3, "height": 1, "tile": "o" }
+    { "x": 13, "y": 51, "width": 1, "height": 8, "tile": "#" }
+  ],
+  "objects": [
+    { "object_id": "forest_thicket", "x": 14, "y": 7 },
+    { "object_id": "forest_grove", "x": 23, "y": 20 },
+    { "object_id": "forest_grove", "x": 26, "y": 27 },
+    { "object_id": "forest_thicket", "x": 74, "y": 9 },
+    { "object_id": "campfire", "x": 16, "y": 54 }
   ],
   "spawn": { "x": 112, "y": 66 },
   "npcs": [

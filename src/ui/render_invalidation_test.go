@@ -120,3 +120,40 @@ func TestUnknownGameplayKeyReusesCachedView(t *testing.T) {
 		t.Fatal("unused gameplay key changed the rendered frame")
 	}
 }
+
+func TestPlayerNameShimmerTickInvalidatesRenderedView(t *testing.T) {
+	character := &domain.Character{
+		ID: 1, Name: "Aria", Role: domain.CharacterRoleAdmin,
+		AreaID: "cavern", X: 100, Y: 100,
+	}
+	model := newGameModel(
+		Repositories{}, nil, nil, Identity{}, character, nil,
+	)
+	model.phase = phasePlaying
+	model.width, model.height = 40, 14
+	model.connection.snapshot = world.Snapshot{
+		Players: []world.Player{{
+			ID: 1, Name: "Aria", Role: domain.CharacterRoleAdmin,
+			AreaID: "cavern", X: 100, Y: 100,
+		}},
+	}
+	if command := model.nameShimmer.setNeeded(
+		model.connection.snapshot.Players, nil,
+	); command == nil {
+		t.Fatal("visible admin did not schedule a shimmer tick")
+	}
+	initial := model.View().Content
+
+	_, command := model.Update(playerNameShimmerMsg{
+		generation: model.nameShimmer.generation,
+	})
+	if command == nil {
+		t.Fatal("shimmer tick did not schedule the next frame")
+	}
+	if !model.renderDirty {
+		t.Fatal("shimmer tick did not invalidate the rendered view")
+	}
+	if rendered := model.View().Content; rendered == initial {
+		t.Fatal("shimmer tick did not change the visible player name")
+	}
+}

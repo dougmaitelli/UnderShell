@@ -64,9 +64,14 @@ func main() {
 		log.Error("validate quest enemy drops", "error", err)
 		os.Exit(1)
 	}
+	objects, err := world.LoadMapObjects(cfg.ObjectsPath)
+	if err != nil {
+		log.Error("load map objects", "path", cfg.ObjectsPath, "error", err)
+		os.Exit(1)
+	}
 	areas, err := world.LoadAreas(
 		cfg.AreasPath, world.References{
-			Items: items, Enemies: enemies, Quests: quests,
+			Items: items, Enemies: enemies, Quests: quests, Objects: objects,
 		},
 	)
 	if err != nil {

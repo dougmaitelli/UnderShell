@@ -16,6 +16,7 @@ type Config struct {
 	DatabasePath string
 	GamePath     string
 	AreasPath    string
+	ObjectsPath  string
 	ItemsPath    string
 	EnemiesPath  string
 	QuestsPath   string
@@ -29,6 +30,7 @@ func Load() Config {
 		DatabasePath: env("DATABASE_PATH", "./data/game.db"),
 		GamePath:     env("GAME_CONFIG_PATH", "./content/game.json"),
 		AreasPath:    env("AREAS_PATH", "./content/areas"),
+		ObjectsPath:  env("OBJECTS_PATH", "./content/objects"),
 		ItemsPath:    env("ITEMS_PATH", "./content/items"),
 		EnemiesPath:  env("ENEMIES_PATH", "./content/enemies"),
 		QuestsPath:   env("QUESTS_PATH", "./content/quests"),

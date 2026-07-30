@@ -41,11 +41,13 @@ type Waypoint struct {
 type AreaDefinition struct {
 	ID          string                 `json:"id"`
 	Name        string                 `json:"name"`
+	Palette     string                 `json:"palette"`
 	Layout      []string               `json:"layout"`
 	Width       int                    `json:"width"`
 	Height      int                    `json:"height"`
 	Border      string                 `json:"border_tile"`
 	Features    []TileRect             `json:"features"`
+	Objects     []MapObjectPlacement   `json:"objects"`
 	Spawn       Point                  `json:"spawn"`
 	Waypoints   []WaypointDefinition   `json:"waypoints"`
 	EnemySpawns []EnemySpawnDefinition `json:"enemy_spawns"`
@@ -83,6 +85,7 @@ type TileRect struct {
 type Area struct {
 	ID          string
 	Name        string
+	Palette     string
 	Layout      []string
 	Width       int
 	Height      int
@@ -108,6 +111,7 @@ type References struct {
 	Items   *item.Items
 	Enemies *enemy.Enemies
 	Quests  *quest.Quests
+	Objects *MapObjects
 }
 
 func LoadAreas(
@@ -139,7 +143,7 @@ func NewAreas(
 	}
 	for _, definition := range definitions {
 		area, err := buildArea(
-			definition, refs.Items, refs.Enemies, refs.Quests,
+			definition, refs.Items, refs.Enemies, refs.Quests, refs.Objects,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("area %q: %w", definition.ID, err)
@@ -256,7 +260,16 @@ func (a *Area) InBounds(point Point) bool {
 }
 
 func (a *Area) Walkable(point Point) bool {
-	return a.InBounds(point) && a.Tile(point) != '#'
+	return a.InBounds(point) && !tileBlocksMovement(a.Tile(point))
+}
+
+func tileBlocksMovement(tile rune) bool {
+	switch tile {
+	case '#', 'T', '~', '≈', '*', 'f', 'W':
+		return true
+	default:
+		return false
+	}
 }
 
 func (a *Area) Waypoint(point Point) (*Waypoint, bool) {
@@ -269,6 +282,7 @@ func buildArea(
 	items *item.Items,
 	enemies *enemy.Enemies,
 	quests *quest.Quests,
+	objects *MapObjects,
 ) (*Area, error) {
 	definition.ID = strings.TrimSpace(definition.ID)
 	definition.Name = strings.TrimSpace(definition.Name)
@@ -297,13 +311,20 @@ func buildArea(
 			}
 		}
 	}
+	stampedLayout, err := stampMapObjects(
+		definition.Layout, definition.Objects, objects,
+	)
+	if err != nil {
+		return nil, err
+	}
+	definition.Layout = stampedLayout
 
 	npcs, err := npc.Resolve(definition.NPCs, items, quests)
 	if err != nil {
 		return nil, err
 	}
 	area := &Area{
-		ID: definition.ID, Name: definition.Name,
+		ID: definition.ID, Name: definition.Name, Palette: definition.Palette,
 		Layout: append([]string(nil), definition.Layout...),
 		Width:  width, Height: len(definition.Layout), Spawn: definition.Spawn,
 		EnemySpawns: make([]EnemySpawn, len(definition.EnemySpawns)),

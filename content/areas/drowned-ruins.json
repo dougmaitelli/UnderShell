@@ -8,11 +8,11 @@
   "features": [
     { "x": 14, "y": 8, "width": 18, "height": 3, "tile": "#" },
     { "x": 19, "y": 11, "width": 3, "height": 16, "tile": "#" },
-    { "x": 35, "y": 21, "width": 55, "height": 4, "tile": "~" },
+    { "x": 0, "y": 21, "width": 90, "height": 4, "tile": "~" },
     { "x": 67, "y": 9, "width": 3, "height": 18, "tile": "#" },
-    { "x": 68, "y": 29, "width": 35, "height": 4, "tile": "~" },
+    { "x": 86, "y": 21, "width": 4, "height": 25, "tile": "~" },
     { "x": 111, "y": 8, "width": 3, "height": 28, "tile": "#" },
-    { "x": 125, "y": 42, "width": 65, "height": 4, "tile": "~" },
+    { "x": 86, "y": 42, "width": 138, "height": 4, "tile": "~" },
     { "x": 183, "y": 15, "width": 3, "height": 31, "tile": "#" },
     { "x": 203, "y": 52, "width": 7, "height": 2, "tile": "#" },
     { "x": 212, "y": 52, "width": 7, "height": 2, "tile": "#" },
@@ -20,11 +20,17 @@
     { "x": 218, "y": 54, "width": 1, "height": 10, "tile": "#" }
   ],
   "objects": [
-    { "object_id": "lake", "x": 148, "y": 38 },
+    { "object_id": "lake", "x": 148, "y": 37 },
     { "object_id": "bridge_vertical", "x": 52, "y": 20 },
-    { "object_id": "bridge_vertical", "x": 82, "y": 28 },
+    { "object_id": "bridge_horizontal", "x": 84, "y": 31 },
     { "object_id": "bridge_vertical", "x": 172, "y": 41 },
-    { "object_id": "campfire", "x": 198, "y": 58 }
+    { "object_id": "campfire", "x": 198, "y": 58 },
+    { "object_id": "ruined_columns", "x": 95, "y": 10 },
+    { "object_id": "ruined_columns", "x": 194, "y": 27 },
+    { "object_id": "rock_outcrop", "x": 106, "y": 55 },
+    { "object_id": "ruined_columns", "x": 32, "y": 47 },
+    { "object_id": "rock_outcrop", "x": 70, "y": 55 },
+    { "object_id": "ruined_columns", "x": 132, "y": 56 }
   ],
   "spawn": { "x": 8, "y": 35 },
   "npcs": [

@@ -15,6 +15,21 @@
     { "x": 174, "y": 35, "width": 3, "height": 31, "tile": "#" },
     { "x": 196, "y": 67, "width": 43, "height": 2, "tile": "*" }
   ],
+  "objects": [
+    { "object_id": "ice_field", "x": 18, "y": 42 },
+    { "object_id": "ice_field", "x": 52, "y": 51 },
+    { "object_id": "ice_field", "x": 92, "y": 18 },
+    { "object_id": "ice_field", "x": 138, "y": 42 },
+    { "object_id": "ice_field", "x": 196, "y": 16 },
+    { "object_id": "ice_field", "x": 216, "y": 55 },
+    { "object_id": "rock_ridge", "x": 86, "y": 55 },
+    { "object_id": "rock_ridge", "x": 182, "y": 45 },
+    { "object_id": "rock_outcrop", "x": 30, "y": 15 },
+    { "object_id": "rock_outcrop", "x": 146, "y": 22 },
+    { "object_id": "rock_outcrop", "x": 118, "y": 60 },
+    { "object_id": "ice_field", "x": 154, "y": 60 },
+    { "object_id": "rock_outcrop", "x": 228, "y": 36 }
+  ],
   "spawn": { "x": 128, "y": 74 },
   "enemy_spawns": [
     {

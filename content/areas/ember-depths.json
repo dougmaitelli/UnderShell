@@ -6,14 +6,20 @@
   "height": 64,
   "border_tile": "#",
   "features": [
-    { "x": 16, "y": 8, "width": 22, "height": 2, "tile": "≈" },
     { "x": 25, "y": 20, "width": 3, "height": 13, "tile": "#" },
-    { "x": 43, "y": 15, "width": 25, "height": 2, "tile": "≈" },
     { "x": 65, "y": 25, "width": 19, "height": 2, "tile": "#" },
-    { "x": 77, "y": 7, "width": 3, "height": 12, "tile": "≈" },
     { "x": 108, "y": 10, "width": 34, "height": 2, "tile": "#" },
-    { "x": 146, "y": 31, "width": 3, "height": 21, "tile": "≈" },
+    { "x": 146, "y": 31, "width": 3, "height": 21, "tile": "#" },
     { "x": 117, "y": 53, "width": 50, "height": 2, "tile": "#" }
+  ],
+  "objects": [
+    { "object_id": "lava_pool", "x": 10, "y": 7 },
+    { "object_id": "lava_pool", "x": 43, "y": 12 },
+    { "object_id": "lava_pool", "x": 75, "y": 22 },
+    { "object_id": "lava_pool", "x": 142, "y": 29 },
+    { "object_id": "rock_outcrop", "x": 20, "y": 39 },
+    { "object_id": "rock_ridge", "x": 96, "y": 40 },
+    { "object_id": "rock_outcrop", "x": 155, "y": 7 }
   ],
   "spawn": { "x": 96, "y": 5 },
   "enemy_spawns": [

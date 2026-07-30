@@ -8,8 +8,8 @@
   "features": [
     { "x": 27, "y": 22, "width": 3, "height": 11, "tile": "#" },
     { "x": 111, "y": 12, "width": 34, "height": 2, "tile": "#" },
-    { "x": 150, "y": 35, "width": 4, "height": 17, "tile": "~" },
-    { "x": 120, "y": 48, "width": 65, "height": 4, "tile": "~" }
+    { "x": 150, "y": 0, "width": 4, "height": 52, "tile": "~" },
+    { "x": 120, "y": 48, "width": 72, "height": 4, "tile": "~" }
   ],
   "objects": [
     { "object_id": "forest_grove", "x": 12, "y": 9 },
@@ -18,8 +18,10 @@
     { "object_id": "forest_thicket", "x": 133, "y": 31 },
     { "object_id": "forest_grove", "x": 140, "y": 42 },
     { "object_id": "lake", "x": 64, "y": 7 },
-    { "object_id": "bridge_horizontal", "x": 148, "y": 41 },
-    { "object_id": "bridge_vertical", "x": 165, "y": 47 }
+    { "object_id": "bridge_horizontal", "x": 147, "y": 30 },
+    { "object_id": "bridge_vertical", "x": 165, "y": 46 },
+    { "object_id": "standing_stones", "x": 95, "y": 36 },
+    { "object_id": "rock_outcrop", "x": 35, "y": 44 }
   ],
   "spawn": { "x": 96, "y": 58 },
   "enemy_spawns": [

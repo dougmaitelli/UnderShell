@@ -15,6 +15,22 @@
     { "x": 176, "y": 34, "width": 3, "height": 33, "tile": "#" },
     { "x": 199, "y": 67, "width": 39, "height": 2, "tile": "*" }
   ],
+  "objects": [
+    { "object_id": "standing_stones", "x": 20, "y": 43 },
+    { "object_id": "standing_stones", "x": 54, "y": 52 },
+    { "object_id": "standing_stones", "x": 90, "y": 18 },
+    { "object_id": "standing_stones", "x": 132, "y": 45 },
+    { "object_id": "standing_stones", "x": 194, "y": 15 },
+    { "object_id": "standing_stones", "x": 220, "y": 58 },
+    { "object_id": "ruined_columns", "x": 34, "y": 32 },
+    { "object_id": "ruined_columns", "x": 98, "y": 57 },
+    { "object_id": "ruined_columns", "x": 146, "y": 18 },
+    { "object_id": "ruined_columns", "x": 210, "y": 43 },
+    { "object_id": "rock_outcrop", "x": 72, "y": 38 },
+    { "object_id": "rock_outcrop", "x": 185, "y": 54 },
+    { "object_id": "standing_stones", "x": 116, "y": 68 },
+    { "object_id": "ruined_columns", "x": 232, "y": 28 }
+  ],
   "spawn": { "x": 8, "y": 39 },
   "enemy_spawns": [
     {

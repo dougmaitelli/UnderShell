@@ -6,7 +6,7 @@
   "height": 72,
   "border_tile": "#",
   "features": [
-    { "x": 158, "y": 56, "width": 58, "height": 3, "tile": "~" }
+    { "x": 0, "y": 56, "width": 224, "height": 3, "tile": "~" }
   ],
   "objects": [
     { "object_id": "forest_thicket", "x": 10, "y": 7 },
@@ -18,7 +18,8 @@
     { "object_id": "forest_thicket", "x": 141, "y": 40 },
     { "object_id": "forest_thicket", "x": 178, "y": 13 },
     { "object_id": "lake", "x": 185, "y": 51 },
-    { "object_id": "bridge_vertical", "x": 205, "y": 55 }
+    { "object_id": "bridge_vertical", "x": 110, "y": 54 },
+    { "object_id": "forest_grove", "x": 120, "y": 48 }
   ],
   "spawn": { "x": 112, "y": 66 },
   "enemy_spawns": [

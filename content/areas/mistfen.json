@@ -6,12 +6,10 @@
   "height": 64,
   "border_tile": "#",
   "features": [
-    { "x": 22, "y": 15, "width": 4, "height": 13, "tile": "~" },
-    { "x": 20, "y": 24, "width": 105, "height": 4, "tile": "~" },
-    { "x": 108, "y": 9, "width": 4, "height": 19, "tile": "~" },
-    { "x": 95, "y": 9, "width": 55, "height": 3, "tile": "~" },
-    { "x": 120, "y": 9, "width": 4, "height": 47, "tile": "~" },
-    { "x": 105, "y": 52, "width": 65, "height": 4, "tile": "~" },
+    { "x": 0, "y": 24, "width": 124, "height": 4, "tile": "~" },
+    { "x": 108, "y": 0, "width": 4, "height": 28, "tile": "~" },
+    { "x": 120, "y": 24, "width": 4, "height": 40, "tile": "~" },
+    { "x": 120, "y": 52, "width": 72, "height": 4, "tile": "~" },
     { "x": 5, "y": 25, "width": 9, "height": 2, "tile": "#" },
     { "x": 5, "y": 27, "width": 1, "height": 8, "tile": "#" },
     { "x": 13, "y": 27, "width": 1, "height": 8, "tile": "#" }
@@ -22,12 +20,13 @@
     { "object_id": "forest_grove", "x": 73, "y": 8 },
     { "object_id": "forest_thicket", "x": 141, "y": 30 },
     { "object_id": "forest_grove", "x": 144, "y": 43 },
-    { "object_id": "bridge_horizontal", "x": 20, "y": 18 },
-    { "object_id": "bridge_vertical", "x": 60, "y": 23 },
-    { "object_id": "bridge_horizontal", "x": 106, "y": 17 },
-    { "object_id": "bridge_horizontal", "x": 118, "y": 38 },
-    { "object_id": "bridge_vertical", "x": 145, "y": 51 },
-    { "object_id": "campfire", "x": 15, "y": 30 }
+    { "object_id": "bridge_vertical", "x": 60, "y": 22 },
+    { "object_id": "bridge_horizontal", "x": 105, "y": 14 },
+    { "object_id": "bridge_horizontal", "x": 117, "y": 38 },
+    { "object_id": "bridge_vertical", "x": 145, "y": 50 },
+    { "object_id": "campfire", "x": 15, "y": 30 },
+    { "object_id": "forest_grove", "x": 34, "y": 42 },
+    { "object_id": "forest_thicket", "x": 74, "y": 45 }
   ],
   "spawn": { "x": 96, "y": 5 },
   "npcs": [

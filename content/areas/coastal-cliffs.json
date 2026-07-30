@@ -7,21 +7,24 @@
   "border_tile": "#",
   "features": [
     { "x": 17, "y": 7, "width": 3, "height": 25, "tile": "#" },
-    { "x": 25, "y": 10, "width": 75, "height": 3, "tile": "~" },
+    { "x": 0, "y": 10, "width": 86, "height": 3, "tile": "~" },
     { "x": 82, "y": 10, "width": 4, "height": 24, "tile": "~" },
     { "x": 48, "y": 25, "width": 28, "height": 2, "tile": "#" },
     { "x": 72, "y": 7, "width": 3, "height": 13, "tile": "#" },
-    { "x": 82, "y": 31, "width": 65, "height": 3, "tile": "~" },
+    { "x": 82, "y": 31, "width": 64, "height": 3, "tile": "~" },
     { "x": 111, "y": 8, "width": 3, "height": 24, "tile": "#" },
-    { "x": 120, "y": 40, "width": 60, "height": 4, "tile": "~" },
+    { "x": 142, "y": 31, "width": 4, "height": 13, "tile": "~" },
+    { "x": 142, "y": 40, "width": 50, "height": 4, "tile": "~" },
     { "x": 158, "y": 12, "width": 20, "height": 2, "tile": "#" }
   ],
   "objects": [
-    { "object_id": "lake", "x": 145, "y": 36 },
-    { "object_id": "bridge_vertical", "x": 60, "y": 9 },
+    { "object_id": "lake", "x": 118, "y": 48 },
+    { "object_id": "bridge_vertical", "x": 60, "y": 8 },
     { "object_id": "bridge_horizontal", "x": 80, "y": 20 },
-    { "object_id": "bridge_vertical", "x": 105, "y": 30 },
-    { "object_id": "bridge_vertical", "x": 165, "y": 39 }
+    { "object_id": "bridge_vertical", "x": 105, "y": 29 },
+    { "object_id": "bridge_vertical", "x": 165, "y": 38 },
+    { "object_id": "rock_outcrop", "x": 24, "y": 40 },
+    { "object_id": "rock_ridge", "x": 90, "y": 48 }
   ],
   "spawn": { "x": 8, "y": 31 },
   "enemy_spawns": [

@@ -6,9 +6,9 @@
   "height": 64,
   "border_tile": "#",
   "features": [
-    { "x": 105, "y": 10, "width": 65, "height": 3, "tile": "~" },
-    { "x": 136, "y": 10, "width": 4, "height": 45, "tile": "~" },
-    { "x": 108, "y": 52, "width": 70, "height": 3, "tile": "~" }
+    { "x": 136, "y": 0, "width": 4, "height": 56, "tile": "~" },
+    { "x": 136, "y": 10, "width": 56, "height": 3, "tile": "~" },
+    { "x": 0, "y": 52, "width": 140, "height": 3, "tile": "~" }
   ],
   "objects": [
     { "object_id": "forest_thicket", "x": 13, "y": 7 },
@@ -18,9 +18,11 @@
     { "object_id": "forest_thicket", "x": 141, "y": 38 },
     { "object_id": "forest_grove", "x": 151, "y": 45 },
     { "object_id": "lake", "x": 32, "y": 25 },
-    { "object_id": "bridge_vertical", "x": 155, "y": 9 },
+    { "object_id": "bridge_vertical", "x": 155, "y": 8 },
     { "object_id": "bridge_horizontal", "x": 134, "y": 31 },
-    { "object_id": "bridge_vertical", "x": 122, "y": 51 }
+    { "object_id": "bridge_vertical", "x": 122, "y": 50 },
+    { "object_id": "forest_grove", "x": 50, "y": 38 },
+    { "object_id": "forest_grove", "x": 90, "y": 45 }
   ],
   "spawn": { "x": 8, "y": 31 },
   "enemy_spawns": [

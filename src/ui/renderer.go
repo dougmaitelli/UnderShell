@@ -41,7 +41,7 @@ type ViewState struct {
 
 type Renderer struct {
 	welcome       WelcomeRenderer
-	game          GameRenderer
+	game          *GameRenderer
 	inventory     InventoryRenderer
 	skills        SkillsRenderer
 	events        EventRenderer
@@ -55,7 +55,7 @@ type Renderer struct {
 func NewRenderer() Renderer {
 	return Renderer{
 		welcome:       WelcomeRenderer{},
-		game:          GameRenderer{},
+		game:          &GameRenderer{},
 		inventory:     InventoryRenderer{},
 		skills:        SkillsRenderer{},
 		events:        EventRenderer{},

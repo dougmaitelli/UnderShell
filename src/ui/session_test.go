@@ -106,13 +106,14 @@ func TestBasicMovementUsesTerminalKeyRepeats(t *testing.T) {
 	if command == nil || !model.movement.inFlight {
 		t.Fatal("basic movement did not accept a terminal key-repeat event")
 	}
+	_ = model.View()
 	model.movement.inFlight = false
 	_, command = model.Update(tea.KeyPressMsg(tea.Key{
 		Text:     "s",
 		Code:     's',
 		IsRepeat: true,
 	}))
-	if command != nil || model.movement.inFlight || !model.skipRender {
+	if command != nil || model.movement.inFlight || model.renderDirty {
 		t.Fatal("movement repeat bypassed the client movement rate limit")
 	}
 }
@@ -156,7 +157,7 @@ func TestRejectedMovementReusesPreviousRender(t *testing.T) {
 			ID: 1, Name: "Aria", AreaID: "meadow", X: 1, Y: 1,
 		},
 	})
-	if command != nil || !model.skipRender {
+	if command != nil || model.renderDirty {
 		t.Fatal("rejected movement scheduled work or invalidated the render")
 	}
 	if rendered := model.View().Content; rendered != initial {
@@ -848,49 +849,38 @@ func TestGroundItemsUseOneGenericMarker(t *testing.T) {
 }
 
 func TestPlayerBaseIsAnchoredAtWorldCoordinate(t *testing.T) {
-	grid := make([][]string, 8)
-	for y := range grid {
-		grid[y] = make([]string, 12)
-		for x := range grid[y] {
-			grid[y][x] = " "
-		}
-	}
+	grid := newGameGrid(12, 8)
 	drawPlayer(
 		grid, 6, 6, "@", "Aria", 0, 1, 0,
 		domain.CharacterRoleUser, 0,
 	)
 
-	if ansi.Strip(grid[6][5]) != "/" ||
-		grid[6][6] != " " ||
-		ansi.Strip(grid[6][7]) != "\\" {
-		t.Fatalf("feet are not centered on base coordinate: %#v", grid[6][4:9])
+	if ansi.Strip(grid.renderedCell(5, 6)) != "/" ||
+		grid.renderedCell(6, 6) != " " ||
+		ansi.Strip(grid.renderedCell(7, 6)) != "\\" {
+		t.Fatal("feet are not centered on base coordinate")
 	}
-	if ansi.Strip(strings.Join(grid[3], "")) != "   @ Aria   " {
-		t.Fatalf("name is not centered above the figure: %q", strings.Join(grid[3], ""))
+	row := ansi.Strip(strings.Split(grid.render(), "\n")[3])
+	if row != "   @ Aria   " {
+		t.Fatalf("name is not centered above the figure: %q", row)
 	}
 }
 
 func TestPlayerRoleColorOnlyAppliesToName(t *testing.T) {
-	grid := make([][]string, 8)
-	for y := range grid {
-		grid[y] = make([]string, 12)
-		for x := range grid[y] {
-			grid[y][x] = " "
-		}
-	}
+	grid := newGameGrid(12, 8)
 	adminName := playerNameStyle(domain.CharacterRoleAdmin, 0, 2)
 	drawPlayer(
 		grid, 6, 6, "@", "DougM", 0, 0, 0,
 		domain.CharacterRoleAdmin, 0,
 	)
 
-	if grid[3][5] != adminName.Render("D") {
-		t.Fatalf("admin name cell has the wrong style: %q", grid[3][5])
+	if grid.renderedCell(5, 3) != adminName.Render("D") {
+		t.Fatalf("admin name cell has the wrong style: %q", grid.renderedCell(5, 3))
 	}
-	if grid[4][6] != playerBodyStyle.Render("O") {
-		t.Fatalf("player body does not use the neutral style: %q", grid[4][6])
+	if grid.renderedCell(6, 4) != playerBodyStyle.Render("O") {
+		t.Fatalf("player body does not use the neutral style: %q", grid.renderedCell(6, 4))
 	}
-	if grid[4][6] == adminName.Render("O") {
+	if grid.renderedCell(6, 4) == adminName.Render("O") {
 		t.Fatal("admin name color leaked into the player body")
 	}
 }
@@ -911,31 +901,27 @@ func TestWalkingLegsExtendOnlyTowardMovement(t *testing.T) {
 }
 
 func TestSlashFramesAreDirectional(t *testing.T) {
-	grid := make([][]string, 8)
-	for y := range grid {
-		grid[y] = make([]string, 12)
-		for x := range grid[y] {
-			grid[y][x] = " "
-		}
-	}
+	grid := newGameGrid(12, 8)
 	drawSlash(grid, 5, 5, 1, 1)
-	if ansi.Strip(grid[3][7]) != "/" || ansi.Strip(grid[4][8]) != "/" {
+	if ansi.Strip(grid.renderedCell(7, 3)) != "/" ||
+		ansi.Strip(grid.renderedCell(8, 4)) != "/" {
 		t.Fatalf(
 			"first right-facing slash frame = %q, %q",
-			grid[3][7], grid[4][8],
+			grid.renderedCell(7, 3), grid.renderedCell(8, 4),
 		)
 	}
 	drawSlash(grid, 5, 5, 1, 2)
 	for _, x := range []int{6, 7, 8} {
-		if ansi.Strip(grid[4][x]) != "─" {
-			t.Fatalf("second right-facing slash frame at %d = %q", x, grid[4][x])
+		if ansi.Strip(grid.renderedCell(x, 4)) != "─" {
+			t.Fatalf("second right-facing slash frame at %d = %q", x, grid.renderedCell(x, 4))
 		}
 	}
 	drawSlash(grid, 5, 5, -1, 1)
-	if ansi.Strip(grid[3][3]) != "\\" || ansi.Strip(grid[4][2]) != "\\" {
+	if ansi.Strip(grid.renderedCell(3, 3)) != "\\" ||
+		ansi.Strip(grid.renderedCell(2, 4)) != "\\" {
 		t.Fatalf(
 			"first left-facing slash frame = %q, %q",
-			grid[3][3], grid[4][2],
+			grid.renderedCell(3, 3), grid.renderedCell(2, 4),
 		)
 	}
 }

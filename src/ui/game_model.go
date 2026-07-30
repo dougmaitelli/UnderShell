@@ -51,7 +51,7 @@ type gameModel struct {
 	height        int
 	renderer      Renderer
 	lastView      string
-	skipRender    bool
+	renderDirty   bool
 }
 
 type characterCreatedMsg struct {
@@ -146,10 +146,11 @@ func newGameModel(
 		phase: currentPhase, input: input,
 		character: char, inventory: inventory,
 		width: 80, height: 24,
-		movement: newMovementState(),
-		chat:     newChatPanelState(),
-		quests:   questState,
-		renderer: NewRenderer(),
+		movement:    newMovementState(),
+		chat:        newChatPanelState(),
+		quests:      questState,
+		renderer:    NewRenderer(),
+		renderDirty: true,
 	}
 }
 
@@ -161,29 +162,41 @@ func (m *gameModel) Init() tea.Cmd {
 }
 
 func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
+	// Prove clean, not dirty: unknown messages redraw by default. Individual
+	// cases may reuse the cached frame only when they know no visible state
+	// changed.
+	m.renderDirty = true
 	switch msg := message.(type) {
 	case tea.WindowSizeMsg:
+		if m.width == msg.Width && m.height == msg.Height {
+			m.reuseLastView()
+			return m, nil
+		}
 		m.width, m.height = msg.Width, msg.Height
 		return m, nil
 	case tea.KeyboardEnhancementsMsg:
 		m.movement.enhanced = msg.SupportsEventTypes()
+		m.reuseLastView()
 		return m, nil
 	case tea.KeyPressMsg:
 		return m.updateKeyPress(msg)
 	case tea.KeyReleaseMsg:
 		if m.phase == phasePlaying && m.movement.enhanced {
 			delete(m.movement.held, directionKey(msg.String()))
-			m.skipRender = true
 		}
+		m.reuseLastView()
 		return m, nil
 	case movementTickMsg:
 		if m.mode != inputModeGame {
 			m.movement.looping = false
+			m.reuseLastView()
 			return m, nil
 		}
 		return m, m.handleMovementTick()
 	case walkAnimationDoneMsg:
-		m.movement.finishStep(msg.generation)
+		if !m.movement.finishStep(msg.generation) {
+			m.reuseLastView()
+		}
 		return m, nil
 	case attackAnimationMsg:
 		if !m.actions.advanceAttack(msg.frame) {
@@ -191,12 +204,19 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, attackAnimationTick(msg.frame + 1)
 	case playerNameShimmerMsg:
+		if !m.nameShimmer.active ||
+			msg.generation != m.nameShimmer.generation {
+			m.reuseLastView()
+			return m, nil
+		}
 		return m, m.nameShimmer.advance(msg.generation)
 	case attackResultMsg:
+		m.reuseLastView()
 		return m, nil
 	case pickupResultMsg:
 		if !msg.result.Found {
 			m.actions.finishPickup()
+			m.reuseLastView()
 			return m, nil
 		}
 		return m, m.storePickup(msg.result.Item)
@@ -219,6 +239,7 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case skillSpentMsg:
 		m.skills.finishSpend()
 		if msg.player.ID == 0 {
+			m.reuseLastView()
 			return m, nil
 		}
 		m.character.SkillPoints = msg.player.SkillPoints
@@ -265,6 +286,7 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case chatMessageMsg:
 		return m.updateChatMessage(msg)
 	case chatSentMsg:
+		m.reuseLastView()
 		return m, nil
 	case adminCommandMsg:
 		if msg.err != nil {
@@ -290,12 +312,15 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case questInteractionMsg:
 		return m.updateQuestInteraction(msg)
 	case eventExpiredMsg:
-		m.eventFeed.expire(msg.id)
+		if !m.eventFeed.expire(msg.id) {
+			m.reuseLastView()
+		}
 		return m, nil
 	case worldSnapshotMsg:
 		return m.updateWorldSnapshot(msg)
 	case worldKickedMsg:
 		if !msg.ok {
+			m.reuseLastView()
 			return m, nil
 		}
 		m.message = msg.reason
@@ -303,21 +328,23 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case playerMovedMsg:
 		m.movement.inFlight = false
 		if msg.player.ID == 0 {
-			m.skipRender = true
+			m.reuseLastView()
 			return m, nil
 		}
 		if !msg.moved {
-			m.skipRender = true
+			m.reuseLastView()
 			return m, nil
 		}
 		m.character.AreaID = msg.player.AreaID
 		m.character.X, m.character.Y = msg.player.X, msg.player.Y
 		return m, tea.Batch(m.savePosition(), m.movement.step())
 	case positionSavedMsg:
+		m.reuseLastView()
 		if msg.err != nil {
 			m.log.Error("save position", "character_id", m.character.ID, "error", msg.err)
 		}
 	case progressSavedMsg:
+		m.reuseLastView()
 		if msg.err != nil {
 			m.log.Error("save progress", "character_id", m.character.ID, "error", msg.err)
 		}
@@ -327,11 +354,11 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *gameModel) View() tea.View {
 	content := m.lastView
-	if content == "" || !m.skipRender {
+	if content == "" || m.renderDirty {
 		content = m.renderer.Render(m.viewState())
 		m.lastView = content
 	}
-	m.skipRender = false
+	m.renderDirty = false
 	view := tea.NewView(content)
 	view.AltScreen = true
 	view.WindowTitle = "UnderShell"
@@ -339,8 +366,14 @@ func (m *gameModel) View() tea.View {
 	return view
 }
 
+func (m *gameModel) reuseLastView() {
+	if m.lastView != "" {
+		m.renderDirty = false
+	}
+}
+
 func (m *gameModel) viewState() ViewState {
-	return ViewState{
+	state := ViewState{
 		Phase:             m.phase,
 		Width:             m.width,
 		Height:            m.height,
@@ -351,7 +384,6 @@ func (m *gameModel) viewState() ViewState {
 		Snapshot:          m.connection.snapshot,
 		InventoryOpen:     m.mode == inputModeInventory,
 		Inventory:         m.inventory,
-		InventoryView:     m.inventoryView(),
 		SkillsOpen:        m.mode == inputModeSkills,
 		Events:            m.eventFeed.views(),
 		ChatMessages:      append([]world.ChatMessage(nil), m.chat.messages...),
@@ -359,11 +391,8 @@ func (m *gameModel) viewState() ViewState {
 		ChatInput:         m.chat.input.View(),
 		HelpOpen:          m.mode == inputModeHelp,
 		ShopOpen:          m.mode == inputModeShop,
-		Shop:              m.shopView(),
 		JournalOpen:       m.mode == inputModeJournal,
-		Journal:           m.quests.journalView(m.inventory, m.questGiver),
 		QuestDialogueOpen: m.mode == inputModeQuestDialogue,
-		QuestDialogue:     m.quests.dialogueView(),
 		AttackFrame:       m.actions.attackFrame,
 		AttackDirection:   m.actions.attackDirection,
 		WalkFrame:         m.movement.walkFrame,
@@ -371,4 +400,17 @@ func (m *gameModel) viewState() ViewState {
 		FacingY:           m.movement.facingY,
 		PlayerNameShimmer: m.nameShimmer.frame,
 	}
+	if state.InventoryOpen {
+		state.InventoryView = m.inventoryView()
+	}
+	if state.ShopOpen {
+		state.Shop = m.shopView()
+	}
+	if state.JournalOpen {
+		state.Journal = m.quests.journalView(m.inventory, m.questGiver)
+	}
+	if state.QuestDialogueOpen {
+		state.QuestDialogue = m.quests.dialogueView()
+	}
+	return state
 }

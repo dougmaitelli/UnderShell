@@ -68,7 +68,11 @@ func (m *gameModel) updateGameplayInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd
 	default:
 		if m.movement.enhanced && msg.IsRepeat &&
 			directionKey(msg.String()) != "" {
-			m.skipRender = true
+			m.reuseLastView()
+			return m, nil
+		}
+		if directionKey(msg.String()) == "" {
+			m.reuseLastView()
 			return m, nil
 		}
 		return m, m.handleMovementPress(msg.String())

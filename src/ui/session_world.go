@@ -27,6 +27,7 @@ func (m *gameModel) updateWorldJoined(msg worldJoinedMsg) (tea.Model, tea.Cmd) {
 
 func (m *gameModel) updateWorldEvent(msg worldEventMsg) (tea.Model, tea.Cmd) {
 	if !msg.ok {
+		m.reuseLastView()
 		return m, nil
 	}
 	expiry := m.addEvent(EventView{Kind: msg.event.Kind, Message: msg.event.Message})
@@ -42,6 +43,7 @@ func (m *gameModel) updateWorldEvent(msg worldEventMsg) (tea.Model, tea.Cmd) {
 
 func (m *gameModel) updateChatMessage(msg chatMessageMsg) (tea.Model, tea.Cmd) {
 	if !msg.ok {
+		m.reuseLastView()
 		return m, nil
 	}
 	m.chat.receive(msg.message)
@@ -57,10 +59,17 @@ func (m *gameModel) updateWorldSnapshot(msg worldSnapshotMsg) (tea.Model, tea.Cm
 	if !msg.ok {
 		return m, tea.Quit
 	}
+	visibleChange := snapshotAffectsView(
+		m.connection.snapshot, msg.snapshot,
+		m.character, m.width, m.height,
+	)
 	m.connection.snapshot = msg.snapshot
 	commands := []tea.Cmd{waitForSnapshot(m.connection.session.Updates)}
 	if shimmer := m.nameShimmer.setNeeded(
-		msg.snapshot.Players, m.chat.messages,
+		visibleSnapshotPlayers(
+			msg.snapshot, m.character, m.width, m.height,
+		),
+		m.chat.messages,
 	); shimmer != nil {
 		commands = append(commands, shimmer)
 	}
@@ -110,6 +119,9 @@ func (m *gameModel) updateWorldSnapshot(msg worldSnapshotMsg) (tea.Model, tea.Cm
 			m.quests.closeDialogue()
 			m.mode = inputModeGame
 		}
+	}
+	if !visibleChange {
+		m.reuseLastView()
 	}
 	return m, tea.Batch(commands...)
 }

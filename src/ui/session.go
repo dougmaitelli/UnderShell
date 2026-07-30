@@ -24,6 +24,7 @@ type Identity struct {
 
 const bannedAccountMessage = "This account has been permanently banned."
 const maintenanceModeMessage = "The server is currently in maintenance mode. Please try again later."
+const terminalRenderFPS = 20
 
 type Repositories struct {
 	Characters  repository.CharacterRepository
@@ -101,6 +102,7 @@ func (r *Runner) Run(session ssh.Session, identity Identity) {
 		tea.WithOutput(session),
 		tea.WithEnvironment(append(session.Environ(), "TERM="+pty.Term)),
 		tea.WithColorProfile(colorprofile.TrueColor),
+		tea.WithFPS(terminalRenderFPS),
 		tea.WithoutSignalHandler(),
 	)
 

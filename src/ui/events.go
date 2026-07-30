@@ -39,13 +39,14 @@ func (f *eventFeed) add(event EventView) tea.Cmd {
 	})
 }
 
-func (f *eventFeed) expire(id uint64) {
+func (f *eventFeed) expire(id uint64) bool {
 	for index, event := range f.events {
 		if event.id == id {
 			f.events = append(f.events[:index], f.events[index+1:]...)
-			return
+			return true
 		}
 	}
+	return false
 }
 
 func (f *eventFeed) views() []EventView {

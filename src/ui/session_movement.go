@@ -58,10 +58,15 @@ func (s *movementState) step() tea.Cmd {
 	})
 }
 
-func (s *movementState) finishStep(generation uint64) {
+func (s *movementState) finishStep(generation uint64) bool {
 	if generation == s.walkGeneration {
+		if s.walkFrame == 0 {
+			return false
+		}
 		s.walkFrame = 0
+		return true
 	}
+	return false
 }
 
 func (s *movementState) beginMove(now time.Time, dx, dy int) bool {
@@ -89,10 +94,10 @@ func (m *gameModel) handleMovementPress(key string) tea.Cmd {
 	if !m.movement.enhanced {
 		dx, dy := movement(key)
 		if !m.movement.beginMove(time.Now(), dx, dy) {
-			m.skipRender = true
+			m.reuseLastView()
 			return nil
 		}
-		m.skipRender = true
+		m.reuseLastView()
 		return m.movePlayer(dx, dy)
 	}
 
@@ -100,7 +105,7 @@ func (m *gameModel) handleMovementPress(key string) tea.Cmd {
 	commands := make([]tea.Cmd, 0, 2)
 	dx, dy := heldMovement(m.movement.held)
 	if m.movement.beginMove(time.Now(), dx, dy) {
-		m.skipRender = true
+		m.reuseLastView()
 		commands = append(commands, m.movePlayer(dx, dy))
 	}
 	if !m.movement.looping {
@@ -119,14 +124,14 @@ func (m *gameModel) handleMovementTick() tea.Cmd {
 	commands := []tea.Cmd{movementTick(movementInterval(dx, dy))}
 	if m.movement.beginMove(time.Now(), dx, dy) {
 		if dx != 0 || dy != 0 {
-			m.skipRender = true
+			m.reuseLastView()
 			commands = append(commands, m.movePlayer(dx, dy))
 		} else {
 			m.movement.inFlight = false
 		}
 	}
 	if len(commands) == 1 {
-		m.skipRender = true
+		m.reuseLastView()
 	}
 	return tea.Batch(commands...)
 }

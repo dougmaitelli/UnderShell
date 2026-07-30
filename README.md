@@ -16,6 +16,27 @@ The engine provides:
 The bundled content is an example game built with the engine. Its topology and
 progression are documented separately in [docs/world.md](docs/world.md).
 
+## Play the public release
+
+The public UnderShell server is available directly over SSH. No game client or
+local installation is required:
+
+```sh
+ssh undershell.sh
+```
+
+On the first connection, enter a character name to begin. UnderShell associates
+the character with the SSH key used to connect, so use the same key on future
+connections to continue that character. If SSH has multiple keys available,
+select one explicitly:
+
+```sh
+ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes undershell.sh
+```
+
+Use WASD or the arrow keys to move, and press F1 in the game to see the complete
+controls. A terminal at least 46 columns wide and 14 rows tall is recommended.
+
 ## Requirements
 
 - Go 1.26 or newer

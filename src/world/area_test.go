@@ -133,6 +133,68 @@ func TestGeneratedAreaUsesBlankWalkableFloorAndFeatures(t *testing.T) {
 	}
 }
 
+func TestGeneratedAreaCarvesOpeningsForEdgeWaypoints(t *testing.T) {
+	areas, err := NewAreas([]AreaDefinition{
+		{
+			ID: "one", Name: "One", Width: 7, Height: 7,
+			Spawn: Point{X: 4, Y: 5},
+			Waypoints: []WaypointDefinition{{
+				X: 1, Y: 2, Width: 3, Height: 3,
+				DestinationArea: "two", DestinationX: 1, DestinationY: 1,
+			}},
+		},
+		{
+			ID: "two", Name: "Two",
+			Layout: []string{"###", "#.#", "###"},
+			Spawn:  Point{X: 1, Y: 1},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	area, _ := areas.Area("one")
+	for y := 2; y <= 4; y++ {
+		point := Point{X: 0, Y: y}
+		if !area.Walkable(point) {
+			t.Fatalf("edge waypoint tile at (%d,%d) was not opened", point.X, point.Y)
+		}
+		if _, ok := area.Waypoint(point); !ok {
+			t.Fatalf("edge opening at (%d,%d) is not a waypoint", point.X, point.Y)
+		}
+	}
+	if area.Walkable(Point{X: 0, Y: 1}) {
+		t.Fatal("edge outside the waypoint opening became walkable")
+	}
+}
+
+func TestGeneratedAreaKeepsInteriorWaypointsInsideBorder(t *testing.T) {
+	areas, err := NewAreas([]AreaDefinition{
+		{
+			ID: "one", Name: "One", Width: 7, Height: 7,
+			Spawn: Point{X: 1, Y: 1},
+			Waypoints: []WaypointDefinition{{
+				X: 3, Y: 3, DestinationArea: "two",
+				DestinationX: 1, DestinationY: 1,
+			}},
+		},
+		{
+			ID: "two", Name: "Two",
+			Layout: []string{"###", "#.#", "###"},
+			Spawn:  Point{X: 1, Y: 1},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	area, _ := areas.Area("one")
+	if _, ok := area.Waypoint(Point{X: 3, Y: 3}); !ok {
+		t.Fatal("interior waypoint was not retained")
+	}
+	if area.Walkable(Point{X: 3, Y: 0}) {
+		t.Fatal("interior waypoint opened the generated border")
+	}
+}
+
 func TestSemanticTerrainTilesControlMovement(t *testing.T) {
 	area := &Area{
 		Layout: []string{"#T~≈*fW=.^"},

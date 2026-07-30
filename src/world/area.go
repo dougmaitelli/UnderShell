@@ -289,7 +289,8 @@ func buildArea(
 	if definition.ID == "" || definition.Name == "" {
 		return nil, errors.New("id and name are required")
 	}
-	if len(definition.Layout) == 0 {
+	generatedLayout := len(definition.Layout) == 0
+	if generatedLayout {
 		layout, err := expandLayout(definition)
 		if err != nil {
 			return nil, err
@@ -335,6 +336,11 @@ func buildArea(
 		return nil, errors.New("spawn point must be on a walkable tile")
 	}
 	for _, waypoint := range definition.Waypoints {
+		if generatedLayout {
+			waypoint = expandGeneratedEdgeWaypoint(
+				waypoint, area.Width, area.Height,
+			)
+		}
 		if waypoint.Width == 0 {
 			waypoint.Width = 1
 		}
@@ -449,12 +455,60 @@ func expandLayout(definition AreaDefinition) ([]string, error) {
 			}
 		}
 	}
+	for _, waypoint := range definition.Waypoints {
+		waypoint = expandGeneratedEdgeWaypoint(
+			waypoint, definition.Width, definition.Height,
+		)
+		width, height := waypoint.Width, waypoint.Height
+		if width < 1 || height < 1 ||
+			waypoint.X < 0 || waypoint.Y < 0 ||
+			waypoint.X+width > definition.Width ||
+			waypoint.Y+height > definition.Height {
+			return nil, fmt.Errorf(
+				"waypoint at (%d,%d) is outside the generated layout",
+				waypoint.X, waypoint.Y,
+			)
+		}
+		for y := waypoint.Y; y < waypoint.Y+height; y++ {
+			for x := waypoint.X; x < waypoint.X+width; x++ {
+				if x == 0 || y == 0 ||
+					x == definition.Width-1 || y == definition.Height-1 {
+					grid[y][x] = '.'
+				}
+			}
+		}
+	}
 
 	layout := make([]string, len(grid))
 	for y, row := range grid {
 		layout[y] = string(row)
 	}
 	return layout, nil
+}
+
+func expandGeneratedEdgeWaypoint(
+	waypoint WaypointDefinition,
+	width, height int,
+) WaypointDefinition {
+	if waypoint.Width == 0 {
+		waypoint.Width = 1
+	}
+	if waypoint.Height == 0 {
+		waypoint.Height = 1
+	}
+	if waypoint.X == 1 {
+		waypoint.X = 0
+		waypoint.Width++
+	} else if waypoint.X+waypoint.Width == width-1 {
+		waypoint.Width++
+	}
+	if waypoint.Y == 1 {
+		waypoint.Y = 0
+		waypoint.Height++
+	} else if waypoint.Y+waypoint.Height == height-1 {
+		waypoint.Height++
+	}
+	return waypoint
 }
 
 func singleTile(value string, fallback rune) (rune, error) {

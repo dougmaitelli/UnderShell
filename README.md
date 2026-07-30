@@ -453,6 +453,11 @@ accent colors and can be `stone`, `verdant`, `redwood`, `marsh`, `coastal`,
 `frost`, `ember`, `sunlit`, `crystal`, `astral`, `village`, or `iron`. An
 omitted or unknown palette uses `stone`.
 
+In generated layouts, a waypoint placed one tile inside a map boundary is
+automatically extended through that boundary and carves a walkable opening in
+the border. Interior waypoints remain regular portal regions. Explicit layouts
+retain full control and must include their own walkable edge opening.
+
 #### Reusable map objects
 
 Static multi-tile assets can be defined once in `OBJECTS_PATH` and stamped

@@ -21,7 +21,10 @@ type movementState struct {
 	nextMove         time.Time
 }
 
-const movementRepeatInterval = 100 * time.Millisecond
+const (
+	horizontalMovementInterval = 75 * time.Millisecond
+	verticalMovementInterval   = 100 * time.Millisecond
+)
 
 func newMovementState() movementState {
 	return movementState{
@@ -61,13 +64,20 @@ func (s *movementState) finishStep(generation uint64) {
 	}
 }
 
-func (s *movementState) beginMove(now time.Time) bool {
-	if s.inFlight || now.Before(s.nextMove) {
+func (s *movementState) beginMove(now time.Time, dx, dy int) bool {
+	if (dx == 0 && dy == 0) || s.inFlight || now.Before(s.nextMove) {
 		return false
 	}
 	s.inFlight = true
-	s.nextMove = now.Add(movementRepeatInterval)
+	s.nextMove = now.Add(movementInterval(dx, dy))
 	return true
+}
+
+func movementInterval(_, dy int) time.Duration {
+	if dy != 0 {
+		return verticalMovementInterval
+	}
+	return horizontalMovementInterval
 }
 
 func (m *gameModel) handleMovementPress(key string) tea.Cmd {
@@ -78,7 +88,7 @@ func (m *gameModel) handleMovementPress(key string) tea.Cmd {
 	m.movement.setFacing(movement(key))
 	if !m.movement.enhanced {
 		dx, dy := movement(key)
-		if !m.movement.beginMove(time.Now()) {
+		if !m.movement.beginMove(time.Now(), dx, dy) {
 			m.skipRender = true
 			return nil
 		}
@@ -88,14 +98,14 @@ func (m *gameModel) handleMovementPress(key string) tea.Cmd {
 
 	m.movement.held[direction] = true
 	commands := make([]tea.Cmd, 0, 2)
-	if m.movement.beginMove(time.Now()) {
-		dx, dy := heldMovement(m.movement.held)
+	dx, dy := heldMovement(m.movement.held)
+	if m.movement.beginMove(time.Now(), dx, dy) {
 		m.skipRender = true
 		commands = append(commands, m.movePlayer(dx, dy))
 	}
 	if !m.movement.looping {
 		m.movement.looping = true
-		commands = append(commands, movementTick())
+		commands = append(commands, movementTick(movementInterval(dx, dy)))
 	}
 	return tea.Batch(commands...)
 }
@@ -105,9 +115,9 @@ func (m *gameModel) handleMovementTick() tea.Cmd {
 		m.movement.looping = false
 		return nil
 	}
-	commands := []tea.Cmd{movementTick()}
-	if m.movement.beginMove(time.Now()) {
-		dx, dy := heldMovement(m.movement.held)
+	dx, dy := heldMovement(m.movement.held)
+	commands := []tea.Cmd{movementTick(movementInterval(dx, dy))}
+	if m.movement.beginMove(time.Now(), dx, dy) {
 		if dx != 0 || dy != 0 {
 			m.skipRender = true
 			commands = append(commands, m.movePlayer(dx, dy))
@@ -121,8 +131,8 @@ func (m *gameModel) handleMovementTick() tea.Cmd {
 	return tea.Batch(commands...)
 }
 
-func movementTick() tea.Cmd {
-	return tea.Tick(movementRepeatInterval, func(time.Time) tea.Msg {
+func movementTick(interval time.Duration) tea.Cmd {
+	return tea.Tick(interval, func(time.Time) tea.Msg {
 		return movementTickMsg{}
 	})
 }

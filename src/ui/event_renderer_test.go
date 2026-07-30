@@ -55,3 +55,23 @@ func TestEventsRemainVisibleWithMenuOpen(t *testing.T) {
 		t.Fatalf("event and menu overlays were not both visible: %q", plain)
 	}
 }
+
+func TestEventPanelUsesAvailableWidthBeforeWrapping(t *testing.T) {
+	message := "Quest completed: The Long Road Home (+30 gold)"
+	game := strings.Repeat(strings.Repeat(" ", 80)+"\n", 23) +
+		strings.Repeat(" ", 80)
+	plain := ansi.Strip(EventRenderer{}.RenderOver(
+		game, 80, 24,
+		[]EventView{{Kind: world.EventQuest, Message: message}},
+	))
+	if !strings.Contains(plain, "• "+message) {
+		t.Fatalf("event wrapped despite fitting in the terminal: %q", plain)
+	}
+}
+
+func TestWrappedTextUsesTerminalDisplayWidth(t *testing.T) {
+	lines := wrapEventText("界界界 ok", 6)
+	if len(lines) != 2 || lines[0] != "界界界" || lines[1] != "ok" {
+		t.Fatalf("display-width wrapping = %#v", lines)
+	}
+}

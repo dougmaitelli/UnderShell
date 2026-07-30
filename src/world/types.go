@@ -113,13 +113,14 @@ type ConsumableResult struct {
 }
 
 const (
-	attackRange           = 2
-	pickupRange           = 2
-	enemyAggroRange       = 8
-	playerMaxHealth       = 10
-	enemyAttackInterval   = 1500 * time.Millisecond
-	playerMoveInterval    = 100 * time.Millisecond
-	vitalityHealthPerRank = 5
-	chatHistoryLimit      = 10
-	chatMessageLimit      = 200
+	attackRange            = 2
+	pickupRange            = 2
+	enemyAggroRange        = 8
+	playerMaxHealth        = 10
+	enemyAttackInterval    = 1500 * time.Millisecond
+	horizontalMoveInterval = 75 * time.Millisecond
+	verticalMoveInterval   = 100 * time.Millisecond
+	vitalityHealthPerRank  = 5
+	chatHistoryLimit       = 10
+	chatMessageLimit       = 200
 )

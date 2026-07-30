@@ -98,7 +98,7 @@ func (s *playerSystem) move(
 		now.Before(player.nextMove) {
 		return player.Player
 	}
-	player.nextMove = now.Add(playerMoveInterval)
+	player.nextMove = now.Add(playerMovementInterval(dx, dy))
 	previousAreaID, previousX, previousY := player.AreaID, player.X, player.Y
 	s.moveActive(player, dx, dy)
 	if player.AreaID != previousAreaID ||
@@ -107,6 +107,13 @@ func (s *playerSystem) move(
 		broadcast()
 	}
 	return player.Player
+}
+
+func playerMovementInterval(_, dy int) time.Duration {
+	if dy != 0 {
+		return verticalMoveInterval
+	}
+	return horizontalMoveInterval
 }
 
 func (s *playerSystem) leave(id int64, token string) bool {

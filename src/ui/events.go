@@ -6,12 +6,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"sshrpg/src/world"
 )
 
 const eventLineLimit = 10
-const eventTextWidth = 28
 
 type EventView struct {
 	Kind    world.EventKind
@@ -70,9 +70,10 @@ func (EventRenderer) RenderOver(game string, width, height int, events []EventVi
 		kind world.EventKind
 		text string
 	}
+	textWidth := eventPanelTextWidth(width, events)
 	lines := make([]styledLine, 0, len(events))
 	for _, event := range events {
-		wrapped := wrapEventText("• "+event.Message, eventTextWidth)
+		wrapped := wrapEventText("• "+event.Message, textWidth)
 		for _, line := range wrapped {
 			lines = append(lines, styledLine{kind: event.Kind, text: line})
 		}
@@ -90,7 +91,7 @@ func (EventRenderer) RenderOver(game string, width, height int, events []EventVi
 		eventTitleStyle.Render("EVENTS"),
 		strings.Join(rendered, "\n"),
 	)
-	window := eventWindowStyle.Render(body)
+	window := eventWindowStyle.Width(textWidth + 4).Render(body)
 	windowWidth, windowHeight := lipgloss.Size(window)
 	x := max(width-windowWidth-1, 0)
 	y := max(height-windowHeight-3, 1)
@@ -104,32 +105,20 @@ func wrapEventText(value string, width int) []string {
 	if width < 1 {
 		return nil
 	}
-	words := strings.Fields(value)
-	lines := make([]string, 0, 2)
-	current := ""
-	for _, word := range words {
-		for len([]rune(word)) > width {
-			if current != "" {
-				lines = append(lines, current)
-				current = ""
-			}
-			runes := []rune(word)
-			lines = append(lines, string(runes[:width]))
-			word = string(runes[width:])
-		}
-		if current == "" {
-			current = word
-		} else if len([]rune(current))+1+len([]rune(word)) <= width {
-			current += " " + word
-		} else {
-			lines = append(lines, current)
-			current = word
-		}
+	wrapped := ansi.Wrap(strings.TrimSpace(value), width, "")
+	if wrapped == "" {
+		return nil
 	}
-	if current != "" {
-		lines = append(lines, current)
+	return strings.Split(wrapped, "\n")
+}
+
+func eventPanelTextWidth(width int, events []EventView) int {
+	available := max(width-4, 1)
+	desired := lipgloss.Width("EVENTS")
+	for _, event := range events {
+		desired = max(desired, lipgloss.Width("• "+event.Message))
 	}
-	return lines
+	return min(desired, available)
 }
 
 func eventStyle(kind world.EventKind) lipgloss.Style {
@@ -160,7 +149,6 @@ var (
 			Bold(true).
 			Foreground(lipgloss.Color("#E2E8F0"))
 	eventWindowStyle = lipgloss.NewStyle().
-				Width(eventTextWidth).
 				Padding(0, 1).
 				Border(lipgloss.RoundedBorder()).
 				BorderForeground(lipgloss.Color("#475569"))

@@ -30,6 +30,21 @@ func TestMovementKeys(t *testing.T) {
 	}
 }
 
+func TestMovementIntervalsAccountForTerminalAxis(t *testing.T) {
+	if interval := movementInterval(1, 0); interval != horizontalMovementInterval {
+		t.Fatalf("horizontal movement interval = %s", interval)
+	}
+	if interval := movementInterval(0, 1); interval != verticalMovementInterval {
+		t.Fatalf("vertical movement interval = %s", interval)
+	}
+	if interval := movementInterval(1, 1); interval != verticalMovementInterval {
+		t.Fatalf("diagonal movement interval = %s", interval)
+	}
+	if verticalMovementInterval <= horizontalMovementInterval {
+		t.Fatal("vertical movement must be slower than horizontal movement")
+	}
+}
+
 func TestEnhancedMovementKeepsEarlierDirectionHeld(t *testing.T) {
 	model := newGameModel(Repositories{}, nil, nil, Identity{}, &domain.Character{ID: 1}, nil)
 	model.phase = phasePlaying
@@ -489,6 +504,19 @@ func TestQuestGiverInteractionAndJournal(t *testing.T) {
 	plain = ansi.Strip(model.View().Content)
 	if !strings.Contains(plain, "Thank you for your earlier help.") {
 		t.Fatalf("completed dialogue was not rendered: %q", plain)
+	}
+}
+
+func TestQuestDialogueUsesAvailableTerminalWidth(t *testing.T) {
+	message := "The cavern bats are elusive. Keep searching until you have three intact Bat Wings."
+	background := strings.Repeat(strings.Repeat(" ", 100)+"\n", 23) +
+		strings.Repeat(" ", 100)
+	plain := ansi.Strip(QuestDialogueRenderer{}.RenderOver(
+		background, 100, 24,
+		QuestDialogueView{NPCName: "Orin", Text: message},
+	))
+	if !strings.Contains(plain, message) {
+		t.Fatalf("dialogue wrapped despite fitting in the terminal: %q", plain)
 	}
 }
 

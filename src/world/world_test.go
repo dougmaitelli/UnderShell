@@ -78,7 +78,7 @@ func TestMovementRateIsLimitedAndOnlyAcceptedMovesBroadcast(t *testing.T) {
 	}
 	assertNoSnapshot(t, session.Updates)
 
-	time.Sleep(playerMoveInterval)
+	time.Sleep(horizontalMoveInterval)
 	next := manager.Move(1, session.Token, 1, 0)
 	if next.X != 3 {
 		t.Fatalf("move after cooldown ended at x=%d, want 3", next.X)
@@ -90,6 +90,18 @@ func TestMovementRateIsLimitedAndOnlyAcceptedMovesBroadcast(t *testing.T) {
 		t.Fatalf("multi-tile move ended at x=%d, want 3", jump.X)
 	}
 	assertNoSnapshot(t, session.Updates)
+}
+
+func TestAuthoritativeMovementIntervalsMatchAxis(t *testing.T) {
+	if interval := playerMovementInterval(1, 0); interval != horizontalMoveInterval {
+		t.Fatalf("horizontal movement interval = %s", interval)
+	}
+	if interval := playerMovementInterval(0, 1); interval != verticalMoveInterval {
+		t.Fatalf("vertical movement interval = %s", interval)
+	}
+	if interval := playerMovementInterval(1, 1); interval != verticalMoveInterval {
+		t.Fatalf("diagonal movement interval = %s", interval)
+	}
 }
 
 func TestWallsBlockMovementAndReconnectReplacesSession(t *testing.T) {

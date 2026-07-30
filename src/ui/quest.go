@@ -425,24 +425,32 @@ func (QuestDialogueRenderer) RenderOver(
 	width, height int,
 	dialogue QuestDialogueView,
 ) string {
-	windowWidth := min(max(width-4, 36), 72)
-	contentWidth := max(windowWidth-6, 1)
-	text := strings.Join(wrapEventText(dialogue.Text, contentWidth), "\n")
-	body := []string{
-		questDialogueNameStyle.Render(dialogue.NPCName),
-		"",
-		text,
-	}
 	prompt := "E/Space: continue • Esc: close"
 	if dialogue.CanAccept {
 		prompt = "E/Space: accept quest • Esc: decline"
 	} else if dialogue.CanComplete {
 		prompt = "E/Space: hand over items • Esc: close"
 	}
+	availableWidth := max(width-10, 1)
+	contentWidth := min(
+		max(
+			30,
+			lipgloss.Width(dialogue.NPCName),
+			lipgloss.Width(dialogue.Text),
+			lipgloss.Width(prompt),
+		),
+		availableWidth,
+	)
+	text := strings.Join(wrapEventText(dialogue.Text, contentWidth), "\n")
+	body := []string{
+		questDialogueNameStyle.Render(dialogue.NPCName),
+		"",
+		text,
+	}
 	body = append(body, "", mutedStyle.Render(prompt))
 
 	window := questDialogueWindowStyle.
-		Width(contentWidth).
+		Width(contentWidth + 6).
 		Render(
 			lipgloss.JoinVertical(lipgloss.Left, body...),
 		)

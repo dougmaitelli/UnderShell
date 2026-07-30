@@ -36,15 +36,15 @@
     { "x": 15, "y": 43, "width": 3, "height": 9, "tile": "#" },
     { "x": 46, "y": 43, "width": 3, "height": 9, "tile": "#" },
     { "x": 15, "y": 49, "width": 34, "height": 3, "tile": "#" },
-    { "x": 30, "y": 49, "width": 4, "height": 3, "tile": "." },
+    { "x": 30, "y": 40, "width": 4, "height": 3, "tile": "." },
     { "x": 63, "y": 46, "width": 3, "height": 7, "tile": "#" },
     { "x": 94, "y": 46, "width": 3, "height": 7, "tile": "#" },
     { "x": 63, "y": 50, "width": 34, "height": 3, "tile": "#" },
-    { "x": 78, "y": 50, "width": 4, "height": 3, "tile": "." },
+    { "x": 78, "y": 43, "width": 4, "height": 3, "tile": "." },
     { "x": 111, "y": 43, "width": 3, "height": 9, "tile": "#" },
     { "x": 142, "y": 43, "width": 3, "height": 9, "tile": "#" },
     { "x": 111, "y": 49, "width": 34, "height": 3, "tile": "#" },
-    { "x": 126, "y": 49, "width": 4, "height": 3, "tile": "." }
+    { "x": 126, "y": 40, "width": 4, "height": 3, "tile": "." }
   ],
   "spawn": { "x": 8, "y": 27 },
   "npcs": [

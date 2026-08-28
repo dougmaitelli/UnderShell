@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"sync"
 
 	"sshrpg/src/domain"
 	"sshrpg/src/enemy"
@@ -15,13 +16,16 @@ import (
 
 // Manager is the public facade for the serialized world runtime.
 type Manager struct {
-	areas   *Areas
-	items   *item.Items
-	enemies *enemy.Enemies
-	quests  *quest.Quests
-	events  chan any
-	done    chan struct{}
+	areas     *Areas
+	items     *item.Items
+	enemies   *enemy.Enemies
+	quests    *quest.Quests
+	events    chan any
+	done      chan struct{}
+	closeOnce sync.Once
 }
+
+var ErrWorldClosed = errors.New("world is closed")
 
 func New(
 	areas *Areas,
@@ -47,52 +51,66 @@ func (m *Manager) NPC(id string) (*npc.Definition, *Area, bool) {
 	return m.areas.NPC(id)
 }
 
-func (m *Manager) Close() { close(m.done) }
+func (m *Manager) Close() { m.closeOnce.Do(func() { close(m.done) }) }
+
+func request[T any](m *Manager, build func(chan T) any) (T, bool) {
+	select {
+	case <-m.done:
+		var zero T
+		return zero, false
+	default:
+	}
+	reply := make(chan T, 1)
+	select {
+	case m.events <- build(reply):
+	case <-m.done:
+		var zero T
+		return zero, false
+	}
+	select {
+	case result := <-reply:
+		return result, true
+	case <-m.done:
+		var zero T
+		return zero, false
+	}
+}
 
 func (m *Manager) Join(player Player) Session {
-	reply := make(chan Session)
-	m.events <- joinRequest{player: player, reply: reply}
-	return <-reply
+	result, _ := request(m, func(reply chan Session) any {
+		return joinRequest{player: player, reply: reply}
+	})
+	return result
 }
 
 func (m *Manager) Move(id int64, token string, dx, dy int) Player {
-	reply := make(chan Player)
-	m.events <- moveRequest{id: id, token: token, dx: dx, dy: dy, reply: reply}
-	return <-reply
+	result, _ := request(m, func(reply chan Player) any {
+		return moveRequest{id: id, token: token, dx: dx, dy: dy, reply: reply}
+	})
+	return result
 }
 
 func (m *Manager) Attack(id int64, token string) AttackResult {
-	reply := make(chan AttackResult)
-	select {
-	case m.events <- attackRequest{id: id, token: token, reply: reply}:
-		return <-reply
-	case <-m.done:
-		return AttackResult{}
-	}
+	result, _ := request(m, func(reply chan AttackResult) any {
+		return attackRequest{id: id, token: token, reply: reply}
+	})
+	return result
 }
 
 func (m *Manager) Pickup(id int64, token string) PickupResult {
-	reply := make(chan PickupResult)
-	select {
-	case m.events <- pickupRequest{id: id, token: token, reply: reply}:
-		return <-reply
-	case <-m.done:
-		return PickupResult{}
-	}
+	result, _ := request(m, func(reply chan PickupResult) any {
+		return pickupRequest{id: id, token: token, reply: reply}
+	})
+	return result
 }
 
 // RestorePickup returns a claimed item to the world when inventory persistence
 // fails, preventing a transient database error from destroying loot.
 func (m *Manager) RestorePickup(id int64, token string, item GroundItem) bool {
-	reply := make(chan bool)
-	select {
-	case m.events <- restorePickupRequest{
-		id: id, token: token, item: item, reply: reply,
-	}:
-		return <-reply
-	case <-m.done:
-		return false
-	}
+	result, _ := request(m, func(reply chan bool) any {
+		return restorePickupRequest{id: id, token: token, item: item, reply: reply}
+	})
+	return result
 }
 
 func (m *Manager) UseConsumable(
@@ -107,15 +125,10 @@ func (m *Manager) UseConsumable(
 	if !ok || definition.Type != item.TypeConsumable {
 		return ConsumableResult{}
 	}
-	reply := make(chan ConsumableResult)
-	select {
-	case m.events <- useConsumableRequest{
-		id: id, token: token, definition: definition, reply: reply,
-	}:
-		return <-reply
-	case <-m.done:
-		return ConsumableResult{}
-	}
+	result, _ := request(m, func(reply chan ConsumableResult) any {
+		return useConsumableRequest{id: id, token: token, definition: definition, reply: reply}
+	})
+	return result
 }
 
 func (m *Manager) UpdateEquipment(
@@ -123,153 +136,124 @@ func (m *Manager) UpdateEquipment(
 	token string,
 	stats item.EquipmentStats,
 ) Player {
-	reply := make(chan Player)
-	select {
-	case m.events <- updateEquipmentRequest{
-		id: id, token: token, stats: stats, reply: reply,
-	}:
-		return <-reply
-	case <-m.done:
-		return Player{}
-	}
+	result, _ := request(m, func(reply chan Player) any {
+		return updateEquipmentRequest{id: id, token: token, stats: stats, reply: reply}
+	})
+	return result
 }
 
 func (m *Manager) SpendSkillPoint(id int64, token, skill string) Player {
-	reply := make(chan Player)
-	select {
-	case m.events <- spendSkillRequest{id: id, token: token, skill: skill, reply: reply}:
-		return <-reply
-	case <-m.done:
-		return Player{}
-	}
+	result, _ := request(m, func(reply chan Player) any {
+		return spendSkillRequest{id: id, token: token, skill: skill, reply: reply}
+	})
+	return result
 }
 
 func (m *Manager) Chat(id int64, token, message string) bool {
-	reply := make(chan bool)
-	select {
-	case m.events <- chatRequest{id: id, token: token, message: message, reply: reply}:
-		return <-reply
-	case <-m.done:
-		return false
-	}
+	result, _ := request(m, func(reply chan bool) any {
+		return chatRequest{id: id, token: token, message: message, reply: reply}
+	})
+	return result
 }
 
 func (m *Manager) ServerMessage(message string) bool {
-	reply := make(chan bool)
-	select {
-	case m.events <- serverChatRequest{message: message, reply: reply}:
-		return <-reply
-	case <-m.done:
-		return false
-	}
+	result, _ := request(m, func(reply chan bool) any {
+		return serverChatRequest{message: message, reply: reply}
+	})
+	return result
 }
 
 func (m *Manager) AuthenticatedRole(
 	id int64,
 	token string,
 ) (domain.CharacterRole, bool) {
-	reply := make(chan adminAuthorizeResult)
-	select {
-	case m.events <- adminAuthorizeRequest{id: id, token: token, reply: reply}:
-		result := <-reply
-		return result.role, result.ok
-	case <-m.done:
+	result, open := request(m, func(reply chan adminAuthorizeResult) any {
+		return adminAuthorizeRequest{id: id, token: token, reply: reply}
+	})
+	if !open {
 		return "", false
 	}
+	return result.role, result.ok
 }
 
 func (m *Manager) FindOnlinePlayer(name string) (Player, error) {
-	reply := make(chan adminPlayerResult)
-	select {
-	case m.events <- adminFindPlayerRequest{name: name, reply: reply}:
-		result := <-reply
-		return result.player, result.err
-	case <-m.done:
-		return Player{}, errors.New("world is closed")
+	result, open := request(m, func(reply chan adminPlayerResult) any {
+		return adminFindPlayerRequest{name: name, reply: reply}
+	})
+	if !open {
+		return Player{}, ErrWorldClosed
 	}
+	return result.player, result.err
 }
 
 func (m *Manager) GrantExperience(name string, amount int64) (Player, error) {
-	reply := make(chan adminPlayerResult)
-	select {
-	case m.events <- adminGrantExperienceRequest{name: name, amount: amount, reply: reply}:
-		result := <-reply
-		return result.player, result.err
-	case <-m.done:
-		return Player{}, errors.New("world is closed")
+	result, open := request(m, func(reply chan adminPlayerResult) any {
+		return adminGrantExperienceRequest{name: name, amount: amount, reply: reply}
+	})
+	if !open {
+		return Player{}, ErrWorldClosed
 	}
+	return result.player, result.err
 }
 
 func (m *Manager) GrantLevels(name string, amount int) (Player, error) {
-	reply := make(chan adminPlayerResult)
-	select {
-	case m.events <- adminGrantLevelsRequest{name: name, amount: amount, reply: reply}:
-		result := <-reply
-		return result.player, result.err
-	case <-m.done:
-		return Player{}, errors.New("world is closed")
+	result, open := request(m, func(reply chan adminPlayerResult) any {
+		return adminGrantLevelsRequest{name: name, amount: amount, reply: reply}
+	})
+	if !open {
+		return Player{}, ErrWorldClosed
 	}
+	return result.player, result.err
 }
 
 func (m *Manager) TeleportToArea(name, area string) (Player, error) {
-	reply := make(chan adminPlayerResult)
-	select {
-	case m.events <- adminTeleportAreaRequest{name: name, area: area, reply: reply}:
-		result := <-reply
-		return result.player, result.err
-	case <-m.done:
-		return Player{}, errors.New("world is closed")
+	result, open := request(m, func(reply chan adminPlayerResult) any {
+		return adminTeleportAreaRequest{name: name, area: area, reply: reply}
+	})
+	if !open {
+		return Player{}, ErrWorldClosed
 	}
+	return result.player, result.err
 }
 
 func (m *Manager) TeleportToPlayer(name, destination string) (Player, error) {
-	reply := make(chan adminPlayerResult)
-	select {
-	case m.events <- adminTeleportPlayerRequest{
-		name: name, destination: destination, reply: reply,
-	}:
-		result := <-reply
-		return result.player, result.err
-	case <-m.done:
-		return Player{}, errors.New("world is closed")
+	result, open := request(m, func(reply chan adminPlayerResult) any {
+		return adminTeleportPlayerRequest{name: name, destination: destination, reply: reply}
+	})
+	if !open {
+		return Player{}, ErrWorldClosed
 	}
+	return result.player, result.err
 }
 
 func (m *Manager) NotifyPlayer(id int64, message string, inventoryChanged bool) bool {
-	reply := make(chan bool)
-	select {
-	case m.events <- adminNotifyRequest{
-		id: id, message: message, inventoryChanged: inventoryChanged, reply: reply,
-	}:
-		return <-reply
-	case <-m.done:
-		return false
-	}
+	result, _ := request(m, func(reply chan bool) any {
+		return adminNotifyRequest{id: id, message: message, inventoryChanged: inventoryChanged, reply: reply}
+	})
+	return result
 }
 
 func (m *Manager) SetPlayerRole(
 	name string,
 	role domain.CharacterRole,
 ) (Player, error) {
-	reply := make(chan adminPlayerResult)
-	select {
-	case m.events <- adminSetRoleRequest{name: name, role: role, reply: reply}:
-		result := <-reply
-		return result.player, result.err
-	case <-m.done:
-		return Player{}, errors.New("world is closed")
+	result, open := request(m, func(reply chan adminPlayerResult) any {
+		return adminSetRoleRequest{name: name, role: role, reply: reply}
+	})
+	if !open {
+		return Player{}, ErrWorldClosed
 	}
+	return result.player, result.err
 }
 
 func (m *Manager) KickPlayer(name, reason string) (Player, error) {
-	reply := make(chan adminPlayerResult)
-	select {
-	case m.events <- adminKickRequest{name: name, reason: reason, reply: reply}:
-		result := <-reply
-		return result.player, result.err
-	case <-m.done:
-		return Player{}, errors.New("world is closed")
+	result, open := request(m, func(reply chan adminPlayerResult) any {
+		return adminKickRequest{name: name, reason: reason, reply: reply}
+	})
+	if !open {
+		return Player{}, ErrWorldClosed
 	}
+	return result.player, result.err
 }
 
 func (m *Manager) Leave(id int64, token string) {
@@ -281,13 +265,10 @@ func (m *Manager) Leave(id int64, token string) {
 
 // DefeatEnemy removes a live enemy. Its owning spawn begins its respawn timer.
 func (m *Manager) DefeatEnemy(id uint64) bool {
-	reply := make(chan bool)
-	select {
-	case m.events <- defeatEnemyRequest{id: id, reply: reply}:
-		return <-reply
-	case <-m.done:
-		return false
-	}
+	result, _ := request(m, func(reply chan bool) any {
+		return defeatEnemyRequest{id: id, reply: reply}
+	})
+	return result
 }
 
 func (m *Manager) run() {

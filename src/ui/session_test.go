@@ -1,9 +1,12 @@
 package ui
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -15,6 +18,39 @@ import (
 	"sshrpg/src/quest"
 	"sshrpg/src/world"
 )
+
+func TestGameModelDatabaseContextHasDeadlineAndCancelsOnKick(t *testing.T) {
+	parent, cancelParent := context.WithCancel(context.Background())
+	defer cancelParent()
+	model := newGameModel(
+		Repositories{}, nil, nil, Identity{},
+		&domain.Character{ID: 1}, nil, parent,
+	)
+
+	operationContext, cancelOperation := model.databaseContext()
+	defer cancelOperation()
+	deadline, ok := operationContext.Deadline()
+	if !ok {
+		t.Fatal("database context has no deadline")
+	}
+	remaining := time.Until(deadline)
+	if remaining <= 0 || remaining > databaseOperationTimeout {
+		t.Fatalf("database deadline remaining = %s", remaining)
+	}
+
+	_, command := model.Update(worldKickedMsg{reason: "replaced", ok: true})
+	if command == nil {
+		t.Fatal("kick did not request program shutdown")
+	}
+	select {
+	case <-operationContext.Done():
+		if !errors.Is(operationContext.Err(), context.Canceled) {
+			t.Fatalf("operation context error = %v", operationContext.Err())
+		}
+	default:
+		t.Fatal("kick did not cancel pending database context")
+	}
+}
 
 func TestMovementKeys(t *testing.T) {
 	tests := map[string][2]int{

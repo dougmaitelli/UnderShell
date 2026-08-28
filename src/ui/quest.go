@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -343,7 +342,9 @@ func (m *gameModel) acceptQuest(
 ) tea.Cmd {
 	characterID := m.character.ID
 	return func() tea.Msg {
-		progress, err := m.repositories.Quests.Accept(context.Background(), repository.AcceptQuestParams{
+		ctx, cancel := m.databaseContext()
+		defer cancel()
+		progress, err := m.repositories.Quests.Accept(ctx, repository.AcceptQuestParams{
 			CharacterID: characterID, QuestID: definition.ID,
 			GiverID: giverID,
 		})
@@ -357,8 +358,10 @@ func (m *gameModel) acceptQuest(
 func (m *gameModel) completeQuest(definition *questconfig.Definition) tea.Cmd {
 	characterID := m.character.ID
 	return func() tea.Msg {
+		ctx, cancel := m.databaseContext()
+		defer cancel()
 		completion, err := m.repositories.Quests.Complete(
-			context.Background(), characterID, definition,
+			ctx, characterID, definition,
 		)
 		return questInteractionMsg{
 			kind: questCompleted, definition: definition,

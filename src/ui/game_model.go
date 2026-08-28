@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -23,6 +24,8 @@ const (
 )
 
 type gameModel struct {
+	ctx          context.Context
+	cancel       context.CancelFunc
 	repositories Repositories
 	world        *world.Manager
 	admin        *admin.Handler
@@ -122,7 +125,13 @@ func newGameModel(
 	identity Identity,
 	char *domain.Character,
 	inventory *domain.Inventory,
+	contexts ...context.Context,
 ) *gameModel {
+	parent := context.Background()
+	if len(contexts) > 0 && contexts[0] != nil {
+		parent = contexts[0]
+	}
+	modelContext, cancel := context.WithCancel(parent)
 	input := textinput.New()
 	input.Prompt = ""
 	input.Placeholder = "Your name"
@@ -141,6 +150,7 @@ func newGameModel(
 		questState = newQuestState(worldManager.Quests())
 	}
 	return &gameModel{
+		ctx: modelContext, cancel: cancel,
 		repositories: repositories,
 		world:        worldManager, log: log, identity: identity,
 		phase: currentPhase, input: input,
@@ -152,6 +162,12 @@ func newGameModel(
 		renderer:    NewRenderer(),
 		renderDirty: true,
 	}
+}
+
+const databaseOperationTimeout = 5 * time.Second
+
+func (m *gameModel) databaseContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(m.ctx, databaseOperationTimeout)
 }
 
 func (m *gameModel) Init() tea.Cmd {
@@ -251,8 +267,10 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.creating = false
 		if msg.err != nil {
 			if errors.Is(msg.err, repository.ErrCharacterKeyExists) {
+				ctx, cancel := m.databaseContext()
+				defer cancel()
 				if existing, err := m.repositories.Characters.FindByFingerprint(
-					context.Background(), m.identity.Fingerprint,
+					ctx, m.identity.Fingerprint,
 				); err == nil && existing != nil {
 					if existing.Banned {
 						m.message = bannedAccountMessage
@@ -260,7 +278,7 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					m.character = existing
 					inventory, inventoryErr := m.repositories.Inventories.FindOrCreate(
-						context.Background(), existing.ID,
+						ctx, existing.ID,
 					)
 					if inventoryErr != nil {
 						m.message = inventoryErr.Error()
@@ -323,6 +341,7 @@ func (m *gameModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.reuseLastView()
 			return m, nil
 		}
+		m.cancel()
 		m.message = msg.reason
 		return m, tea.Quit
 	case playerMovedMsg:

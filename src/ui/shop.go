@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -193,8 +192,10 @@ func (m *gameModel) updateShopInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m *gameModel) buyShopItem(stock npcconfig.ShopItem) tea.Cmd {
 	return func() tea.Msg {
+		ctx, cancel := m.databaseContext()
+		defer cancel()
 		result, err := m.repositories.Shops.BuyItem(
-			context.Background(), m.character.ID,
+			ctx, m.character.ID,
 			stock.Item.ID, stock.Item.MaxStack, stock.BuyPrice,
 		)
 		return shopTradeMsg{
@@ -205,8 +206,10 @@ func (m *gameModel) buyShopItem(stock npcconfig.ShopItem) tea.Cmd {
 
 func (m *gameModel) sellShopItem(entry shopSellEntry) tea.Cmd {
 	return func() tea.Msg {
+		ctx, cancel := m.databaseContext()
+		defer cancel()
 		result, err := m.repositories.Shops.SellItem(
-			context.Background(), m.character.ID,
+			ctx, m.character.ID,
 			entry.Item.Slot, entry.Item.ItemKey, entry.SellPrice,
 		)
 		return shopTradeMsg{result: result, itemName: entry.Name, err: err}

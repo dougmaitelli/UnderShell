@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -212,9 +211,11 @@ func (m *gameModel) consumableCanApply(definition *item.Definition) bool {
 
 func (m *gameModel) useConsumable(selected InventoryItemView) tea.Cmd {
 	return func() tea.Msg {
+		ctx, cancel := m.databaseContext()
+		defer cancel()
 		definition := selected.Definition
 		inventory, err := m.repositories.Inventories.ConsumeItem(
-			context.Background(), m.character.ID,
+			ctx, m.character.ID,
 			selected.Item.Slot, selected.Item.ItemKey,
 		)
 		if err != nil {
@@ -232,7 +233,7 @@ func (m *gameModel) useConsumable(selected InventoryItemView) tea.Cmd {
 			}
 		}
 		refunded, refundErr := m.repositories.Inventories.AddItem(
-			context.Background(), m.character.ID,
+			ctx, m.character.ID,
 			definition.ID, definition.MaxStack,
 		)
 		if refundErr != nil {
@@ -254,6 +255,8 @@ func (m *gameModel) useConsumable(selected InventoryItemView) tea.Cmd {
 
 func (m *gameModel) toggleEquipment(selected InventoryItemView) tea.Cmd {
 	return func() tea.Msg {
+		ctx, cancel := m.databaseContext()
+		defer cancel()
 		definition := selected.Definition
 		var (
 			inventory *domain.Inventory
@@ -262,13 +265,13 @@ func (m *gameModel) toggleEquipment(selected InventoryItemView) tea.Cmd {
 		)
 		if selected.Equipped {
 			inventory, err = m.repositories.Inventories.Unequip(
-				context.Background(), m.character.ID,
+				ctx, m.character.ID,
 				string(definition.EquipmentSlot),
 			)
 		} else {
 			equipped = true
 			inventory, err = m.repositories.Inventories.Equip(
-				context.Background(), m.character.ID,
+				ctx, m.character.ID,
 				selected.Item.Slot, selected.Item.ItemKey,
 				string(definition.EquipmentSlot),
 			)

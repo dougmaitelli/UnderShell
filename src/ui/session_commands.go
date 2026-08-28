@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"context"
 	"errors"
 
 	tea "charm.land/bubbletea/v2"
@@ -12,8 +11,10 @@ import (
 
 func (m *gameModel) createCharacter(name string) tea.Cmd {
 	return func() tea.Msg {
+		ctx, cancel := m.databaseContext()
+		defer cancel()
 		char, err := m.repositories.Characters.Create(
-			context.Background(),
+			ctx,
 			repository.CreateCharacterParams{
 				KeyFingerprint: m.identity.Fingerprint,
 				PublicKeyType:  m.identity.KeyType,
@@ -24,7 +25,7 @@ func (m *gameModel) createCharacter(name string) tea.Cmd {
 		if err != nil {
 			return characterCreatedMsg{err: err}
 		}
-		inventory, err := m.repositories.Inventories.FindOrCreate(context.Background(), char.ID)
+		inventory, err := m.repositories.Inventories.FindOrCreate(ctx, char.ID)
 		return characterCreatedMsg{character: char, inventory: inventory, err: err}
 	}
 }
@@ -90,11 +91,13 @@ func (m *gameModel) sendChat(message string) tea.Cmd {
 
 func (m *gameModel) executeAdminCommand(message string) tea.Cmd {
 	return func() tea.Msg {
+		ctx, cancel := m.databaseContext()
+		defer cancel()
 		if m.admin == nil {
 			return adminCommandMsg{err: errors.New("admin commands are unavailable")}
 		}
 		result, err := m.admin.ExecuteChat(
-			context.Background(),
+			ctx,
 			m.character.ID,
 			m.connection.session.Token,
 			m.character.Name,
@@ -106,8 +109,10 @@ func (m *gameModel) executeAdminCommand(message string) tea.Cmd {
 
 func (m *gameModel) reloadInventory() tea.Cmd {
 	return func() tea.Msg {
+		ctx, cancel := m.databaseContext()
+		defer cancel()
 		inventory, err := m.repositories.Inventories.FindOrCreate(
-			context.Background(), m.character.ID,
+			ctx, m.character.ID,
 		)
 		return inventoryReloadedMsg{inventory: inventory, err: err}
 	}
@@ -115,6 +120,8 @@ func (m *gameModel) reloadInventory() tea.Cmd {
 
 func (m *gameModel) storePickup(drop world.GroundItem) tea.Cmd {
 	return func() tea.Msg {
+		ctx, cancel := m.databaseContext()
+		defer cancel()
 		if drop.Item == nil {
 			return itemStoredMsg{
 				itemName: "",
@@ -122,7 +129,7 @@ func (m *gameModel) storePickup(drop world.GroundItem) tea.Cmd {
 			}
 		}
 		inventory, err := m.repositories.Inventories.AddItem(
-			context.Background(), m.character.ID, drop.Item.ID, drop.Item.MaxStack,
+			ctx, m.character.ID, drop.Item.ID, drop.Item.MaxStack,
 		)
 		if err != nil {
 			m.world.RestorePickup(
@@ -138,8 +145,10 @@ func (m *gameModel) storePickup(drop world.GroundItem) tea.Cmd {
 func (m *gameModel) savePosition() tea.Cmd {
 	id, areaID, x, y := m.character.ID, m.character.AreaID, m.character.X, m.character.Y
 	return func() tea.Msg {
+		ctx, cancel := m.databaseContext()
+		defer cancel()
 		return positionSavedMsg{err: m.repositories.Characters.UpdateLocation(
-			context.Background(), id, areaID, x, y,
+			ctx, id, areaID, x, y,
 		)}
 	}
 }
@@ -149,8 +158,10 @@ func (m *gameModel) saveProgress() tea.Cmd {
 	level, experience, skillPoints := m.character.Level, m.character.Experience, m.character.SkillPoints
 	attack, defense, vitality := m.character.Attack, m.character.Defense, m.character.Vitality
 	return func() tea.Msg {
+		ctx, cancel := m.databaseContext()
+		defer cancel()
 		return progressSavedMsg{err: m.repositories.Characters.UpdateProgress(
-			context.Background(), id, level, experience, skillPoints,
+			ctx, id, level, experience, skillPoints,
 			attack, defense, vitality,
 		)}
 	}
@@ -189,4 +200,5 @@ func (m *gameModel) leaveWorld() {
 		m.world.Leave(m.character.ID, m.connection.session.Token)
 		m.connection.joined = false
 	}
+	m.cancel()
 }

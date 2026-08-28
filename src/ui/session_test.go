@@ -16,8 +16,53 @@ import (
 	"sshrpg/src/item"
 	"sshrpg/src/npc"
 	"sshrpg/src/quest"
+	"sshrpg/src/repository"
 	"sshrpg/src/world"
 )
+
+type failingCharacterRepository struct {
+	err           error
+	locationCalls int
+	progressCalls int
+}
+
+func (r *failingCharacterRepository) FindByFingerprint(
+	context.Context, string,
+) (*domain.Character, error) {
+	return nil, r.err
+}
+
+func (r *failingCharacterRepository) Create(
+	context.Context, repository.CreateCharacterParams,
+) (*domain.Character, error) {
+	return nil, r.err
+}
+
+func (r *failingCharacterRepository) UpdateLocation(
+	context.Context, int64, string, int, int,
+) error {
+	r.locationCalls++
+	return r.err
+}
+
+func (r *failingCharacterRepository) UpdateProgress(
+	context.Context, int64, int, int64, int, int, int, int,
+) error {
+	r.progressCalls++
+	return r.err
+}
+
+func (r *failingCharacterRepository) UpdateRole(
+	context.Context, int64, domain.CharacterRole,
+) error {
+	return r.err
+}
+
+func (r *failingCharacterRepository) SetBanned(
+	context.Context, string, bool,
+) (*domain.Character, error) {
+	return nil, r.err
+}
 
 func TestGameModelDatabaseContextHasDeadlineAndCancelsOnKick(t *testing.T) {
 	parent, cancelParent := context.WithCancel(context.Background())
@@ -49,6 +94,32 @@ func TestGameModelDatabaseContextHasDeadlineAndCancelsOnKick(t *testing.T) {
 		}
 	default:
 		t.Fatal("kick did not cancel pending database context")
+	}
+}
+
+func TestPersistenceFailuresAreReturnedWithoutImplicitRetry(t *testing.T) {
+	persistenceErr := errors.New("persistence unavailable")
+	characters := &failingCharacterRepository{err: persistenceErr}
+	model := newGameModel(
+		Repositories{Characters: characters}, nil, nil, Identity{},
+		&domain.Character{ID: 7, AreaID: "meadow", X: 2, Y: 3, Level: 1},
+		nil,
+	)
+	defer model.cancel()
+
+	positionMessage := model.savePosition()().(positionSavedMsg)
+	if !errors.Is(positionMessage.err, persistenceErr) {
+		t.Fatalf("position save error = %v", positionMessage.err)
+	}
+	progressMessage := model.saveProgress()().(progressSavedMsg)
+	if !errors.Is(progressMessage.err, persistenceErr) {
+		t.Fatalf("progress save error = %v", progressMessage.err)
+	}
+	if characters.locationCalls != 1 || characters.progressCalls != 1 {
+		t.Fatalf(
+			"persistence calls = location %d, progress %d; want one each",
+			characters.locationCalls, characters.progressCalls,
+		)
 	}
 }
 

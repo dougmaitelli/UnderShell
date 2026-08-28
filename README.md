@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/undershell-logo.svg" alt="UnderShell shell prompt with a pixel-art player cursor" width="320">
+</p>
+
 # UnderShell
 
 UnderShell is a configurable multiplayer RPG engine that runs over SSH and

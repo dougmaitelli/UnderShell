@@ -44,30 +44,48 @@ func (r *BunInventoryRepository) AddItems(
 	if quantity < 1 {
 		return nil, errors.New("quantity must be at least 1")
 	}
-	tx, err := r.db.BeginTx(ctx, nil)
+	var inventory *domain.Inventory
+	err := runEconomicTransaction(ctx, r.db, "add inventory items", func(tx bun.Tx) error {
+		var err error
+		inventory, err = addItems(ctx, tx, characterID, itemKey, maxStack, quantity)
+		return err
+	})
 	if err != nil {
-		return nil, fmt.Errorf("begin add inventory items: %w", err)
+		return nil, err
 	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
+	return inventory, nil
+}
 
+func addItems(
+	ctx context.Context,
+	db bun.IDB,
+	characterID int64,
+	itemKey string,
+	maxStack int,
+	quantity int,
+) (*domain.Inventory, error) {
+	if err := lockInventory(ctx, db, characterID); err != nil {
+		return nil, err
+	}
 	for quantity > 0 {
 		stack := &entity.InventoryItem{}
-		err := tx.NewSelect().
+		err := lockForUpdate(db.NewSelect().
 			Model(stack).
 			Where("character_id = ?", characterID).
 			Where("item_key = ?", itemKey).
 			Where("quantity < ?", maxStack).
 			Order("slot ASC").
-			Limit(1).
-			Scan(ctx)
+			Limit(1), db).Scan(ctx)
 		if err == nil {
 			added := min(quantity, maxStack-stack.Quantity)
-			if _, err := incrementInventoryStack(
-				tx, characterID, stack.Slot, added,
-			).Exec(ctx); err != nil {
+			result, err := incrementInventoryStack(
+				db, characterID, stack.Slot, added,
+			).Where("quantity = ?", stack.Quantity).Exec(ctx)
+			if err != nil {
 				return nil, fmt.Errorf("increase inventory item: %w", err)
+			}
+			if err := requireOneRow(result, "increase inventory item"); err != nil {
+				return nil, err
 			}
 			quantity -= added
 			continue
@@ -76,7 +94,7 @@ func (r *BunInventoryRepository) AddItems(
 			return nil, fmt.Errorf("find inventory stack: %w", err)
 		}
 		var nextSlot int
-		if err := tx.NewSelect().
+		if err := db.NewSelect().
 			Model((*entity.InventoryItem)(nil)).
 			ColumnExpr("COALESCE(MAX(slot), 0) + 1").
 			Where("character_id = ?", characterID).
@@ -88,15 +106,26 @@ func (r *BunInventoryRepository) AddItems(
 			CharacterID: characterID,
 			Slot:        nextSlot, ItemKey: itemKey, Quantity: added,
 		}
-		if _, err := tx.NewInsert().Model(stack).Exec(ctx); err != nil {
+		if _, err := db.NewInsert().Model(stack).Exec(ctx); err != nil {
 			return nil, fmt.Errorf("add inventory item: %w", err)
 		}
 		quantity -= added
 	}
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("commit inventory items: %w", err)
+	return (&BunInventoryRepository{db: db}).FindOrCreate(ctx, characterID)
+}
+
+func lockInventory(ctx context.Context, db bun.IDB, characterID int64) error {
+	record := &entity.Inventory{
+		CharacterID: characterID,
+		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
 	}
-	return r.FindOrCreate(ctx, characterID)
+	if _, err := db.NewInsert().Model(record).Ignore().Exec(ctx); err != nil {
+		return fmt.Errorf("create inventory for lock: %w", err)
+	}
+	if err := lockForUpdate(db.NewSelect().Model(record).WherePK(), db).Scan(ctx); err != nil {
+		return fmt.Errorf("lock inventory: %w", err)
+	}
+	return nil
 }
 
 func incrementInventoryStack(

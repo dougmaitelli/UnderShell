@@ -99,107 +99,127 @@ func (r *BunQuestRepository) Complete(
 	characterID int64,
 	definition *quest.Definition,
 ) (QuestCompletion, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return QuestCompletion{}, fmt.Errorf("begin quest completion: %w", err)
-	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
-
-	record := &entity.CharacterQuest{
-		CharacterID: characterID,
-		QuestID:     definition.ID,
-	}
-	err = tx.NewSelect().Model(record).WherePK().Scan(ctx)
-	if errors.Is(err, sql.ErrNoRows) {
-		return QuestCompletion{}, ErrQuestNotActive
-	}
-	if err != nil {
-		return QuestCompletion{}, fmt.Errorf("find active quest: %w", err)
-	}
-	if record.Status != string(domain.QuestActive) {
-		return QuestCompletion{}, ErrQuestNotActive
-	}
-
-	stacks := make([]entity.InventoryItem, 0)
-	if err := tx.NewSelect().
-		Model(&stacks).
-		Where("character_id = ?", characterID).
-		Where("item_key = ?", definition.Objective.Item.ID).
-		Order("slot ASC").
-		Scan(ctx); err != nil {
-		return QuestCompletion{}, fmt.Errorf("find quest items: %w", err)
-	}
-	total := 0
-	for _, stack := range stacks {
-		total += stack.Quantity
-	}
-	if total < definition.Objective.Quantity {
-		return QuestCompletion{}, ErrQuestItemsIncomplete
-	}
-
-	remaining := definition.Objective.Quantity
-	for index := range stacks {
-		stack := &stacks[index]
-		if remaining == 0 {
-			break
+	var completion QuestCompletion
+	err := runEconomicTransaction(ctx, r.db, "quest completion", func(tx bun.Tx) error {
+		if err := lockInventory(ctx, tx, characterID); err != nil {
+			return err
 		}
-		if stack.Quantity <= remaining {
-			remaining -= stack.Quantity
-			if _, err := tx.NewDelete().Model(stack).WherePK().Exec(ctx); err != nil {
-				return QuestCompletion{}, fmt.Errorf("consume quest item stack: %w", err)
-			}
-			continue
+		record := &entity.CharacterQuest{
+			CharacterID: characterID,
+			QuestID:     definition.ID,
 		}
-		if _, err := tx.NewUpdate().
-			Model(stack).
-			Column("quantity").
-			Set("quantity = quantity - ?", remaining).
-			WherePK().
-			Exec(ctx); err != nil {
-			return QuestCompletion{}, fmt.Errorf("consume quest items: %w", err)
+		err := lockForUpdate(tx.NewSelect().Model(record).WherePK(), tx).Scan(ctx)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrQuestNotActive
 		}
-		remaining = 0
-	}
+		if err != nil {
+			return fmt.Errorf("find active quest: %w", err)
+		}
+		if record.Status != string(domain.QuestActive) {
+			return ErrQuestNotActive
+		}
 
-	if err := ensureCharacterProgress(ctx, tx, characterID); err != nil {
-		return QuestCompletion{}, err
-	}
-	if definition.Reward.Gold > 0 {
-		if _, err := tx.NewUpdate().
-			Model((*entity.CharacterProgress)(nil)).
-			Set("gold = gold + ?", definition.Reward.Gold).
+		stacks := make([]entity.InventoryItem, 0)
+		if err := lockForUpdate(tx.NewSelect().
+			Model(&stacks).
 			Where("character_id = ?", characterID).
-			Exec(ctx); err != nil {
-			return QuestCompletion{}, fmt.Errorf("add quest reward gold: %w", err)
+			Where("item_key = ?", definition.Objective.Item.ID).
+			Order("slot ASC"), tx).Scan(ctx); err != nil {
+			return fmt.Errorf("find quest items: %w", err)
 		}
-	}
+		total := 0
+		for _, stack := range stacks {
+			total += stack.Quantity
+		}
+		if total < definition.Objective.Quantity {
+			return ErrQuestItemsIncomplete
+		}
 
-	record.Status = string(domain.QuestCompleted)
-	record.CompletedAt = time.Now().UTC().Format(time.RFC3339Nano)
-	if _, err := tx.NewUpdate().
-		Model(record).
-		Column("status", "completed_at").
-		WherePK().
-		Where("status = ?", domain.QuestActive).
-		Exec(ctx); err != nil {
-		return QuestCompletion{}, fmt.Errorf("complete quest: %w", err)
-	}
-	inventory, err := (&BunInventoryRepository{db: tx}).FindOrCreate(ctx, characterID)
+		// Claim completion before consuming items or awarding gold. The status
+		// predicate is the durable single-winner gate even without row locks.
+		record.Status = string(domain.QuestCompleted)
+		record.CompletedAt = time.Now().UTC().Format(time.RFC3339Nano)
+		result, err := tx.NewUpdate().
+			Model(record).
+			Column("status", "completed_at").
+			WherePK().
+			Where("status = ?", domain.QuestActive).
+			Exec(ctx)
+		if err != nil {
+			return fmt.Errorf("claim quest completion: %w", err)
+		}
+		if err := requireOneRow(result, "claim quest completion"); err != nil {
+			return ErrQuestNotActive
+		}
+
+		remaining := definition.Objective.Quantity
+		for index := range stacks {
+			stack := &stacks[index]
+			if remaining == 0 {
+				break
+			}
+			if stack.Quantity <= remaining {
+				remaining -= stack.Quantity
+				result, err := tx.NewDelete().Model(stack).WherePK().
+					Where("quantity = ?", stack.Quantity).Exec(ctx)
+				if err != nil {
+					return fmt.Errorf("consume quest item stack: %w", err)
+				}
+				if err := requireOneRow(result, "consume quest item stack"); err != nil {
+					return err
+				}
+				continue
+			}
+			result, err := tx.NewUpdate().
+				Model(stack).
+				Column("quantity").
+				Set("quantity = quantity - ?", remaining).
+				WherePK().Where("quantity = ?", stack.Quantity).Exec(ctx)
+			if err != nil {
+				return fmt.Errorf("consume quest items: %w", err)
+			}
+			if err := requireOneRow(result, "consume quest items"); err != nil {
+				return err
+			}
+			remaining = 0
+		}
+
+		if err := ensureCharacterProgress(ctx, tx, characterID); err != nil {
+			return err
+		}
+		if err := lockCharacterProgress(ctx, tx, characterID); err != nil {
+			return err
+		}
+		if definition.Reward.Gold > 0 {
+			result, err := tx.NewUpdate().
+				Model((*entity.CharacterProgress)(nil)).
+				Set("gold = gold + ?", definition.Reward.Gold).
+				Where("character_id = ?", characterID).
+				Exec(ctx)
+			if err != nil {
+				return fmt.Errorf("add quest reward gold: %w", err)
+			}
+			if err := requireOneRow(result, "add quest reward gold"); err != nil {
+				return err
+			}
+		}
+		inventory, err := (&BunInventoryRepository{db: tx}).FindOrCreate(ctx, characterID)
+		if err != nil {
+			return err
+		}
+		gold, err := characterGold(ctx, tx, characterID)
+		if err != nil {
+			return err
+		}
+		completion = QuestCompletion{
+			Quest: toDomainQuest(*record), Inventory: inventory, Gold: gold,
+		}
+		return nil
+	})
 	if err != nil {
 		return QuestCompletion{}, err
 	}
-	gold, err := characterGold(ctx, tx, characterID)
-	if err != nil {
-		return QuestCompletion{}, err
-	}
-	if err := tx.Commit(); err != nil {
-		return QuestCompletion{}, fmt.Errorf("commit quest completion: %w", err)
-	}
-	return QuestCompletion{
-		Quest: toDomainQuest(*record), Inventory: inventory, Gold: gold,
-	}, nil
+	return completion, nil
 }
 
 func toDomainQuest(record entity.CharacterQuest) domain.CharacterQuest {

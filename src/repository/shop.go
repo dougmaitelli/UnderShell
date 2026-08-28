@@ -46,46 +46,48 @@ func (r *BunShopRepository) BuyItem(
 	if price < 1 {
 		return TradeResult{}, errors.New("buy price must be positive")
 	}
-	tx, err := r.db.BeginTx(ctx, nil)
+	var trade TradeResult
+	err := runEconomicTransaction(ctx, r.db, "shop purchase", func(tx bun.Tx) error {
+		if err := lockInventory(ctx, tx, characterID); err != nil {
+			return err
+		}
+		if err := ensureCharacterProgress(ctx, tx, characterID); err != nil {
+			return err
+		}
+		if err := lockCharacterProgress(ctx, tx, characterID); err != nil {
+			return err
+		}
+		result, err := tx.NewUpdate().
+			Model((*entity.CharacterProgress)(nil)).
+			Set("gold = gold - ?", price).
+			Where("character_id = ?", characterID).
+			Where("gold >= ?", price).
+			Exec(ctx)
+		if err != nil {
+			return fmt.Errorf("spend gold: %w", err)
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("read spent gold count: %w", err)
+		}
+		if affected == 0 {
+			return ErrInsufficientGold
+		}
+		inventory, err := addItems(ctx, tx, characterID, itemKey, maxStack, 1)
+		if err != nil {
+			return err
+		}
+		gold, err := characterGold(ctx, tx, characterID)
+		if err != nil {
+			return err
+		}
+		trade = TradeResult{Inventory: inventory, Gold: gold}
+		return nil
+	})
 	if err != nil {
-		return TradeResult{}, fmt.Errorf("begin shop purchase: %w", err)
-	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
-	if err := ensureCharacterProgress(ctx, tx, characterID); err != nil {
 		return TradeResult{}, err
 	}
-	result, err := tx.NewUpdate().
-		Model((*entity.CharacterProgress)(nil)).
-		Set("gold = gold - ?", price).
-		Where("character_id = ?", characterID).
-		Where("gold >= ?", price).
-		Exec(ctx)
-	if err != nil {
-		return TradeResult{}, fmt.Errorf("spend gold: %w", err)
-	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return TradeResult{}, fmt.Errorf("read spent gold count: %w", err)
-	}
-	if affected == 0 {
-		return TradeResult{}, ErrInsufficientGold
-	}
-	inventory, err := (&BunInventoryRepository{db: tx}).AddItem(
-		ctx, characterID, itemKey, maxStack,
-	)
-	if err != nil {
-		return TradeResult{}, err
-	}
-	gold, err := characterGold(ctx, tx, characterID)
-	if err != nil {
-		return TradeResult{}, err
-	}
-	if err := tx.Commit(); err != nil {
-		return TradeResult{}, fmt.Errorf("commit shop purchase: %w", err)
-	}
-	return TradeResult{Inventory: inventory, Gold: gold}, nil
+	return trade, nil
 }
 
 func (r *BunShopRepository) SellItem(
@@ -98,74 +100,93 @@ func (r *BunShopRepository) SellItem(
 	if price < 1 {
 		return TradeResult{}, errors.New("sell price must be positive")
 	}
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return TradeResult{}, fmt.Errorf("begin shop sale: %w", err)
-	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
-	stack := new(entity.InventoryItem)
-	err = tx.NewSelect().
-		Model(stack).
-		Where("character_id = ?", characterID).
-		Where("slot = ?", slot).
-		Where("item_key = ?", itemKey).
-		Scan(ctx)
-	if errors.Is(err, sql.ErrNoRows) {
-		return TradeResult{}, ErrItemNotOwned
-	}
-	if err != nil {
-		return TradeResult{}, fmt.Errorf("find sold inventory item: %w", err)
-	}
-	var equippedCount int
-	if err := tx.NewSelect().
-		Model((*entity.CharacterEquipment)(nil)).
-		ColumnExpr("COUNT(*)").
-		Where("character_id = ?", characterID).
-		Where("inventory_slot = ?", slot).
-		Scan(ctx, &equippedCount); err != nil {
-		return TradeResult{}, fmt.Errorf("check sold equipment: %w", err)
-	}
-	if equippedCount > 0 {
-		return TradeResult{}, ErrItemEquipped
-	}
-	if stack.Quantity > 1 {
-		if _, err := tx.NewUpdate().
+	var trade TradeResult
+	err := runEconomicTransaction(ctx, r.db, "shop sale", func(tx bun.Tx) error {
+		if err := lockInventory(ctx, tx, characterID); err != nil {
+			return err
+		}
+		stack := new(entity.InventoryItem)
+		err := lockForUpdate(tx.NewSelect().
 			Model(stack).
-			Column("quantity").
-			Set("quantity = quantity - 1").
-			WherePK().
-			Exec(ctx); err != nil {
-			return TradeResult{}, fmt.Errorf("decrease sold inventory item: %w", err)
+			Where("character_id = ?", characterID).
+			Where("slot = ?", slot).
+			Where("item_key = ?", itemKey), tx).Scan(ctx)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrItemNotOwned
 		}
-	} else {
-		if _, err := tx.NewDelete().Model(stack).WherePK().Exec(ctx); err != nil {
-			return TradeResult{}, fmt.Errorf("remove sold inventory item: %w", err)
+		if err != nil {
+			return fmt.Errorf("find sold inventory item: %w", err)
 		}
-	}
-	if err := ensureCharacterProgress(ctx, tx, characterID); err != nil {
-		return TradeResult{}, err
-	}
-	if _, err := tx.NewUpdate().
-		Model((*entity.CharacterProgress)(nil)).
-		Set("gold = gold + ?", price).
-		Where("character_id = ?", characterID).
-		Exec(ctx); err != nil {
-		return TradeResult{}, fmt.Errorf("add sale gold: %w", err)
-	}
-	inventory, err := (&BunInventoryRepository{db: tx}).FindOrCreate(ctx, characterID)
+		var equippedCount int
+		if err := tx.NewSelect().
+			Model((*entity.CharacterEquipment)(nil)).
+			ColumnExpr("COUNT(*)").
+			Where("character_id = ?", characterID).
+			Where("inventory_slot = ?", slot).
+			Scan(ctx, &equippedCount); err != nil {
+			return fmt.Errorf("check sold equipment: %w", err)
+		}
+		if equippedCount > 0 {
+			return ErrItemEquipped
+		}
+		var mutation sql.Result
+		if stack.Quantity > 1 {
+			mutation, err = tx.NewUpdate().
+				Model(stack).
+				Column("quantity").
+				Set("quantity = quantity - 1").
+				WherePK().Where("quantity = ?", stack.Quantity).Exec(ctx)
+		} else {
+			mutation, err = tx.NewDelete().Model(stack).WherePK().
+				Where("quantity = 1").Exec(ctx)
+		}
+		if err != nil {
+			return fmt.Errorf("remove sold inventory item: %w", err)
+		}
+		if err := requireOneRow(mutation, "sell inventory item"); err != nil {
+			return err
+		}
+		if err := ensureCharacterProgress(ctx, tx, characterID); err != nil {
+			return err
+		}
+		if err := lockCharacterProgress(ctx, tx, characterID); err != nil {
+			return err
+		}
+		result, err := tx.NewUpdate().
+			Model((*entity.CharacterProgress)(nil)).
+			Set("gold = gold + ?", price).
+			Where("character_id = ?", characterID).
+			Exec(ctx)
+		if err != nil {
+			return fmt.Errorf("add sale gold: %w", err)
+		}
+		if err := requireOneRow(result, "add sale gold"); err != nil {
+			return err
+		}
+		inventory, err := (&BunInventoryRepository{db: tx}).FindOrCreate(ctx, characterID)
+		if err != nil {
+			return err
+		}
+		gold, err := characterGold(ctx, tx, characterID)
+		if err != nil {
+			return err
+		}
+		trade = TradeResult{Inventory: inventory, Gold: gold}
+		return nil
+	})
 	if err != nil {
 		return TradeResult{}, err
 	}
-	gold, err := characterGold(ctx, tx, characterID)
-	if err != nil {
-		return TradeResult{}, err
+	return trade, nil
+}
+
+func lockCharacterProgress(ctx context.Context, db bun.IDB, characterID int64) error {
+	progress := new(entity.CharacterProgress)
+	if err := lockForUpdate(db.NewSelect().Model(progress).
+		Where("character_id = ?", characterID), db).Scan(ctx); err != nil {
+		return fmt.Errorf("lock character progress: %w", err)
 	}
-	if err := tx.Commit(); err != nil {
-		return TradeResult{}, fmt.Errorf("commit shop sale: %w", err)
-	}
-	return TradeResult{Inventory: inventory, Gold: gold}, nil
+	return nil
 }
 
 func ensureCharacterProgress(ctx context.Context, db bun.IDB, characterID int64) error {

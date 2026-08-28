@@ -93,7 +93,16 @@ func main() {
 		Characters: characters, Inventories: inventories, Shops: shops,
 		Quests: questProgress,
 	}, worldManager, adminCommands, log)
-	server, err := sshserver.New(cfg.ListenAddr, cfg.HostKeyPath, runner, log)
+	server, err := sshserver.New(
+		cfg.ListenAddr, cfg.HostKeyPath, runner, log,
+		sshserver.AdmissionConfig{
+			MaxConnections:       cfg.SSHMaxConnections,
+			MaxConnectionsPerIP:  cfg.SSHMaxConnectionsPerIP,
+			MaxSessions:          cfg.SSHMaxSessions,
+			HandshakesPerMinute:  cfg.SSHHandshakesPerMinute,
+			RegistrationsPerHour: cfg.SSHRegistrationsPerHour,
+		},
+	)
 	if err != nil {
 		log.Error("configure SSH server", "error", err)
 		os.Exit(1)

@@ -150,6 +150,11 @@ Runtime paths and listener settings are configured with environment variables:
 |---|---|---|
 | `SSH_LISTEN_ADDR` | `:2222` | SSH listener address |
 | `SSH_HOST_KEY_PATH` | `./data/ssh_host_ed25519` | Persistent server host key |
+| `SSH_MAX_CONNECTIONS` | `128` | Maximum concurrent pre-authenticated and authenticated TCP connections |
+| `SSH_MAX_CONNECTIONS_PER_IP` | `2` | Maximum concurrent TCP connections from one source IP |
+| `SSH_MAX_SESSIONS` | `64` | Maximum concurrent interactive SSH sessions |
+| `SSH_HANDSHAKES_PER_MINUTE_PER_IP` | `30` | Raw SSH connection attempts allowed per source IP per minute |
+| `SSH_REGISTRATIONS_PER_HOUR_PER_IP` | `5` | New-character flows allowed per source IP per hour |
 | `DATABASE_URL` | unset | PostgreSQL connection URL; takes precedence over `DATABASE_PATH` |
 | `DATABASE_PATH` | `./data/game.db` | SQLite fallback for local development and tests |
 | `GAME_CONFIG_PATH` | `./content/game.json` | Global game configuration |
@@ -158,6 +163,13 @@ Runtime paths and listener settings are configured with environment variables:
 | `ITEMS_PATH` | `./content/items` | Item definition directory |
 | `ENEMIES_PATH` | `./content/enemies` | Enemy definition directory |
 | `QUESTS_PATH` | `./content/quests` | Quest definition directory |
+
+Admission counters are retained in memory for monitoring integrations, while
+rejected connections are logged immediately. Limits use the TCP peer address.
+When deploying behind a proxy, use a TCP-aware rate-limiting proxy as the primary
+edge defense and ensure its connection limits account for the fact that the game
+sees the proxy as the peer; PROXY protocol addresses are not currently consumed
+by UnderShell.
 
 For example:
 

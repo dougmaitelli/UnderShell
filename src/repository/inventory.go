@@ -80,7 +80,10 @@ func addItems(
 			added := min(quantity, maxStack-stack.Quantity)
 			result, err := incrementInventoryStack(
 				db, characterID, stack.Slot, added,
-			).Where("quantity = ?", stack.Quantity).Exec(ctx)
+			).
+				Where("quantity = ?", stack.Quantity).
+				Where("quantity + ? <= ?", added, maxStack).
+				Exec(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("increase inventory item: %w", err)
 			}

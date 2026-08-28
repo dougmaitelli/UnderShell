@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/undershell-logo.svg" alt="UnderShell shell prompt with a pixel-art player cursor" width="320">
+  <img src="docs/assets/logo.png" alt="UnderShell shell prompt with a pixel-art player cursor" width="320">
 </p>
 
 # UnderShell

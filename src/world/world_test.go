@@ -1,7 +1,9 @@
 package world
 
 import (
+	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -9,6 +11,72 @@ import (
 	"sshrpg/src/enemy"
 	"sshrpg/src/item"
 )
+
+func TestManagerCloseIsIdempotentAndAPIsReturnAfterShutdown(t *testing.T) {
+	manager := New(testAreas(t), nil, nil, nil)
+	var closers sync.WaitGroup
+	for range 8 {
+		closers.Add(1)
+		go func() {
+			defer closers.Done()
+			manager.Close()
+		}()
+	}
+	closers.Wait()
+
+	completed := make(chan struct{})
+	go func() {
+		defer close(completed)
+		if session := manager.Join(Player{ID: 1}); session.Token != "" {
+			t.Errorf("join after shutdown returned session %#v", session)
+		}
+		if player := manager.Move(1, "token", 1, 0); player.ID != 0 {
+			t.Errorf("move after shutdown returned player %#v", player)
+		}
+		if manager.Attack(1, "token").HitIDs != nil {
+			t.Error("attack after shutdown returned a result")
+		}
+		if _, err := manager.FindOnlinePlayer("Aria"); !errors.Is(err, ErrWorldClosed) {
+			t.Errorf("find after shutdown error = %v", err)
+		}
+		if manager.Chat(1, "token", "hello") {
+			t.Error("chat after shutdown succeeded")
+		}
+	}()
+	select {
+	case <-completed:
+	case <-time.After(time.Second):
+		t.Fatal("world API blocked after shutdown")
+	}
+}
+
+func TestRequestReturnsWhenWorldClosesWhileWaitingForReply(t *testing.T) {
+	manager := &Manager{events: make(chan any), done: make(chan struct{})}
+	accepted := make(chan chan bool, 1)
+	go func() {
+		event := (<-manager.events).(defeatEnemyRequest)
+		accepted <- event.reply
+	}()
+	completed := make(chan bool, 1)
+	go func() { completed <- manager.DefeatEnemy(1) }()
+	reply := <-accepted
+	manager.Close()
+	select {
+	case result := <-completed:
+		if result {
+			t.Fatal("request unexpectedly succeeded during shutdown")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("request remained blocked waiting for reply")
+	}
+	// The accepted request can still finish without blocking even though its
+	// caller already returned on shutdown.
+	select {
+	case reply <- true:
+	default:
+		t.Fatal("reply channel was not buffered")
+	}
+}
 
 func TestPlayersOnlySeeOthersInTheirArea(t *testing.T) {
 	manager := New(testAreas(t), nil, nil, nil)

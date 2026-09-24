@@ -42,3 +42,16 @@ func TestEnvWithFallback(t *testing.T) {
 		t.Fatalf("defaulted config = %q, want configured value", got)
 	}
 }
+
+func TestEnvIntRequiresPositiveInteger(t *testing.T) {
+	for _, value := range []string{"", "invalid", "0", "-1"} {
+		t.Setenv("INTEGER_CONFIG", value)
+		if got := envInt("INTEGER_CONFIG", 7); got != 7 {
+			t.Fatalf("envInt(%q) = %d, want fallback", value, got)
+		}
+	}
+	t.Setenv("INTEGER_CONFIG", "12")
+	if got := envInt("INTEGER_CONFIG", 7); got != 12 {
+		t.Fatalf("envInt configured = %d, want 12", got)
+	}
+}

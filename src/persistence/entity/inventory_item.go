@@ -9,5 +9,5 @@ type InventoryItem struct {
 	CharacterID int64  `bun:"character_id,pk"`
 	Slot        int    `bun:"slot,pk"`
 	ItemKey     string `bun:"item_key,notnull"`
-	Quantity    int    `bun:"quantity,notnull"`
+	Quantity    int    `bun:"quantity,notnull,type:BIGINT CHECK (quantity > 0)"`
 }

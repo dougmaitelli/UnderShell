@@ -57,6 +57,7 @@ func (m *gameModel) updateChatMessage(msg chatMessageMsg) (tea.Model, tea.Cmd) {
 
 func (m *gameModel) updateWorldSnapshot(msg worldSnapshotMsg) (tea.Model, tea.Cmd) {
 	if !msg.ok {
+		m.cancel()
 		return m, tea.Quit
 	}
 	visibleChange := snapshotAffectsView(

@@ -7,34 +7,53 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 )
 
 type Config struct {
-	ListenAddr   string
-	HostKeyPath  string
-	DatabaseURL  string
-	DatabasePath string
-	GamePath     string
-	AreasPath    string
-	ObjectsPath  string
-	ItemsPath    string
-	EnemiesPath  string
-	QuestsPath   string
+	ListenAddr              string
+	HostKeyPath             string
+	DatabaseURL             string
+	DatabasePath            string
+	GamePath                string
+	AreasPath               string
+	ObjectsPath             string
+	ItemsPath               string
+	EnemiesPath             string
+	QuestsPath              string
+	SSHMaxConnections       int
+	SSHMaxConnectionsPerIP  int
+	SSHMaxSessions          int
+	SSHHandshakesPerMinute  int
+	SSHRegistrationsPerHour int
 }
 
 func Load() Config {
 	return Config{
-		ListenAddr:   env("SSH_LISTEN_ADDR", ":2222"),
-		HostKeyPath:  env("SSH_HOST_KEY_PATH", "./data/ssh_host_ed25519"),
-		DatabaseURL:  env("DATABASE_URL"),
-		DatabasePath: env("DATABASE_PATH", "./data/game.db"),
-		GamePath:     env("GAME_CONFIG_PATH", "./content/game.json"),
-		AreasPath:    env("AREAS_PATH", "./content/areas"),
-		ObjectsPath:  env("OBJECTS_PATH", "./content/objects"),
-		ItemsPath:    env("ITEMS_PATH", "./content/items"),
-		EnemiesPath:  env("ENEMIES_PATH", "./content/enemies"),
-		QuestsPath:   env("QUESTS_PATH", "./content/quests"),
+		ListenAddr:              env("SSH_LISTEN_ADDR", ":2222"),
+		HostKeyPath:             env("SSH_HOST_KEY_PATH", "./data/ssh_host_ed25519"),
+		DatabaseURL:             env("DATABASE_URL"),
+		DatabasePath:            env("DATABASE_PATH", "./data/game.db"),
+		GamePath:                env("GAME_CONFIG_PATH", "./content/game.json"),
+		AreasPath:               env("AREAS_PATH", "./content/areas"),
+		ObjectsPath:             env("OBJECTS_PATH", "./content/objects"),
+		ItemsPath:               env("ITEMS_PATH", "./content/items"),
+		EnemiesPath:             env("ENEMIES_PATH", "./content/enemies"),
+		QuestsPath:              env("QUESTS_PATH", "./content/quests"),
+		SSHMaxConnections:       envInt("SSH_MAX_CONNECTIONS", 128),
+		SSHMaxConnectionsPerIP:  envInt("SSH_MAX_CONNECTIONS_PER_IP", 2),
+		SSHMaxSessions:          envInt("SSH_MAX_SESSIONS", 64),
+		SSHHandshakesPerMinute:  envInt("SSH_HANDSHAKES_PER_MINUTE_PER_IP", 30),
+		SSHRegistrationsPerHour: envInt("SSH_REGISTRATIONS_PER_HOUR_PER_IP", 5),
 	}
+}
+
+func envInt(key string, fallback int) int {
+	value, err := strconv.Atoi(os.Getenv(key))
+	if err != nil || value < 1 {
+		return fallback
+	}
+	return value
 }
 
 // DatabaseSource returns the PostgreSQL URL when configured, otherwise the

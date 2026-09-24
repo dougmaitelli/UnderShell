@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" role="img" aria-labelledby="title description">
+  <title id="title">UnderShell</title>
+  <desc id="description">A terminal prompt whose cursor supports the game's stick-figure player</desc>
+
+  <!-- A conventional prompt and underscore share the same baseline. -->
+  <text x="49" y="124" fill="#3fae68" stroke="#111718" stroke-width="5" paint-order="stroke" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="94" font-weight="700">&gt;</text>
+  <path fill="#3fae68" d="M96 124h112v8H96z"/>
+
+  <!-- The game's O, /|\, / \ player reduced to a simple stick figure. -->
+  <g transform="translate(0 -5)">
+  <path fill="none" stroke="#111718" stroke-width="12" stroke-linecap="square" stroke-linejoin="miter" d="M176 64v40M176 76l-20 16m20-16 20 16m-20 12-16 20m16-20 16 20"/>
+  <path fill="none" stroke="#f0f3e8" stroke-width="8" stroke-linecap="square" stroke-linejoin="miter" d="M176 64v40M176 76l-20 16m20-16 20 16m-20 12-16 20m16-20 16 20"/>
+  <circle cx="176" cy="48" r="12" fill="#111718"/>
+  <path fill="none" stroke="#111718" stroke-width="12" d="M169 58a12 12 0 1 1 14 0"/>
+  <circle cx="176" cy="48" r="12" fill="#111718" stroke="#f0f3e8" stroke-width="8"/>
+  </g>
+
+  <text x="96" y="160" textLength="112" lengthAdjust="spacingAndGlyphs" fill="#f0f3e8" stroke="#111718" stroke-width="2" paint-order="stroke" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="28" font-weight="700">UnderShell</text>
+</svg>

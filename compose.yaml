@@ -22,6 +22,11 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-undershell}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB:-undershell}?sslmode=disable
+      SSH_MAX_CONNECTIONS: ${SSH_MAX_CONNECTIONS:-128}
+      SSH_MAX_CONNECTIONS_PER_IP: ${SSH_MAX_CONNECTIONS_PER_IP:-2}
+      SSH_MAX_SESSIONS: ${SSH_MAX_SESSIONS:-64}
+      SSH_HANDSHAKES_PER_MINUTE_PER_IP: ${SSH_HANDSHAKES_PER_MINUTE_PER_IP:-30}
+      SSH_REGISTRATIONS_PER_HOUR_PER_IP: ${SSH_REGISTRATIONS_PER_HOUR_PER_IP:-5}
     ports:
       - "22:2222"
     volumes:

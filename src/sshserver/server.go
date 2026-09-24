@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -23,16 +24,24 @@ import (
 type identityKey struct{}
 
 type Server struct {
-	server *ssh.Server
-	log    *slog.Logger
+	server    *ssh.Server
+	log       *slog.Logger
+	admission *admissionController
 }
 
-func New(addr, hostKeyPath string, runner *ui.Runner, log *slog.Logger) (*Server, error) {
+func New(
+	addr, hostKeyPath string,
+	runner *ui.Runner,
+	log *slog.Logger,
+	admissionConfig AdmissionConfig,
+) (*Server, error) {
 	signer, err := loadOrCreateHostKey(hostKeyPath)
 	if err != nil {
 		return nil, fmt.Errorf("host key: %w", err)
 	}
 
+	admission := newAdmissionController(admissionConfig)
+	runner.SetRegistrationLimiter(admission)
 	s := &ssh.Server{
 		Addr:        addr,
 		IdleTimeout: 30 * time.Minute,
@@ -47,7 +56,26 @@ func New(addr, hostKeyPath string, runner *ui.Runner, log *slog.Logger) (*Server
 			ctx.SetValue(identityKey{}, identity)
 			return true
 		},
+		ConnCallback: func(_ ssh.Context, connection net.Conn) net.Conn {
+			ip := remoteIP(connection.RemoteAddr())
+			if !admission.acquireConnection(ip, time.Now()) {
+				metrics := admission.metrics()
+				log.Warn("SSH connection rejected", "remote_ip", ip,
+					"connections_active", metrics.ConnectionsActive,
+					"connections_rejected", metrics.ConnectionsRejected,
+					"handshakes_rejected", metrics.HandshakesRejected)
+				return nil
+			}
+			return &admittedConn{Conn: connection, release: func() {
+				admission.releaseConnection(ip)
+			}}
+		},
 		Handler: func(session ssh.Session) {
+			if !admission.acquireSession() {
+				_, _ = session.Write([]byte("The server is at its session limit. Please try again later.\n"))
+				return
+			}
+			defer admission.releaseSession()
 			value := session.Context().Value(identityKey{})
 			identity, ok := value.(ui.Identity)
 			if !ok {
@@ -61,7 +89,7 @@ func New(addr, hostKeyPath string, runner *ui.Runner, log *slog.Logger) (*Server
 		ReversePortForwardingCallback: func(_ ssh.Context, _ string, _ uint32) bool { return false },
 	}
 	s.AddHostKey(signer)
-	return &Server{server: s, log: log}, nil
+	return &Server{server: s, log: log, admission: admission}, nil
 }
 
 func (s *Server) ListenAndServe() error {
@@ -72,6 +100,8 @@ func (s *Server) ListenAndServe() error {
 	}
 	return err
 }
+
+func (s *Server) Metrics() AdmissionMetrics { return s.admission.metrics() }
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.server.Shutdown(ctx)

@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -22,13 +23,19 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	if err := run(log); err != nil {
+		log.Error("server stopped", "error", err)
+		os.Exit(1)
+	}
+}
+
+func run(log *slog.Logger) error {
+	cfg := config.Load()
 
 	database, err := persistence.Open(cfg.DatabaseSource())
 	if err != nil {
-		log.Error("open database", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("open database: %w", err)
 	}
 	defer func() {
 		if err := database.Close(); err != nil {
@@ -42,32 +49,26 @@ func main() {
 
 	game, err := config.LoadGame(cfg.GamePath)
 	if err != nil {
-		log.Error("load game config", "path", cfg.GamePath, "error", err)
-		os.Exit(1)
+		return fmt.Errorf("load game config %s: %w", cfg.GamePath, err)
 	}
 	items, err := item.LoadItems(cfg.ItemsPath)
 	if err != nil {
-		log.Error("load items", "path", cfg.ItemsPath, "error", err)
-		os.Exit(1)
+		return fmt.Errorf("load items %s: %w", cfg.ItemsPath, err)
 	}
 	enemies, err := enemy.LoadEnemies(cfg.EnemiesPath, items)
 	if err != nil {
-		log.Error("load enemies", "path", cfg.EnemiesPath, "error", err)
-		os.Exit(1)
+		return fmt.Errorf("load enemies %s: %w", cfg.EnemiesPath, err)
 	}
 	quests, err := quest.LoadQuests(cfg.QuestsPath, items)
 	if err != nil {
-		log.Error("load quests", "path", cfg.QuestsPath, "error", err)
-		os.Exit(1)
+		return fmt.Errorf("load quests %s: %w", cfg.QuestsPath, err)
 	}
 	if err := quests.ValidateObjectives(enemies); err != nil {
-		log.Error("validate quest enemy drops", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("validate quest enemy drops: %w", err)
 	}
 	objects, err := world.LoadMapObjects(cfg.ObjectsPath)
 	if err != nil {
-		log.Error("load map objects", "path", cfg.ObjectsPath, "error", err)
-		os.Exit(1)
+		return fmt.Errorf("load map objects %s: %w", cfg.ObjectsPath, err)
 	}
 	areas, err := world.LoadAreas(
 		cfg.AreasPath, world.References{
@@ -75,15 +76,13 @@ func main() {
 		},
 	)
 	if err != nil {
-		log.Error("load areas", "path", cfg.AreasPath, "error", err)
-		os.Exit(1)
+		return fmt.Errorf("load areas %s: %w", cfg.AreasPath, err)
 	}
 	if err := areas.SetDefaultSpawn(
 		game.DefaultSpawn.AreaID,
 		world.Point{X: game.DefaultSpawn.X, Y: game.DefaultSpawn.Y},
 	); err != nil {
-		log.Error("validate default spawn", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("validate default spawn: %w", err)
 	}
 	worldManager := world.New(areas, items, enemies, quests)
 	defer worldManager.Close()
@@ -93,10 +92,18 @@ func main() {
 		Characters: characters, Inventories: inventories, Shops: shops,
 		Quests: questProgress,
 	}, worldManager, adminCommands, log)
-	server, err := sshserver.New(cfg.ListenAddr, cfg.HostKeyPath, runner, log)
+	server, err := sshserver.New(
+		cfg.ListenAddr, cfg.HostKeyPath, runner, log,
+		sshserver.AdmissionConfig{
+			MaxConnections:       cfg.SSHMaxConnections,
+			MaxConnectionsPerIP:  cfg.SSHMaxConnectionsPerIP,
+			MaxSessions:          cfg.SSHMaxSessions,
+			HandshakesPerMinute:  cfg.SSHHandshakesPerMinute,
+			RegistrationsPerHour: cfg.SSHRegistrationsPerHour,
+		},
+	)
 	if err != nil {
-		log.Error("configure SSH server", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("configure SSH server: %w", err)
 	}
 
 	errs := make(chan error, 1)
@@ -109,20 +116,21 @@ func main() {
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(signals)
 	select {
 	case sig := <-signals:
 		log.Info("shutting down", "signal", sig)
 	case err := <-errs:
 		if err != nil {
-			log.Error("SSH server stopped", "error", err)
-			os.Exit(1)
+			return fmt.Errorf("serve SSH: %w", err)
 		}
-		return
+		return nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
-		log.Error("graceful shutdown", "error", err)
+		return fmt.Errorf("graceful SSH shutdown: %w", err)
 	}
+	return nil
 }

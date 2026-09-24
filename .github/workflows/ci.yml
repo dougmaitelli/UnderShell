@@ -24,7 +24,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version: '1.26.x'
+          check-latest: true
           cache-dependency-path: go.sum
 
       - name: Check formatting
@@ -40,6 +41,48 @@ jobs:
       - name: Run tests
         run: go test -race ./...
 
+      - name: Run vet
+        run: go vet ./...
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Scan dependencies for vulnerabilities
+        run: govulncheck ./...
+
+  postgres:
+    name: PostgreSQL integration and concurrency
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: undershell_test
+          POSTGRES_USER: undershell
+          POSTGRES_PASSWORD: undershell_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U undershell -d undershell_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_TEST_DATABASE_URL: postgres://undershell:undershell_test@localhost:5432/undershell_test?sslmode=disable
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.x'
+          check-latest: true
+          cache-dependency-path: go.sum
+
+      - name: Run PostgreSQL integration tests
+        run: go test -race -count=1 ./src/repository -run '^TestPostgreSQL'
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -50,7 +93,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version: '1.26.x'
+          check-latest: true
           cache-dependency-path: go.sum
 
       - name: Run golangci-lint
@@ -64,6 +108,7 @@ jobs:
     needs:
       - test
       - lint
+      - postgres
     permissions:
       contents: read
       packages: write

@@ -196,6 +196,8 @@ func integrationCharacterName(suffix string) string {
 		return "PgSeller"
 	case "quest":
 		return "PgQuester"
+	case "consume":
+		return "PgConsumer"
 	default:
 		return "PgKeeper"
 	}

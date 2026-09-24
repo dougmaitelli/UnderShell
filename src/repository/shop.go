@@ -133,7 +133,6 @@ func (r *BunShopRepository) SellItem(
 		if stack.Quantity > 1 {
 			mutation, err = tx.NewUpdate().
 				Model(stack).
-				Column("quantity").
 				Set("quantity = quantity - 1").
 				WherePK().Where("quantity = ?", stack.Quantity).Exec(ctx)
 		} else {

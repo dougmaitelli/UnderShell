@@ -24,7 +24,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version: '1.26.x'
+          check-latest: true
           cache-dependency-path: go.sum
 
       - name: Check formatting
@@ -75,7 +76,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version: '1.26.x'
+          check-latest: true
           cache-dependency-path: go.sum
 
       - name: Run PostgreSQL integration tests
@@ -91,7 +93,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version: '1.26.x'
+          check-latest: true
           cache-dependency-path: go.sum
 
       - name: Run golangci-lint

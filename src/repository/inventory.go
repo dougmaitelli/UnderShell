@@ -181,7 +181,6 @@ func (r *BunInventoryRepository) ConsumeItem(
 	if stack.Quantity > 1 {
 		if _, err := tx.NewUpdate().
 			Model(stack).
-			Column("quantity").
 			Set("quantity = quantity - 1").
 			WherePK().
 			Exec(ctx); err != nil {

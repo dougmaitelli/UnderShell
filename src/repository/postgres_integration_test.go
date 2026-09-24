@@ -66,6 +66,31 @@ func TestPostgreSQLConcurrentEconomicTransitions(t *testing.T) {
 		}
 	})
 
+	t.Run("consume stack", func(t *testing.T) {
+		ctx := context.Background()
+		character := createIntegrationCharacter(t, database, "consume")
+		inventories := NewInventoryRepository(database.ORM())
+		inventory, err := inventories.AddItems(ctx, character.ID, "health_potion", 10, 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		slot := inventory.Items[0].Slot
+		remaining, err := inventories.ConsumeItem(ctx, character.ID, slot, "health_potion")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(remaining.Items) != 1 || remaining.Items[0].Quantity != 1 {
+			t.Fatalf("consumed stack = %#v", remaining.Items)
+		}
+		empty, err := inventories.ConsumeItem(ctx, character.ID, slot, "health_potion")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(empty.Items) != 0 {
+			t.Fatalf("last consumed item remained: %#v", empty.Items)
+		}
+	})
+
 	t.Run("quest completion", func(t *testing.T) {
 		ctx := context.Background()
 		character := createIntegrationCharacter(t, database, "quest")

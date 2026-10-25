@@ -9,8 +9,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/ssh"
 	"github.com/charmbracelet/colorprofile"
-	"github.com/charmbracelet/ssh"
 
 	"sshrpg/src/admin"
 	"sshrpg/src/domain"

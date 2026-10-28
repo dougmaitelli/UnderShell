@@ -1,18 +1,30 @@
 version: 2
-
 updates:
   - package-ecosystem: gomod
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 3
     groups:
-      bun:
+      backend-minor-patch:
+        applies-to: version-updates
         patterns:
-          - "github.com/uptrace/bun*"
+          - "*"
+        update-types:
+          - minor
+          - patch
+      bun-major:
+        applies-to: version-updates
+        patterns:
+          - github.com/uptrace/bun*
+        update-types:
+          - major
+      backend-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
     labels:
       - dependencies
-
   - package-ecosystem: docker
     directory: /
     schedule:
@@ -20,7 +32,19 @@ updates:
     labels:
       - dependencies
       - docker
-
+    open-pull-requests-limit: 3
+    groups:
+      container-images-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+      container-images-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -28,3 +52,16 @@ updates:
     labels:
       - dependencies
       - github-actions
+    open-pull-requests-limit: 3
+    groups:
+      actions-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+      actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
